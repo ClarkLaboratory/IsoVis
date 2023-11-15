@@ -1,4 +1,4 @@
-# IsoMix
+# IsoVis
 
 Repository placeholder to link to IsoVis on our lab GitHub.
 
