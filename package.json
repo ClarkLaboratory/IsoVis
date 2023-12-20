@@ -1,0 +1,11 @@
+{
+  "name": "isomix",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt",
+    "build": "nuxt build",
+    "start": "nuxt start",
+    "generate": "nuxt generate"
+  }
+}

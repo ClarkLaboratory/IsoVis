@@ -1,0 +1,29 @@
+[
+    {"version": "v1.5",
+     "date": "2023-12-20",
+     "notes": ["IsoVis is now open-source. Its source code can be accessed via its GitHub repository.", "A tutorial video on how to use IsoVis is now available.", "Support for different species is improved.", "Size limit for uploading stack files and heatmap files is increased from 1 GB to 2 GB.", "Demo data and Clark Lab data are now available for download.", "Several bug fixes."]},
+
+    {"version": "v1.4",
+     "date": "2023-11-30",
+     "notes": ["Support for different species added: Can select which species the stack data came from.", "Zoom function for isoform stack added.", "Gene strand diagram is now more informative.", "Pfam protein domains now use a more colourblind-friendly colour.", "Size limit for uploading stack files and heatmap files is increased from 200 MB to 1 GB."]},
+
+    {"version": "v1.3",
+     "date": "2023-10-06",
+     "notes": ["Stack crosshair added: Shows the genomic location of the cursor when hovered over the canonical transcript, isoform stack or gene strand.", "Improved multi-gene search.", "Performance improvement in processing uploaded data files.", "Several bug fixes."]},
+
+    {"version": "v1.2",
+     "date": "2023-09-07",
+     "notes": ["Numerous bug fixes.", "Multi-gene support added: Can switch between genes to visualize in the uploaded data.", "Can now add a heatmap if only stack data were uploaded.", "Isoforms in the stack can now be dragged and reordered, or removed and added back in.", "Significant performance improvements in site rendering and image export.", "Image export now supports SVG (work in progress) and JPEG."]},
+
+    {"version": "v1.1.1",
+     "date": "2023-07-24",
+     "notes": ["Isoform stack is widened.", "Heatmap is now colourblind-friendly.", "Log-transform button added to heatmap.", "Can toggle stack and heatmap.", "Can clear uploaded data."]},
+
+    {"version": "v1.1",
+     "date": "2023-04-03",
+     "notes": ["Major update with new layouts and pages and backend design."]},
+
+    {"version": "v1.0",
+     "date": "2021-09-06",
+     "notes": ["First release."]}
+]
