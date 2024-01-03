@@ -33,7 +33,8 @@
         <div>
             Q: <b>What species can IsoVis accept data from?</b><br>
             A: IsoVis will accept properly formatted stack and heatmap data files from any species.<br>
-               IsoVis should provide linked information from any animal species present in Ensembl. To ensure this occurs, select the correct species in the data upload pop-up.
+               IsoVis should provide linked information from any chordate species in Ensembl, plus <i>Drosophila melanogaster</i> and yeast (<i>Saccharomyces cerevisiae</i>).<br>
+               To ensure this occurs, select the correct species in the data upload pop-up.
         </div>
         <br>
         <div>
@@ -212,6 +213,16 @@
             </ul>
             We recommend using IsoVis on Chrome or Edge as it tends to perform better on these browsers than on Firefox.<br>
             We <b>do not</b> recommend using IsoVis on Safari as certain features do not work there yet, such as exporting PNGs and JPEGs.<br> 
+        </div>
+        <br>
+        <div>
+            Q: <b>Is IsoVis open-source?</b><br>
+            A: Yes. The source code for IsoVis can be accessed in <b-link href="https://github.com/ClarkLaboratory/IsoVis" target="_blank">its GitHub repository</b-link>.
+        </div>
+        <br>
+        <div>
+            Q: <b>How do I install IsoVis locally?</b><br>
+            A: Download the IsoVis source code, then follow the installation instructions in <b-link href="https://github.com/ClarkLaboratory/IsoVis/blob/main/README.md" target="_blank">this document</b-link>.
         </div>
     </b-container>
 </template>
