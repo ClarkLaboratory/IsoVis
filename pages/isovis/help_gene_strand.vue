@@ -26,3 +26,17 @@
         </div>
     </b-container>
 </template>
+
+<script>
+
+import { BContainer, BImg } from 'bootstrap-vue';
+
+export default
+{
+    components: {
+        BContainer,
+        BImg
+    }
+}
+
+</script>

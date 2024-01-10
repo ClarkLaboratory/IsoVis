@@ -51,3 +51,17 @@
     </div>
 </b-container>
 </template>
+
+<script>
+
+import { BContainer, BLink } from 'bootstrap-vue';
+
+export default
+{
+    components: {
+        BContainer,
+        BLink
+    }
+}
+
+</script>

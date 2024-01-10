@@ -11,7 +11,7 @@ See 'secondaryData' key in demo_data.json for example data.
         
 <script>
 import * as d3 from 'd3';
-import { isInteger } from 'lodash';
+// import { isInteger } from 'lodash';
 
 export default {
     props: ["heatmapData"],
@@ -136,7 +136,7 @@ export default {
             let getLabel = (val) => {
                 if (val === undefined)
                     return "NaN";
-                val = isInteger(val) ? val.toFixed() : val.toFixed(2);
+                val = Number.isInteger(val) ? val.toFixed() : val.toFixed(2);
                 if (val.length > 1 && val.split('.')[1] == '00')
                     val = val.split('.')[0];
                 return val;

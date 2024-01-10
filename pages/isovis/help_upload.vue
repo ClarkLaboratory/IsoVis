@@ -97,3 +97,16 @@
     Transcript IDs that could be used instead are 'ENSTxxxxx.4' and 'ENSTxxxxxY.4'.
 </b-container>
 </template>
+
+<script>
+
+import { BContainer } from 'bootstrap-vue';
+
+export default
+{
+    components: {
+        BContainer
+    }
+}
+
+</script>

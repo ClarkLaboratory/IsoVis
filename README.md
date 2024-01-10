@@ -100,9 +100,9 @@ For more information on this directory, visit [the Nuxt 2 documentation](https:/
 
 This directory holds files that structure the pages you see on IsoVis. Each file here is mapped to a URL in an intuitive manner.
 
-Example: `/pages/isovis/faq.vue` is mapped to `/isovis/faq`, and `/pages/isovis/about.vue` is mapped to `/isovis/about`.
+Example: `/pages/isovis/faq.vue` is mapped to `/isovis/faq/`, and `/pages/isovis/about.vue` is mapped to `/isovis/about/`.
 
-Index pages behave a bit differently: `/pages/index.vue` is mapped to `/`, and `/pages/isovis/index.vue` is mapped to `/isovis`.
+Index pages behave a bit differently: `/pages/index.vue` is mapped to `/`, and `/pages/isovis/index.vue` is mapped to `/isovis/`.
 
 For more information on this directory, visit [the Nuxt 2 documentation](https://v2.nuxt.com/docs/get-started/routing/).
 

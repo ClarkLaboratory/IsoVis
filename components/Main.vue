@@ -124,19 +124,18 @@ Requires mainData object which is used here to update the relevant data other co
 
         <!-- Column 4.1: Accession list -->
         <b-col class="col1 grid-item mx-0 g-0" cols="3" style="text-align: center; white-space: nowrap; overflow: auto;">
-            
             <draggable v-model="transcriptIds" @start="drag=true" @end="onEnd">
                 <div v-for="transcriptId in transcriptIds" :key="transcriptId" :id="transcriptId" style="display: block; height: 51px; line-height: 51px; background-color: white;">
                     <!-- Delete button-->
-                    <b-icon-x data-htmltoimage-ignore="true" v-show="(transcriptIds.length > 1) && transcript_names_ready" class="icon float-left" @click="removeIsoform(transcriptId);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
+                    <b-icon-x data-htmltoimage-ignore="true" v-if="(transcriptIds.length > 1) && transcript_names_ready" class="icon float-left" @click="removeIsoform(transcriptId);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
                     <!-- Loading icon -->
-                    <b-spinner data-htmltoimage-ignore="true" v-show="!transcript_names_ready" variant="dark" class="ml-1 float-left" type="grow" small></b-spinner>
+                    <b-spinner data-htmltoimage-ignore="true" v-if="!transcript_names_ready" variant="dark" class="ml-1 float-left" type="grow" small></b-spinner>
                     <!-- Accession ID -->
                     <span v-if="transcriptNames[transcriptId] === 'Novel'" class="accessionText"><b-link :href="`https://ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}`" target="_blank">{{transcriptId}}</b-link></span>
                     <span v-else-if="(transcriptNames[transcriptId] === 'Not found') || (!transcriptNames[transcriptId])" class="accessionText">{{transcriptId}}</span>
                     <span v-else class="accessionText"><b-link :href="`https://ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}`" target="_blank">{{transcript_names_ready ? transcriptNames[transcriptId] + " (" + transcriptId + ')' : transcriptId}}</b-link></span>
                     <!-- Reorder icon -->
-                    <b-icon-list data-htmltoimage-ignore="true" v-show="(mainData && mainData.isoformData && mainData.isoformData.transcriptOrder && (mainData.isoformData.transcriptOrder.length > 1)) && transcript_names_ready" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-list>
+                    <b-icon-list data-htmltoimage-ignore="true" v-if="(mainData && mainData.isoformData && mainData.isoformData.transcriptOrder && (mainData.isoformData.transcriptOrder.length > 1)) && transcript_names_ready" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-list>
                 </div>
             </draggable>
             <b-icon-plus v-if="isoformList.length > 1" data-htmltoimage-ignore="true" @click="addClick" style="cursor: pointer;">+</b-icon-plus>
@@ -194,7 +193,7 @@ Requires mainData object which is used here to update the relevant data other co
 
         <!-- Column 6.2: Gene strand explanation -->
         <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9" style="text-align: center">
-            <a data-htmltoimage-ignore="true" :href="getHref('help_gene_strand')" target="_blank">What is this diagram?</a>
+            <b-link data-htmltoimage-ignore="true" href="help_gene_strand/" target="_blank">What is this diagram?</b-link>
         </b-col>
 
         <!-- Column 6.3: Log-transform button -->
@@ -214,13 +213,34 @@ import { createBaseAxis } from '~/assets/base_axis';
 import { CanonData, ProteinData, mergeRanges } from '~/assets/data_parser';
 import * as htmltoimage from 'html-to-image';
 import draggable from 'vuedraggable';
+import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconCheck, BIconList, BIconPlus, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
 
 export default
 {
     props: ["mainData"],
 
     components: {
-        draggable
+        draggable,
+        BButton,
+        BCol,
+        BContainer,
+        BDropdown,
+        BDropdownItem,
+        BForm,
+        BFormCheckbox,
+        BIconCheck,
+        BIconList,
+        BIconPlus,
+        BIconX,
+        BImg,
+        BLink,
+        BModal,
+        BRow,
+        BSpinner
+    },
+
+    directives: {
+        VBTooltip
     },
 
     data: () =>
@@ -320,14 +340,6 @@ export default
     },
 
     methods: {
-        getHref(href)
-        {
-            let url = window.location.href;
-            if (!url.endsWith('/'))
-                url += '/';
-            return url + href;
-        },
-
         abortFetches()
         {
             if (this.controller)

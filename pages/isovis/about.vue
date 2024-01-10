@@ -17,7 +17,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">About data processing</h5>
-                <b-link :href="getHref('help_upload')" target="_blank">Click here to show help on upload data</b-link>
+                <b-link href="../help_upload/" target="_blank">Click here to show help on upload data</b-link>
             </div>
         </div>
         <div class="card">
@@ -55,17 +55,15 @@
 </template>
 
 <script>
-export default {
-    methods: {
-        getHref(href)
-        {
-            let url = window.location.href;
-            let last_slash_index = url.lastIndexOf('/');
-            if (url.endsWith('/'))
-                last_slash_index = url.lastIndexOf('/', last_slash_index - 1);
-            url = url.substring(0, last_slash_index + 1);
-            return url + href;
-        }
+
+import { BContainer, BLink } from 'bootstrap-vue';
+
+export default
+{
+    components: {
+        BContainer,
+        BLink
     }
 }
+
 </script>

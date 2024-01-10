@@ -41,12 +41,63 @@ export default {
     // '@nuxtjs/axios',
   ],
 
+  bootstrapVue: {
+    components: [
+      "BButton",
+      "BCol",
+      "BCollapse",
+      "BContainer",
+      "BDropdown",
+      "BDropdownItem",
+      "BForm",
+      "BFormCheckbox",
+      "BFormDatalist",
+      "BFormFile",
+      "BFormGroup",
+      "BFormInput",
+      "BIconCheck",
+      "BIconDownload",
+      "BIconGithub",
+      "BIconList",
+      "BIconPlus",
+      "BIconX",
+      "BImg",
+      "BLink",
+      "BModal",
+      "BNavbar",
+      "BNavbarBrand",
+      "BNavbarNav",
+      "BNavbarToggle",
+      "BProgress",
+      "BProgressBar",
+      "BRow",
+      "BSpinner"
+    ],
+    componentPlugins: ["BVModalPlugin"],
+    directives: [
+      "VBModal",
+      "VBTooltip"
+    ]
+  },
+
   // Build Configuration: https://go.nuxtjs.dev/config-build
   // Need standalone=true to be able to import d3.
   // See comment by agm1984 here: https://stackoverflow.com/questions/44121264/loading-d3-with-nuxt-vue/69470924#69470924
   build: {
+    /*analyze: {
+      analyzerMode: 'static'
+    },*/
+    babel: {
+      compact: true
+    },
     standalone: true,
     transpile: ['domain-gfx'],
+    minifyCSS: true,
+    minifyJS: true,
+    html: {
+      minifyCSS: true,
+      minifyJS: true,
+    }
   },
 
   ssr: false

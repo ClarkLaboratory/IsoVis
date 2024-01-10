@@ -1,8 +1,10 @@
 <template>
 <b-container>
-    <b-row><b-col>
-        <h1 class="text-center my-4">IsoVis: Visualize alternative mRNA isoforms</h1>
-    </b-col></b-row>
+    <b-row>
+        <b-col>
+            <h1 class="text-center my-4">IsoVis: Visualize alternative mRNA isoforms</h1>
+        </b-col>
+    </b-row>
     <b-row>
         <b-col>
             <b-img class="float-right" src="~/assets/logos/IsovisLogo.png" height="400px"></b-img>
@@ -28,7 +30,7 @@
         <br>
         <b-button @click="requestDemo" class="m-1" variant="warning">Show demo data</b-button>
         <b-button @click="showClarkLabDataModal" class="m-1" variant="warning">Download demo or Clark Lab data</b-button>
-        <b-button href="https://github.com/ClarkLaboratory/IsoVis" target="_blank" class="m-1" variant="warning">Source code <b-icon icon="github" aria-hidden="true"></b-icon></b-button>
+        <b-button href="https://github.com/ClarkLaboratory/IsoVis" target="_blank" class="m-1" variant="warning">Source code <b-icon-github aria-hidden="true"></b-icon-github></b-button>
         <p class="m-2">Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark. Publication coming soon.<br/>
             Developed in the<b-link href="https://biomedicalsciences.unimelb.edu.au/sbs-research-groups/anatomy-and-physiology-research/systems-neuroscience/clark-lab" target="_blank">
             Clark Laboratory</b-link>, University of Melbourne.
@@ -46,34 +48,49 @@
     </div>
 
     <!-- Modal for downloading demo data or Clark Lab data -->
-    <b-modal v-model="modal.clarkLabData.show" size="xl" title="Download Clark Lab data" hide-footer>
+    <b-modal v-model="modal.clarkLabData.show" size="xl" title="Download demo or Clark Lab data" hide-footer>
         <b-link href="https://doi.org/10.1093/nar/gkab1129" target="_blank"><p style="margin-bottom: 0px">Gleeson J <i>et al.</i> Accurate expression quantification from nanopore direct RNA sequencing with NanoCount. <i>Nucleic Acids Res</i> 2022;<b>50</b>:e19.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.zip')">.zip (3.91 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.7z')">.7z (2.91 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.gz')">.tar.gz (3.91 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.xz')">.tar.xz (2.91 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.zip')">.zip (3.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.7z')">.7z (2.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.gz')">.tar.gz (3.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.xz')">.tar.xz (2.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
         <b-link href="https://doi.org/10.1093/nargab/lqad060" target="_blank"><p style="margin-bottom: 0px">Prawer YDJ <i>et al.</i> Pervasive effects of RNA degradation on Nanopore direct RNA sequencing. <i>NAR Genom Bioinform</i> 2023;<b>5</b>:lqad060.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.zip')">.zip (1.41 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.7z')">.7z (1.07 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.gz')">.tar.gz (1.41 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.xz')">.tar.xz (1.07 MB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.zip')">.zip (1.41 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.7z')">.7z (1.07 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.gz')">.tar.gz (1.41 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.xz')">.tar.xz (1.07 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
         <p style="margin-bottom: 0px">Demo data</p>
-        <b-button variant="primary" @click="downloadFile('demo_data.zip')">.zip (1.09 kB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.7z')">.7z (0.93 kB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.tar.gz')">.tar.gz (0.89 kB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.tar.xz')">.tar.xz (0.89 kB) <b-icon icon="download" aria-hidden="true"></b-icon></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.zip')">.zip (1.09 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.7z')">.7z (0.93 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.tar.gz')">.tar.gz (0.89 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.tar.xz')">.tar.xz (0.89 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
     </b-modal>
 </b-container>
 </template>
 
 <script>
-export default {
+import { BButton, BCol, BContainer, BImg, BLink, BModal, BRow, BIconDownload, BIconGithub } from 'bootstrap-vue';
+
+export default
+{
+    components: {
+        BButton,
+        BCol,
+        BContainer,
+        BImg,
+        BLink,
+        BModal,
+        BRow,
+        BIconDownload,
+        BIconGithub
+    },
+
     data() {
         return {
             modal: {

@@ -9,7 +9,7 @@
         <br>
         <div>
             Q: <b>How should the data files I upload be formatted?</b><br>
-            A: Please refer to <b-link :href="getHref('help_upload')" target="_blank">this page</b-link> for more information.
+            A: Please refer to <b-link href="../help_upload/" target="_blank">this page</b-link> for more information.
         </div>
         <br>
         <div>
@@ -156,7 +156,7 @@
         <br>
         <div>
             Q: <b>What is the gene strand diagram?</b><br>
-            A: Please refer to <b-link :href="getHref('help_gene_strand')" target="_blank">this page</b-link> for more information.
+            A: Please refer to <b-link href="../help_gene_strand/" target="_blank">this page</b-link> for more information.
         </div>
         <br>
         <h3>Heatmap</h3>
@@ -228,17 +228,15 @@
 </template>
 
 <script>
-export default {
-    methods: {
-        getHref(href)
-        {
-            let url = window.location.href;
-            let last_slash_index = url.lastIndexOf('/');
-            if (url.endsWith('/'))
-                last_slash_index = url.lastIndexOf('/', last_slash_index - 1);
-            url = url.substring(0, last_slash_index + 1);
-            return url + href;
-        }
+
+import { BContainer, BLink } from 'bootstrap-vue';
+
+export default
+{
+    components: {
+        BContainer,
+        BLink
     }
 }
+
 </script>

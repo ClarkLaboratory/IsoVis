@@ -20,10 +20,10 @@ the exact state of that page from the previous state.
             <b-navbar-nav class="ml-auto">
             <b-button @click="modal.selectGene.show=true" v-show="!isMainDataEmpty && this.all_genes && this.all_genes.length > 1" block variant="primary" size="sm" class="ml-2">Change selected gene</b-button>
             <b-dropdown text="About" variant="dark" right class="ml-4">
-                <b-dropdown-item :href="getHref('about')" target="_blank">About IsoVis</b-dropdown-item>
+                <b-dropdown-item href="about/" target="_blank">About IsoVis</b-dropdown-item>
                 <b-dropdown-item @click="modal.changelog.show=true">Release notes</b-dropdown-item>
                 <b-dropdown-item @click="showCitation">How to cite us</b-dropdown-item>
-                <b-dropdown-item :href="getHref('misc')" target="_blank">Privacy, license and funding</b-dropdown-item>
+                <b-dropdown-item href="misc/" target="_blank">Privacy, license and funding</b-dropdown-item>
             </b-dropdown>
             <b-dropdown text="Data" variant="dark" right class="ml-4">
                 <b-dropdown-item @click="modal.uploadData.show=true" v-show="isMainDataEmpty">Upload data</b-dropdown-item>
@@ -31,11 +31,11 @@ the exact state of that page from the previous state.
                 <b-dropdown-item @click="clearData" v-show="!isMainDataEmpty">Clear data</b-dropdown-item>
                 <b-dropdown-item @click="showDemo" v-show="isMainDataEmpty">Show demo data</b-dropdown-item>
                 <b-dropdown-item @click="downloadDemo" v-show="(!isMainDataEmpty) && isDemoDataShown">Download demo data (.tar.gz)</b-dropdown-item>
-                <b-dropdown-item :href="getHref('help_upload')" target="_blank">Help on upload data</b-dropdown-item>
+                <b-dropdown-item href="help_upload/" target="_blank">Help on upload data</b-dropdown-item>
             </b-dropdown>
             <b-dropdown text="Help" variant="dark" right class="ml-4">
-                <b-dropdown-item :href="getHref('../tutorial.mp4')" target="_blank">Watch a tutorial on how to use IsoVis</b-dropdown-item>
-                <b-dropdown-item :href="getHref('faq')" target="_blank">Frequently asked questions (FAQ)</b-dropdown-item>
+                <b-dropdown-item href="../tutorial.mp4" target="_blank">Watch a tutorial on how to use IsoVis</b-dropdown-item>
+                <b-dropdown-item href="faq/" target="_blank">Frequently asked questions (FAQ)</b-dropdown-item>
                 <b-dropdown-item href="https://github.com/ClarkLaboratory/IsoVis" target="_blank">Go to the IsoVis GitHub repository</b-dropdown-item>
                 <b-dropdown-item href="https://github.com/ClarkLaboratory/IsoVis/issues" target="_blank">Report issues or request features</b-dropdown-item>
             </b-dropdown>
@@ -67,7 +67,7 @@ the exact state of that page from the previous state.
     <!-- Data upload modal -->
     <b-modal v-model="modal.uploadData.show" size="md" title="Upload data" hide-footer>
         <p>Upload your own data here to visualize.
-            <b-link :href="getHref('help_upload')" target="_blank">More info...</b-link>
+            <b-link href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form @submit="handleFileUpload" @submit.stop.prevent inline>
             <em><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 2 GB)</em> 
@@ -103,7 +103,7 @@ the exact state of that page from the previous state.
     <!-- Heatmap data upload modal -->
     <b-modal v-model="modal.heatmapUploadData.show" size="md" title="Upload heatmap data" hide-footer>
         <p>Upload your own data here to visualize.
-            <b-link :href="getHref('help_upload')" target="_blank">More info...</b-link>
+            <b-link href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form inline>
             <em><b>Heatmap data</b> file (.csv/.txt) (max. 2 GB)</em> 
@@ -135,13 +135,44 @@ the exact state of that page from the previous state.
 </template>
     
 <script>
-import Vue from 'vue'
-import { BootstrapVueIcons } from 'bootstrap-vue'
-Vue.use(BootstrapVueIcons)
+// import Vue from 'vue'
+// import { BootstrapVueIcons } from 'bootstrap-vue'
+// Vue.use(BootstrapVueIcons)
 
 import { PrimaryData, SecondaryData } from '~/assets/data_parser';
+import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';
 
-export default {
+export default
+{
+    components: {
+        BButton,
+        BCol,
+        BCollapse,
+        BDropdown,
+        BDropdownItem,
+        BForm,
+        BFormDatalist,
+        BFormFile,
+        BFormGroup,
+        BFormInput,
+        BImg,
+        BLink,
+        BModal,
+        BNavbar,
+        BNavbarBrand,
+        BNavbarNav,
+        BNavbarToggle,
+        BProgress,
+        BProgressBar,
+        BRow,
+        BVModalPlugin
+    },
+
+    directives: {
+        VBModal,
+        VBTooltip
+    },
+
     data() {
         return {
             views: ["Main", "Welcome", "About", "Privacy"],
@@ -239,14 +270,6 @@ export default {
                 this.mainData = {isoformData:data.primaryData, heatmapData:data.secondaryData, canonData:data.canonData, 
                     proteinData:data.proteinData, selectedGene:data.selectedGene, geneLabel:data.geneLabel, demoData:true, species:"Homo_sapiens"};
             });
-        },
-
-        getHref(href)
-        {
-            let url = window.location.href;
-            if (!url.endsWith('/'))
-                url += '/';
-            return url + href;
         },
 
         downloadDemo()
