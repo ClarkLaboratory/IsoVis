@@ -437,7 +437,7 @@ export default
             const signal = this.controller.signal;
 
             // Search for Ensembl gene IDs by gene symbol from mygene.info
-            let data = await fetch(`https://mygene.info/v3/query?species=${this.taxon_id}&fields=symbol,ensembl.gene&q=symbol:` + this.enteredGene + '*', { signal })
+            let data = await fetch(`https://mygene.info/v3/query?species=${this.taxon_id}&fields=symbol,ensembl.gene&q=symbol:${this.enteredGene}*`, { signal })
                 .then(res => res.json())
                 .catch(() => {});
 
@@ -462,14 +462,20 @@ export default
                         for (let obj of ensembl_obj)
                         {
                             let gene = obj.gene;
-                            if (gene && (this.all_genes.indexOf(gene) !== -1))
+                            if (!gene)
+                                continue;
+                            gene = gene.toUpperCase();
+                            if (this.all_genes.indexOf(gene) !== -1)
                                 this.options[gene] = symbol;
                         }
                     }
                     else
                     {
                         let gene = ensembl_obj.gene;
-                        if (gene && (this.all_genes.indexOf(gene) !== -1))
+                        if (!gene)
+                            continue;
+                        gene = gene.toUpperCase();
+                        if (this.all_genes.indexOf(gene) !== -1)
                             this.options[gene] = symbol;
                     }
                 }
@@ -523,6 +529,7 @@ export default
                 this.reset_loading_popup();
                 this.$bvModal.msgBoxOk(isoformData.error);
                 this.selectedGene = null;
+                this.modal.uploadData.stackFile = null;
                 return;
             }
 
@@ -572,6 +579,10 @@ export default
                 {
                     this.$bvModal.msgBoxOk(heatmapData.error);
                     this.selectedGene = null;
+                    if (this.modal.heatmapUploadData.heatmapFile)
+                        this.modal.heatmapUploadData.heatmapFile = null;
+                    else
+                        this.modal.uploadData.heatmapFile = null;
                     return;
                 }
                 else if (heatmapData.warning)
@@ -606,6 +617,7 @@ export default
             if (!heatmapData.valid)
             {
                 this.$bvModal.msgBoxOk(heatmapData.error);
+                this.modal.heatmapUploadData.heatmapFile = null;
                 return;
             }
             else if (heatmapData.warning)
