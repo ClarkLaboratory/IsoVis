@@ -662,6 +662,8 @@ export class SecondaryData {
 
     processFilteredLines(filtered_lines)
     {
+        let uppercase_gene_to_search = this.gene.toUpperCase();
+
         for (let i = 0; i < filtered_lines.length; ++i)
         {
             // Clean up text and separate values
@@ -670,7 +672,7 @@ export class SecondaryData {
                 continue;
 
             let gene = entries[this.gene_id_colnum].split('.')[0];
-            if (gene !== this.gene)
+            if (gene.toUpperCase() !== uppercase_gene_to_search)
                 continue;
 
             let transcript_id = entries[this.transcript_id_colnum].split('.')[0];
