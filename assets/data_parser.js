@@ -531,15 +531,25 @@ export class SecondaryData {
             this.error = "First line of heatmap file has less than 3 data columns. The file must have at least 3 data columns.";
             return;
         }
-        
-        this.gene_id_colnum = this.samples.indexOf("gene_id");
+
+        this.gene_id_colnum = -1;
+        this.transcript_id_colnum = -1;
+
+        for (let i = 0; i < this.samples.length; ++i)
+        {
+            let sample = this.samples[i].toLowerCase();
+            if (sample === "gene_id")
+                this.gene_id_colnum = i;
+            else if (sample == "transcript_id")
+                this.transcript_id_colnum = i;
+        }
+
         if (this.gene_id_colnum === -1)
         {
             this.error = "No gene_id column found in the heatmap file.";
             return;
         }
 
-        this.transcript_id_colnum = this.samples.indexOf("transcript_id");
         if (this.transcript_id_colnum === -1)
         {
             this.error = "No transcript_id column found in the heatmap file.";

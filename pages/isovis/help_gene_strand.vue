@@ -1,20 +1,13 @@
 <template>
     <b-container>
         <div>
-            The gene strand displays the genomic location and orientation of the 
-            gene of interest.
+            The gene strand displays the genomic location and orientation of the gene of interest.
             <br><br>
-            Start and end coordinates of the gene are displayed at each side
-            of the diagram. The dotted vertical line shows the precise 
-            genomic coordinate of the cursor.
+            Start and end coordinates of the gene are displayed at each side of the diagram. The dotted vertical line shows the precise genomic coordinate of the cursor.
             <br><br>
-            The diagram displays triangular ticks pointing from 5' to 3'.
-            As the 5'-3' direction is reversible, a gene on the reverse strand
-            could be viewed from either left-to-right or right-to-left.
+            The diagram displays triangular ticks pointing from 5' to 3'. As the 5'-3' direction is reversible, a gene on the reverse strand could be viewed from either left-to-right or right-to-left.
             <br><br>
-            The width of ticks indicates warping of the genomic coordinate axis
-            following intron normalization. Ticks will be of uniform width when
-            intron normalization is disabled.
+            The width of ticks indicates warping of the genomic coordinate axis following intron normalization. Ticks will be of uniform width when intron normalization is disabled.
             <br><br>
             Gene with intron normalization:
             <br>

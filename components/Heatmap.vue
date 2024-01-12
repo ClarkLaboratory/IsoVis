@@ -44,8 +44,16 @@ export default {
             // Labels of row and columns
             let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
             samples.splice(this.heatmapData.gene_id_colnum, 1);
-            let transcript_id_colnum = samples.indexOf("transcript_id");
-            samples.splice(transcript_id_colnum, 1);
+
+            for (let i = 0; i < samples.length; ++i)
+            {
+                let sample = samples[i].toLowerCase();
+                if (sample === "transcript_id")
+                {
+                    samples.splice(i, 1);
+                    break;
+                }
+            }
 
             let transcripts = this.heatmapData.transcriptOrder.slice();
             let rowCount = transcripts.length;

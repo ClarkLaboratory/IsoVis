@@ -31,8 +31,16 @@ export default {
 
             let data = JSON.parse(JSON.stringify(this.heatmapData.samples));
             data.splice(this.heatmapData.gene_id_colnum, 1);
-            let transcript_id_colnum = data.indexOf("transcript_id");
-            data.splice(transcript_id_colnum, 1);
+
+            for (let i = 0; i < data.length; ++i)
+            {
+                let sample = data[i].toLowerCase();
+                if (sample === "transcript_id")
+                {
+                    data.splice(i, 1);
+                    break;
+                }
+            }
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
