@@ -197,7 +197,7 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 6.3: Log-transform button -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" style="display: flex; justify-content: center;" :cols="show_stack ? 3 : 9">
+        <b-col v-if="mainData.heatmapData && show_heatmap" class="col3" style="display: flex; justify-content: center;" :cols="show_stack ? 3 : 9">
             <b-form-checkbox data-htmltoimage-ignore="true" button size="sm" button-variant="outline-secondary" v-model="logTransformChecked" name="check-button"> 
                 Transform: log<sub>10</sub>(x+1)
             </b-form-checkbox>
