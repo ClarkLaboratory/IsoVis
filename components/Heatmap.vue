@@ -59,6 +59,11 @@ export default {
             let rowCount = transcripts.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;
 
+            // Create an array of uppercase transcripts so that case-insensitive comparison can be performed later
+            let uppercase_transcripts = [...transcripts];
+            for (let i = 0; i < rowCount; ++i)
+                uppercase_transcripts[i] = uppercase_transcripts[i].toUpperCase();
+
             d3.select("#heatmapDiv").append("canvas")
                 .attr("width", Math.ceil(width))
                 .attr("height", Math.ceil(height))
@@ -77,7 +82,7 @@ export default {
                 .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
                 .domain([minVal, average, maxVal]);
 
-            let rows = transcripts.length;
+            let rows = uppercase_transcripts.length;
             let cols = samples.length;
             let values = new Array(rows).fill(undefined).map(() => new Array(cols).fill(undefined));
 
@@ -88,7 +93,7 @@ export default {
                 let sample = cell_value.sample;
                 let value = cell_value.value;
 
-                let transcript_index = transcripts.indexOf(transcript);
+                let transcript_index = uppercase_transcripts.indexOf(transcript.toUpperCase());
                 let sample_index = samples.indexOf(sample);
 
                 if (transcript_index === -1 || sample_index === -1)

@@ -1,4 +1,8 @@
 [
+    {"version": "v1.5.1",
+     "date": "2024-01-15",
+     "notes": ["Matching gene IDs from mygene.info with those from the stack file is now case-insensitive.", "The checking of 'gene_id' and 'transcript_id' heatmap column names is now case-insensitive.", "Filtering for relevant genes and transcripts to visualize from the heatmap file is now case-insensitive.", "Minor bug fixes."]},
+
     {"version": "v1.5",
      "date": "2023-12-20",
      "notes": ["IsoVis is now open-source. Its source code can be accessed via its GitHub repository.", "A tutorial video on how to use IsoVis is now available.", "Support for different species is improved.", "Size limit for uploading stack files and heatmap files is increased from 1 GB to 2 GB.", "Demo data and Clark Lab data are now available for download.", "Several bug fixes."]},
