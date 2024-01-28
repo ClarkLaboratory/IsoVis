@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 Component to render a heatmap plot, based on heatmapData which must be supplied as input.
 See 'secondaryData' key in demo_data.json for example data.
 

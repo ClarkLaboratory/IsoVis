@@ -1,4 +1,8 @@
 [
+    {"version": "v1.6",
+     "date": "2024-01-28",
+     "notes": ["Support for isoform sorting added: Can sort by transcript symbol / ID or by mean heatmap values.", "Home page is revamped.", "A tutorial page on how to use IsoVis has replaced the tutorial video."]},
+
     {"version": "v1.5.1",
      "date": "2024-01-15",
      "notes": ["Matching gene IDs from mygene.info with those from the stack file is now case-insensitive.", "The checking of 'gene_id' and 'transcript_id' heatmap column names is now case-insensitive.", "Filtering for relevant genes and transcripts to visualize from the heatmap file is now case-insensitive.", "Minor bug fixes."]},

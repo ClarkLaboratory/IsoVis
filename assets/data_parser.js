@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 // Contains classes which can parse input data, such as the contents of gtf file and return objects
 // which contain data useful for the application such as start and end points of genes.
 
@@ -216,6 +222,23 @@ export class PrimaryData {
             if ((!line.valid) || (line.feature !== "exon"))
                 continue;
 
+            let gene_to_search = this.gene;
+            if (gene_to_search)
+            {
+                let gene_name = line.attributes.gene_id;
+                if (!gene_name)
+                    continue;
+
+                let period_index = gene_name.indexOf('.');
+                if (period_index !== -1)
+                    gene_name = gene_name.substring(0, period_index);
+
+                gene_name = gene_name.toUpperCase();
+                gene_to_search = gene_to_search.toUpperCase();
+                if (gene_to_search !== gene_name)
+                    continue;
+            }
+
             // Extract the transcript's chromosome
             if ((!this.chromosome) && line.chromosome)
                 this.chromosome = line.chromosome;
@@ -246,6 +269,26 @@ export class PrimaryData {
             let line = new GTFLine(raw_line);
             if ((!line.valid) || (line.feature !== "exon"))
                 continue;
+
+            let gene_to_search = this.gene;
+            if (gene_to_search)
+            {
+                let gene_name = line.attributes.gene_id;
+                if (!gene_name)
+                    continue;
+
+                if (!line.isStringTie)
+                {
+                    let period_index = gene_name.indexOf('.');
+                    if (period_index !== -1)
+                        gene_name = gene_name.substring(0, period_index);
+                }
+
+                gene_name = gene_name.toUpperCase();
+                gene_to_search = gene_to_search.toUpperCase();
+                if (gene_to_search !== gene_name)
+                    continue;
+            }
 
             // Extract the transcript's chromosome
             if ((!this.chromosome) && line.chromosome)
@@ -278,6 +321,23 @@ export class PrimaryData {
             let line = new BEDLine(raw_line);
             if (!line.valid)
                 continue;
+
+            let gene_to_search = this.gene;
+            if (gene_to_search)
+            {
+                let gene_name = line.gene;
+                if (!gene_name)
+                    continue;
+
+                let period_index = gene_name.indexOf('.');
+                if (period_index !== -1)
+                    gene_name = gene_name.substring(0, period_index);
+
+                gene_name = gene_name.toUpperCase();
+                gene_to_search = gene_to_search.toUpperCase();
+                if (gene_to_search !== gene_name)
+                    continue;
+            }
 
             // Extract the transcript's chromosome
             if ((!this.chromosome) && line.chromosome)
@@ -353,20 +413,17 @@ export class PrimaryData {
 
     genesFromBED(lines)
     {
-        for (let line of lines)
+        for (let raw_line of lines)
         {
-            let columns = line.split('\t');
-            if (columns.length < 4)
+            let line = new BEDLine(raw_line);
+            if (!line.valid)
                 continue;
 
-            let split_column = columns[3].split('|', 2);
-            if (split_column.length !== 2)
-                split_column = columns[3].split('_', 2);
-
-            if (split_column.length !== 2)
+            let gene = line.gene;
+            if (!gene)
                 continue;
             
-            let gene = split_column[1].split('.')[0].toUpperCase();
+            gene = gene.toUpperCase();
             if (!(gene in this.geneInfo))
                 this.geneInfo[gene] = null;
         }

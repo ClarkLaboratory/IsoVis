@@ -114,9 +114,9 @@ For more information on this directory, visit [the Nuxt 2 documentation](https:/
 
 ### `static`
 
-This directory stores static files served by IsoVis: The demo data and Clark Lab data; release notes; the tutorial video; a compressed list of species supported by IsoVis and their corresponding taxonomy IDs; and a compressed JSON file storing the mapping from each supported species to their Ensembl ID prefix. Each file in this directory is mapped to `/`.
+This directory stores static files served by IsoVis: Downloadable datasets; release notes; a compressed list of species supported by IsoVis and their corresponding taxonomy IDs; and a compressed JSON file storing the mapping from each supported species to their Ensembl ID prefix. Each file in this directory is mapped to `/`.
 
-Example: `/static/tutorial.mp4` is mapped to `/tutorial.mp4`.
+Example: `/static/demo_data.zip` is mapped to `/demo_data.zip`.
 
 For more information on this directory, visit [the Nuxt 2 documentation](https://v2.nuxt.com/docs/directory-structure/static/).
 

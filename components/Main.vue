@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 Component to render main set of visualizations in a 3x3 grid.
 This component is itself made of other components which sit in some of these grid locations.
 Requires mainData object which is used here to update the relevant data other components use.
@@ -36,6 +42,9 @@ Requires mainData object which is used here to update the relevant data other co
 
         <b-button data-htmltoimage-ignore="true" variant="primary" size="sm" class="ml-3" @click="setShowStack(!show_stack)">
             {{show_stack ? "Hide stack" : "Show stack"}}
+        </b-button>
+        <b-button v-show="!mainData.heatmapData" data-htmltoimage-ignore="true" variant="warning" size="sm" class="ml-2" @click="requestHeatmapDataUpload()">
+            Add a heatmap
         </b-button>
         <b-button v-show="mainData.heatmapData" data-htmltoimage-ignore="true" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
             {{show_heatmap ? "Hide heatmap" : "Show heatmap"}}
@@ -107,6 +116,10 @@ Requires mainData object which is used here to update the relevant data other co
         <!-- Column 3.1: User isoforms label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
             <span>User isoforms:</span>
+            <b-icon-sort-alpha-down v-if="orfs_ready" @click="sortIsoformsByAlpha()" data-htmltoimage-ignore="true" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="orfs_ready" @click="sortIsoformsByAlpha(false)" data-htmltoimage-ignore="true" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
+            <b-img v-if="orfs_ready && mainData.heatmapData" @click="sortIsoformsByMeanHeatmap()" data-htmltoimage-ignore="true" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#1170aa, #fff8e6, #fc7d0b); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending mean heatmap values'"></b-img>
+            <b-img v-if="orfs_ready && mainData.heatmapData" @click="sortIsoformsByMeanHeatmap(false)" data-htmltoimage-ignore="true" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fc7d0b, #fff8e6, #1170aa); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by descending mean heatmap values'"></b-img>
         </b-col>
 
         <!-- Column 3.2: Nothing -->
@@ -126,7 +139,7 @@ Requires mainData object which is used here to update the relevant data other co
         <b-col class="col1 grid-item mx-0 g-0" cols="3" style="text-align: center; white-space: nowrap; overflow: auto;">
             <draggable v-model="transcriptIds" @start="drag=true" @end="onEnd">
                 <div v-for="transcriptId in transcriptIds" :key="transcriptId" :id="transcriptId" style="display: block; height: 51px; line-height: 51px; background-color: white;">
-                    <!-- Delete button-->
+                    <!-- Delete button -->
                     <b-icon-x data-htmltoimage-ignore="true" v-if="(transcriptIds.length > 1) && transcript_names_ready" class="icon float-left" @click="removeIsoform(transcriptId);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
                     <!-- Loading icon -->
                     <b-spinner data-htmltoimage-ignore="true" v-if="!transcript_names_ready" variant="dark" class="ml-1 float-left" type="grow" small></b-spinner>
@@ -198,9 +211,7 @@ Requires mainData object which is used here to update the relevant data other co
 
         <!-- Column 6.3: Log-transform button -->
         <b-col v-if="mainData.heatmapData && show_heatmap" class="col3" style="display: flex; justify-content: center;" :cols="show_stack ? 3 : 9">
-            <b-form-checkbox data-htmltoimage-ignore="true" button size="sm" button-variant="outline-secondary" v-model="logTransformChecked" name="check-button"> 
-                Transform: log<sub>10</sub>(x+1)
-            </b-form-checkbox>
+            <b-form-checkbox data-htmltoimage-ignore="true" button size="sm" button-variant="outline-secondary" v-model="logTransformChecked" name="check-button">Transform: log<sub>10</sub>(x+1)</b-form-checkbox>
         </b-col>
 
     </b-row>
@@ -213,7 +224,7 @@ import { createBaseAxis } from '~/assets/base_axis';
 import { CanonData, ProteinData, mergeRanges } from '~/assets/data_parser';
 import * as htmltoimage from 'html-to-image';
 import draggable from 'vuedraggable';
-import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconCheck, BIconList, BIconPlus, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
+import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconCheck, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
 
 export default
 {
@@ -231,6 +242,8 @@ export default
         BIconCheck,
         BIconList,
         BIconPlus,
+        BIconSortAlphaDown,
+        BIconSortAlphaDownAlt,
         BIconX,
         BImg,
         BLink,
@@ -288,6 +301,7 @@ export default
             is_zoom_reset: true,
 
             is_demo_resize_done: false,
+            is_sorting_done: false,
             is_dragging_done: false,
             is_stack_toggled: false,
             is_heatmap_toggled: false,
@@ -608,6 +622,11 @@ export default
             this.is_heatmap_toggled = true;
         },
 
+        requestHeatmapDataUpload()
+        {
+            this.$root.$emit("request_heatmap_data_upload");
+        },
+
         setShowOrfs(state)
         {
             this.show_orfs = state;
@@ -786,7 +805,20 @@ export default
                     }
                 }
             }
-            
+
+            if (this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+            {
+                for (var isoform of this.mainData.isoformData.allIsoforms)
+                {
+                    if (!isoform || !isoform.transcriptID)
+                        continue;
+
+                    if (isoform.transcriptID in ORFs)
+                    {
+                        isoform.orf = ORFs[isoform.transcriptID];
+                    }
+                }
+            }
 
             if (Object.keys(this.mainData.canonData).length != 0 && this.mainData.canonData.isoformList)
             {
@@ -964,6 +996,126 @@ export default
             this.resizePage();
         },
 
+        sortIsoformsByAlpha(ascending = true)
+        {
+            let shown_isoforms = [];
+            for (let i = 0; i < this.transcriptIds.length; ++i)
+            {
+                let transcript_id = this.transcriptIds[i];
+
+                // Sort the currently shown isoforms by their transcript name if they have one, and by their transcript ID if they don't.
+                let transcript_name = this.transcriptNames[transcript_id];
+                if ((!transcript_name) || (transcript_name === "Not found") || (transcript_name === "Novel"))
+                    transcript_name = transcript_id;
+
+                shown_isoforms.push([transcript_name, transcript_id]);
+            }
+
+            shown_isoforms.sort((a, b) => a[0].localeCompare(b[0], "en", {numeric: true, sensitivity: "case"}));
+            if (!ascending)
+                shown_isoforms.reverse();
+
+            let heatmap_data_exists = (this.mainData.heatmapData && this.mainData.heatmapData.transcriptOrder);
+
+            this.transcriptIds = [];
+            this.mainData.isoformData.isoformList = [];
+            this.mainData.isoformData.transcriptOrder = [];
+            if (heatmap_data_exists)
+                this.mainData.heatmapData.transcriptOrder = [];
+
+            for (let [ignored, transcript_id] of shown_isoforms)
+            {
+                this.transcriptIds.push(transcript_id);
+                this.mainData.isoformData.transcriptOrder.push(transcript_id);
+                if (heatmap_data_exists)
+                    this.mainData.heatmapData.transcriptOrder.push(transcript_id);
+                for (let isoform of this.mainData.isoformData.allIsoforms)
+                {
+                    if (isoform.transcriptID === transcript_id)
+                    {
+                        this.mainData.isoformData.isoformList.push(isoform);
+                        break;
+                    }
+                }
+            }
+
+            this.is_sorting_done = true;
+        },
+
+        sortIsoformsByMeanHeatmap(ascending = true)
+        {
+            let isoform_means = {};
+            for (let transcript_id of this.transcriptIds)
+                isoform_means[transcript_id] = [];
+
+            let cell_values = this.logTransformChecked ? this.mainData.heatmapData.logExport : this.mainData.heatmapData.export;
+            for (let cell_value of cell_values)
+            {
+                let value = cell_value.value;
+                if ((value === null) || (value === undefined) || (isNaN(value)))
+                    continue;
+
+                let transcript = cell_value.transcript;
+                if (this.transcriptIds.indexOf(transcript) === -1)
+                    continue;
+
+                isoform_means[transcript].push(value);
+            }
+
+            let shown_isoforms = [];
+            let no_mean_isoforms = []; // For isoforms that have all-NaN heatmap values
+            for (let transcript of Object.keys(isoform_means))
+            {
+                let values = isoform_means[transcript];
+                let num_samples = values.length;
+
+                if (num_samples === 0)
+                {
+                    no_mean_isoforms.push([-1, transcript]);
+                    continue;
+                }
+
+                let mean = 0;
+                for (let value of values)
+                    mean += value;
+
+                mean /= num_samples;
+
+                shown_isoforms.push([mean, transcript]);
+            }
+
+            shown_isoforms.sort(function(a, b)
+            {
+                return a[0] - b[0];
+            });
+            if (!ascending)
+                shown_isoforms.reverse();
+
+            shown_isoforms.concat(no_mean_isoforms);
+
+            this.transcriptIds = [];
+            this.mainData.isoformData.isoformList = [];
+            this.mainData.isoformData.transcriptOrder = [];
+            this.mainData.heatmapData.transcriptOrder = [];
+
+            for (let [ignored, transcript_id] of shown_isoforms)
+            {
+                this.transcriptIds.push(transcript_id);
+                this.mainData.isoformData.transcriptOrder.push(transcript_id);
+                this.mainData.heatmapData.transcriptOrder.push(transcript_id);
+                for (let isoform of this.mainData.isoformData.allIsoforms)
+                {
+                    if (isoform.transcriptID === transcript_id)
+                    {
+                        this.mainData.isoformData.isoformList.push(isoform);
+                        break;
+                    }
+                }
+            }
+
+            this.is_sorting_done = true;
+        },
+
         resizePage()
         {
             if (this.show_stack)
@@ -1004,6 +1156,12 @@ export default
 
             if (this.show_heatmap)
                 this.$refs.heatmapComponent.buildHeatmap();
+        }
+
+        if (this.is_sorting_done)
+        {
+            this.is_sorting_done = false;
+            this.resizePage();
         }
 
         if (this.is_zoom_changed)

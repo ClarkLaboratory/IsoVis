@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 Component to render a heatmap legend plot, based on heatmapData which must be supplied as input.
 See 'secondaryData' key in demo_data.json for example data.
 
@@ -70,12 +76,53 @@ export default {
             // heightCalcSvg.remove();
 
             let height = 0;
+            let font_size = 14.0;
+
+            d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
+            let fontSizeCalcCanvas = document.getElementById("fontSizeCalcCanvas");
+            let fontSizeCalcCanvas_ctx = fontSizeCalcCanvas.getContext("2d");
+            let canvas_width = Math.ceil(width);
+            let num_samples = data.length;
+            let cell_width = canvas_width / num_samples;
+
+            fontSizeCalcCanvas_ctx.textBaseline = "bottom";
+            while (font_size > 2.0)
+            {
+                fontSizeCalcCanvas_ctx.font = `${font_size}px sans-serif`;
+                let spans = [];
+                for (let i = 0; i < num_samples; ++i)
+                {
+                    let sample = data[i];
+                    let x_coord = -Math.round(cell_width * (i + 0.5));
+                    let sample_text_metrics = fontSizeCalcCanvas_ctx.measureText(sample);
+                    let sample_text_height = sample_text_metrics.actualBoundingBoxAscent + sample_text_metrics.actualBoundingBoxDescent;
+                    spans.push([x_coord + Math.round(sample_text_height / 2), x_coord - sample_text_height / 2]);
+                }
+
+                let not_overlapping = true;
+                for (let i = 0; i < spans.length - 1; ++i)
+                {
+                    if (spans[i][1] - spans[i + 1][0] < 1)
+                    {
+                        not_overlapping = false;
+                        break;
+                    }
+                }
+
+                if (not_overlapping && (spans[0][0] < 0) && (spans[spans.length - 1][1] >= -(canvas_width - 1)))
+                    break;
+
+                font_size -= 0.1;
+            }
+
+            d3.select('#heatmapLegendDiv').selectAll('*').remove();
+
             d3.select("#heatmapLegendDiv").append("canvas").attr("id", "heightCalcCanvas");
             let heightCalcCanvas = document.getElementById("heightCalcCanvas");
             let heightCalcCanvas_ctx = heightCalcCanvas.getContext("2d");
-            heightCalcCanvas_ctx.font = "12px sans-serif";
+            heightCalcCanvas_ctx.font = `${font_size}px sans-serif`;
 
-            let num_samples = data.length;
+            // let num_samples = data.length;
             for (let i = 0; i < num_samples; ++i)
             {
                 let sample = data[i];
@@ -93,7 +140,8 @@ export default {
                 .attr("id", "heatmapLegendCanvas");
             let canvas = document.getElementById("heatmapLegendCanvas");
             let ctx = canvas.getContext("2d");
-            ctx.font = "12px sans-serif";
+            ctx.font = `${font_size}px sans-serif`;
+            ctx.textBaseline = "bottom";
 
             // Draw the horizontal axis line
             ctx.beginPath();
@@ -103,7 +151,7 @@ export default {
 
             // Draw the vertical ticks
             // let num_samples = data.length;
-            let cell_width = canvas.width / num_samples;
+            // let cell_width = canvas.width / num_samples;
             for (let i = 0; i < num_samples; ++i)
             {
                 let x_coord = Math.round(cell_width * (i + 0.5));
@@ -120,7 +168,9 @@ export default {
             for (let i = 0; i < num_samples; ++i)
             {
                 let sample = data[i];
-                let x_coord = -Math.round(cell_width * (i + 0.5)) + 4;
+                let sample_text_metrics = ctx.measureText(sample);
+                let sample_text_height = sample_text_metrics.actualBoundingBoxAscent + sample_text_metrics.actualBoundingBoxDescent;
+                let x_coord = -Math.round(cell_width * (i + 0.5)) + Math.round(sample_text_height / 2);
                 ctx.fillText(sample, 9, x_coord);
             }
 
@@ -159,9 +209,29 @@ export default {
             let mid_label = getLabel(mid);
             let max_label = getLabel(max);
 
+            font_size = 12.0;
+            let min_label_end, mid_label_start, mid_label_end, mid_label_width, max_label_start;
+
+            while (font_size > 2.0)
+            {
+                ctx.font = `${font_size}px sans-serif`;
+
+                min_label_end = ((canvas.width - legendWidth) / 2) + ctx.measureText(min_label).width;
+                max_label_start = ((canvas.width + legendWidth) / 2) - ctx.measureText(max_label).width;
+
+                mid_label_width = ctx.measureText(mid_label).width;
+                mid_label_start = (canvas.width - mid_label_width) / 2;
+                mid_label_end = (canvas.width + mid_label_width) / 2;
+
+                if ((mid_label_start - min_label_end >= 5) && (max_label_start - mid_label_end >= 5))
+                    break;
+
+                font_size -= 0.1;
+            }
+
             ctx.fillText(min_label, (canvas.width - legendWidth) / 2, height);
-            ctx.fillText(mid_label, (canvas.width - ctx.measureText(mid_label).width) / 2, height);
-            ctx.fillText(max_label, (canvas.width + legendWidth) / 2 - ctx.measureText(max_label).width, height);
+            ctx.fillText(mid_label, mid_label_start, height);
+            ctx.fillText(max_label, max_label_start, height);
 
             /* height += 30;
             heightCalcSvg.remove();

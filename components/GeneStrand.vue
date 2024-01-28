@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 Component to render strand and axis information on the selected gene.
 Triangles are rendered along the gene length to denote features.
 Requires an instance of BaseAxis as input.
@@ -88,7 +94,6 @@ export default {
             let x = Math.floor(client_x - canvas_rect_left);
             
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
-            crosshair_canvas_ctx.font = "12px sans-serif";
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
 
@@ -101,8 +106,21 @@ export default {
 
             let genomic_location = chromosome + Math.floor(this.baseAxis.geneToAxisScale.invert(this.baseAxis.axisToScreenScale.invert(x)));
 
-            let label_width = crosshair_canvas_ctx.measureText(genomic_location).width;
-            let label_x = Math.min(x, Math.floor(crosshair_canvas.width - label_width));
+            let font_size = 12.0;
+            let label_x, label_width;
+
+            while (font_size > 2.0)
+            {
+                crosshair_canvas_ctx.font = `${font_size}px sans-serif`;
+
+                label_width = crosshair_canvas_ctx.measureText(genomic_location).width;
+                if (label_width <= crosshair_canvas.width - 10)
+                    break;
+
+                font_size -= 0.1;
+            }
+
+            label_x = Math.min(x, Math.floor(crosshair_canvas.width - label_width));
             crosshair_canvas_ctx.fillText(genomic_location, label_x, 20);
 
             if (this.start_drag !== -1)
@@ -154,24 +172,36 @@ export default {
                 .attr("style", "position: absolute; left: 1rem !important;");
             let canvas = document.getElementById("geneStrandCanvas");
             let ctx = canvas.getContext("2d");
-            ctx.font = "12px sans-serif";
 
-            // Add background colour
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "black";
-
-            // Add left label
+            // Add labels
             let left_label = chromosome + self.baseAxis.endpoints()[0];
-            ctx.fillText(left_label, 0, 70 + this.margin.top);
-            
-            // Add center label
             let center_label = ((self.baseAxis.genomeCoords().strand == '+') ? "Forward" : "Reverse") + " strand";
-            ctx.fillText(center_label, (width - ctx.measureText(center_label).width) / 2, 70 + this.margin.top);
-
-            // Add right label
             let right_label = chromosome + self.baseAxis.endpoints()[1];
-            ctx.fillText(right_label, width - ctx.measureText(right_label).width, 70 + this.margin.top);
+
+            let font_size = 12.0;
+            let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;
+
+            while (font_size > 2.0)
+            {
+                ctx.font = `${font_size}px sans-serif`;
+
+                left_label_end = ctx.measureText(left_label).width;
+                right_label_start = width - ctx.measureText(right_label).width;
+
+                center_label_width = ctx.measureText(center_label).width;
+                center_label_start = (width - center_label_width) / 2;
+                center_label_end = (width + center_label_width) / 2;
+
+                if ((center_label_start - left_label_end >= 5) && (right_label_start - center_label_end >= 5))
+                    break;
+
+                font_size -= 0.1;
+            }
+
+            let y = 70 + this.margin.top;
+            ctx.fillText(left_label, 0, y);
+            ctx.fillText(center_label, center_label_start, y);
+            ctx.fillText(right_label, right_label_start, y);
 
             const tickScale = d3.scaleLinear().domain([0, 100]).range([self.baseAxis.genomeCoords().start, self.baseAxis.genomeCoords().end]);
             let step = self.baseAxis.genomeCoords().width / 100;

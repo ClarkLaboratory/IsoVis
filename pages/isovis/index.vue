@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 This is the top level page which uses all the components to simply switch views.
 So there will always be a single URL, even as the user selects different "pages" from navigation menus.
 This design simplifies data transfer between pages, as new data can be stored at this top level
@@ -11,34 +17,30 @@ the exact state of that page from the previous state.
     <!-- Navbar is at the top, controlling which views to show. -->
     <b-navbar toggleable="lg" type="dark" variant="dark" class="nav-fill w-100">
         <b-navbar-brand v-if="selectedView=='Welcome'">IsoVis</b-navbar-brand>
-        <b-navbar-brand v-if="selectedView=='Main'"><b-link @click="clearData" v-b-tooltip.hover.bottom="'Clear data and return to the welcome page'" style="color:white">IsoVis</b-link></b-navbar-brand>
+        <b-navbar-brand v-if="selectedView=='Main'"><b-link @click="clearData" v-b-tooltip.hover.bottom="'Clear data and return to the home page'" style="color:white">IsoVis</b-link></b-navbar-brand>
         <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
-        <b-form-input v-if="selectedView=='Main'" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (e.g. 15720442 - 15727968)" size="sm" style="width: 350px"></b-form-input>
-        <b-button v-if="selectedView=='Main' && !$refs.componentMain.is_zoom_reset" @click="resetZoom" block variant="warning" size="sm" class="ml-2" style="width: 100px">Reset zoom</b-button>
+        <b-form-input v-if="selectedView=='Main'" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (e.g. 15720442 - 15727968)" size="sm" style="width: 350px;"></b-form-input>
+        <b-button v-if="selectedView=='Main' && !$refs.componentMain.is_zoom_reset" @click="resetZoom" variant="warning" size="sm" class="ml-2" style="white-space: nowrap;">Reset zoom</b-button>
         <b-collapse id="nav-collapse" is-nav>
             <!-- Right aligned nav items -->
             <b-navbar-nav class="ml-auto">
-            <b-button @click="modal.selectGene.show=true" v-show="!isMainDataEmpty && this.all_genes && this.all_genes.length > 1" block variant="primary" size="sm" class="ml-2">Change selected gene</b-button>
-            <b-dropdown text="About" variant="dark" right class="ml-4">
-                <b-dropdown-item href="about/" target="_blank">About IsoVis</b-dropdown-item>
-                <b-dropdown-item @click="modal.changelog.show=true">Release notes</b-dropdown-item>
-                <b-dropdown-item @click="showCitation">How to cite us</b-dropdown-item>
-                <b-dropdown-item href="misc/" target="_blank">Privacy, license and funding</b-dropdown-item>
-            </b-dropdown>
-            <b-dropdown text="Data" variant="dark" right class="ml-4">
-                <b-dropdown-item @click="modal.uploadData.show=true" v-show="isMainDataEmpty">Upload data</b-dropdown-item>
-                <b-dropdown-item @click="modal.heatmapUploadData.show=true" v-show="!isMainDataEmpty && this.mainData && this.mainData.heatmapData == null">Add a heatmap</b-dropdown-item>
-                <b-dropdown-item @click="clearData" v-show="!isMainDataEmpty">Clear data</b-dropdown-item>
-                <b-dropdown-item @click="showDemo" v-show="isMainDataEmpty">Show demo data</b-dropdown-item>
-                <b-dropdown-item @click="downloadDemo" v-show="(!isMainDataEmpty) && isDemoDataShown">Download demo data (.tar.gz)</b-dropdown-item>
-                <b-dropdown-item href="help_upload/" target="_blank">Help on upload data</b-dropdown-item>
-            </b-dropdown>
-            <b-dropdown text="Help" variant="dark" right class="ml-4">
-                <b-dropdown-item href="../tutorial.mp4" target="_blank">Watch a tutorial on how to use IsoVis</b-dropdown-item>
-                <b-dropdown-item href="faq/" target="_blank">Frequently asked questions (FAQ)</b-dropdown-item>
-                <b-dropdown-item href="https://github.com/ClarkLaboratory/IsoVis" target="_blank">Go to the IsoVis GitHub repository</b-dropdown-item>
-                <b-dropdown-item href="https://github.com/ClarkLaboratory/IsoVis/issues" target="_blank">Report issues or request features</b-dropdown-item>
-            </b-dropdown>
+                <b-button @click="clearData" v-show="!isMainDataEmpty" variant="danger" size="sm" class="ml-2" style="white-space: nowrap;">Clear data and return to the home page</b-button>
+                <b-button @click="downloadDemo" v-show="(!isMainDataEmpty) && isDemoDataShown" variant="secondary" size="sm" class="ml-2" style="white-space: nowrap;">Download demo data</b-button>
+                <b-button @click="modal.selectGene.show=true" v-show="!isMainDataEmpty && this.all_genes && this.all_genes.length > 1" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">Change selected gene</b-button>
+                <b-dropdown text="About" variant="dark" right class="ml-2">
+                    <b-dropdown-item href="about/" target="_blank">About IsoVis</b-dropdown-item>
+                    <b-dropdown-item @click="modal.changelog.show=true">Release notes</b-dropdown-item>
+                    <b-dropdown-item @click="showCitation">How to cite us</b-dropdown-item>
+                    <b-dropdown-item href="misc/" target="_blank">Privacy, license and funding</b-dropdown-item>
+                </b-dropdown>
+                <b-dropdown text="Help" variant="dark" right class="ml-2">
+                    <b-dropdown-item href="tutorial/" target="_blank">Tutorial on how to use IsoVis</b-dropdown-item>
+                    <b-dropdown-item href="help_upload/" target="_blank">Help on upload data</b-dropdown-item>
+                    <b-dropdown-item href="help_gene_strand/" target="_blank">Help on gene strand diagram</b-dropdown-item>
+                    <b-dropdown-item href="faq/" target="_blank">Frequently asked questions (FAQ)</b-dropdown-item>
+                    <b-dropdown-item href="https://github.com/ClarkLaboratory/IsoVis" target="_blank">Go to the IsoVis GitHub repository</b-dropdown-item>
+                    <b-dropdown-item href="https://github.com/ClarkLaboratory/IsoVis/issues" target="_blank">Report issues or request features</b-dropdown-item>
+                </b-dropdown>
             </b-navbar-nav>
         </b-collapse>
     </b-navbar>
@@ -50,14 +52,14 @@ the exact state of that page from the previous state.
     <!-- Footer contains release notes and logos. -->
     <footer class="footer bg-dark mt-2">
         <b-row align-h="between" class="p-2" style="margin-left: 0px; margin-right: 0px;">
-            <b-col cols="4" style="padding-left: 0px; padding-right: 0px;">
+            <b-col cols="3" style="padding-left: 0px; padding-right: 0px;">
                 <span class="text-white">&copy; {{getYear()}} IsoVis</span>
                 <b-link href="#" v-b-modal.release-notes class="text-white ml-3">{{versionNumber}}</b-link>
             </b-col>
-            <b-col cols="4" style="padding-left: 0px; padding-right: 0px;">
+            <b-col cols="6" class="text-center" style="padding-left: 0px; padding-right: 0px;">
                 <b class="text-white">This website is free and open to all users and there is no login requirement.</b>
             </b-col>
-            <b-col cols="4" class="text-right" style="padding-left: 0px; padding-right: 0px;">
+            <b-col cols="3" class="text-right" style="padding-left: 0px; padding-right: 0px;">
                 <b-link href="https://stemformatics.org" target="_blank"><b-img src="~/assets/logos/StemformaticsLogo_REV_RGB_300px.png" height="22"></b-img></b-link>
                 <b-link href="https://nectar.org.au/" target="_blank" class="ml-2"><b-img src="@/assets/logos/nectardirectorate-logo.png" height="18"></b-img></b-link>
             </b-col>
@@ -275,8 +277,8 @@ export default
         downloadDemo()
         {
             var link = document.createElement('a');
-            link.href = "/demo_data.tar.gz";
-            link.download = "demo_data.tar.gz";
+            link.href = "/demo_data.zip";
+            link.download = "demo_data.zip";
             link.click();
         },
 
@@ -691,6 +693,9 @@ export default
         });
         this.$root.$on('request_data_upload', () => {
             this.modal.uploadData.show = true;
+        });
+        this.$root.$on('request_heatmap_data_upload', () => {
+            this.modal.heatmapUploadData.show = true;
         });
     }
 }

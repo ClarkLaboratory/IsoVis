@@ -1,5 +1,11 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 <template>
-<b-container class="pt-2">
+<b-container class="pt-2 text-justify">
     <strong><em>GFF/GTF:</em></strong><br>
     Stack data can be provided in GFF or GTF files.
     The attributes column (column 9) of each line <strong> must contain</strong>:<ol>

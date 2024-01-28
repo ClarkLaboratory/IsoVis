@@ -1,12 +1,18 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 <template>
 <b-container class="pt-2">
     <div class="card-columns" style="text-align: justify; text-justify: auto;">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Disclaimer</h5>
-                <p>IsoVis data are sourced from other Internet sites only for the convenience of its users. IsoVis is not responsible for the availability or content of these external sites, nor do we endorse, warrant or guarantee the products, services or information described or offered.</p>
+                <p>IsoVis renders visualisations based on user provided data and some data sourced from other sites. Hence IsoVis is not responsible for the content of these data being displayed, nor do we guarantee constant availability of the externally sourced data.</p>
                 <p>Information obtained on the IsoVis website is not intended to take the place of medical advice from a fully qualified health professional.</p>
-                <p>The views and opinions of authors expressed on IsoVis website do not necessarily reflect those of the contributing organisations, and they may not be used for advertising or product endorsement purposes without the author's explicit written permission.</p>
+                <p>The results shown by IsoVis website may not be used for advertising or product endorsement purposes without the author's explicit written permission.</p>
             </div>
         </div>
         <div class="card">
@@ -20,7 +26,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">License agreement</h5>
-                <p>IsoVis is an open-source resource freely available to anyone. It is released under the <b-link href="https://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution 4.0 International License (CC BY 4.0)</b-link>, which applies to all software and code.</p>
+                <p>IsoVis is an open-source resource freely available to anyone. It is released under the <b-link href="https://www.mozilla.org/en-US/MPL/2.0/" target="_blank">Mozilla Public License 2.0</b-link> and its data are released under the <b-link href="https://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution 4.0 International License (CC BY 4.0)</b-link>.</p>
             </div>
         </div>
         <div class="card">

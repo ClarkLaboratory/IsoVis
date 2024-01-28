@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 Component to render isoform stacks, where each isoform is a row of rectangles separated by introns.
 Requires an instance of BaseAxis as input, as well as isoformList object
 which must have 'transcriptID', 'exonRanges' and 'orf' properties.
