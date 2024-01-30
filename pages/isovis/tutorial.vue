@@ -145,7 +145,7 @@
         <div>
             The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript, the canonical protein, the mapping for protein domains and motifs, and any known ORFs (open reading frames).
             <br><br>
-            If the 'Known ORFs' stack option is enabled, then Ensembl isoforms that have known ORFs show gray, thinner rectangles for untranslated regions and thicker rectangles for ORFs.
+            If the 'Known ORFs' stack option is enabled, then Ensembl isoforms that have known ORFs show grey, thinner rectangles for untranslated regions and thicker rectangles for ORFs.
         </div>
         <br>
         <div class="text-center">
@@ -155,7 +155,7 @@
         </div>
         <br>
         <div>
-            Users can zoom into specific genomic coordinates either by entering them in the 'Zoom to coordinates' text box at the top of the page and pressing Enter, or by clicking, dragging, and releasing the cursor at the desired genomic coordinates. To reset the zooming, click on the yellow 'Reset zoom' button at the top of the page.
+            Users can zoom into specific genomic coordinates either by entering them in the 'Zoom to coordinates' text box at the top of the page and pressing Enter, or by clicking, dragging, and releasing the cursor at the desired genomic coordinates. To reset the zooming, click on the 'Reset zoom' button at the top of the page.
             <br><br>
             The 'A to Z' and 'Z to A' icons next to the 'User isoforms:' label can be used to sort the isoforms by ascending or descending transcript symbols or IDs. Moreover, stack isoforms can be dragged to rearrange them, and they can be hidden using the cross buttons in the list. The 'plus' button at the bottom of the list opens an 'Edit isoform list' pop-up, allowing users to toggle the visibility of each isoform.
             <br><br>

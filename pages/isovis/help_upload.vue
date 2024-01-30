@@ -26,7 +26,8 @@
             </ul> 
         </li>
     </ol>
-    The exons of each transcript must be ordered by ascending starting genome coordinates.
+    The exons of each transcript must be ordered by ascending starting genome coordinates.<br>
+    The strand of each transcript isoform (column 7) must be specified.
 
     <hr>
 
@@ -36,6 +37,7 @@
         <li><strong>ENST00000123456.1_ENSG00000123456.1</strong> or <strong>ENST00000123456.1|ENSG00000123456.1</strong> (for known transcripts)</li>
         <li><strong>novelTranscript1_ENSG00000123456.1</strong> or <strong>novelTranscript1|ENSG00000123456.1</strong> (for novel transcripts)</li>
     </ul>
+    The strand of each transcript isoform (column 6) must be specified.
 
     <hr>
 

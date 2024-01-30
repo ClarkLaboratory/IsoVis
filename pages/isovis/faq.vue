@@ -20,7 +20,7 @@
         <br>
         <div>
             Q: <b>How do I clear the uploaded data?</b><br>
-            A: Click on the 'Clear data' button from the 'Data' dropdown menu, or click on the 'IsoVis' button on the top left of the webpage.
+            A: Click on the 'Clear data and return to the home page' button on the top right of the webpage, or click on the 'IsoVis' button on the top left of the webpage.
         </div>
         <br>
         <div>
@@ -33,7 +33,7 @@
         <br>
         <div>
             Q: <b>How do I visualize a different gene?</b><br>
-            A: To visualize a different gene in your uploaded stack file, click on the blue 'Change selected gene' button at the top of the webpage.
+            A: To visualize a different gene in your uploaded stack file, click on the 'Change selected gene' button at the top of the webpage.
         </div>
         <br>
         <div>
@@ -76,15 +76,15 @@
             Q: <b>How do I download demo data?</b><br>
             A: There are currently two ways to do so:<br>
             <ol>
-                <li>Click on either the yellow 'Show demo data' button on the front page or the 'Show demo data' button in the 'Data' dropdown menu, then click on the 'Download demo data (.tar.gz)' button in the same dropdown menu.</li>
-                <li>Click on the yellow 'Download demo or Clark Lab data' button on the front page. In the pop-up that appears, click on one of the four file formats for download under the 'Demo data' heading.</li>
+                <li>Click on the 'Show demo data' button on the front page, then click on the 'Download demo data' button at the top of the webpage.</li>
+                <li>Click on the 'Download demo or Clark Lab data' button on the front page. In the pop-up that appears, click on one of the four file formats for download under the 'Demo data' heading.</li>
             </ol>
         </div>
         <div>
             Q: <b>How do I view Clark Lab data?</b><br>
             A: At the moment, you must first download the Clark Lab data, then manually upload them from your computer to the IsoVis website:<br>
             <ol>
-                <li>Click on the yellow 'Download demo or Clark Lab data' button on the front page. A pop-up would appear, showing some papers from the Clark Lab.</li>
+                <li>Click on the 'Download demo or Clark Lab data' button on the front page. A pop-up would appear, showing some papers from the Clark Lab.</li>
                 <li>You can download archives storing the isoform stack and heatmap data for each paper there.</li>
                 <li>Extract the stack and heatmap files from the downloaded archive.</li>
                 <li>Upload the extracted stack and heatmap files to the IsoVis website.</li>
@@ -157,7 +157,7 @@
         <div>
             Q: <b>How do I reset the zoom?</b><br>
             A: You could right-click the visualization of the canonical transcript, isoform stack, or gene strand.<br>
-               Alternatively, you could click on the yellow 'Reset zoom' button at the top of the page. 
+               Alternatively, you could click on the 'Reset zoom' button at the top of the page.
         </div>
         <br>
         <div>
