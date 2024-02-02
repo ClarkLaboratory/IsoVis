@@ -961,14 +961,23 @@ export class ProteinData
             var regions = [];
             for (let result of results)
             {
-                if (result.metadata == null)
+                if (!result.metadata)
                     continue;
                 if ((valid_types.indexOf(result.metadata.type) === -1) || result.metadata.source_database !== valid_database)
                     continue;
+                if (!result.proteins)
+                    continue;
+
                 for (let protein of result.proteins)
                 {
+                    if (!protein.entry_protein_locations)
+                        continue;
+
                     for (let entry_protein_location of protein.entry_protein_locations)
                     {
+                        if (!entry_protein_location.fragments)
+                            continue;
+
                         for (let fragment of entry_protein_location.fragments)
                         {
                             let region_obj = 
