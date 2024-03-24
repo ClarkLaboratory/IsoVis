@@ -12,7 +12,7 @@
                 <h5 class="card-title">About IsoVis</h5>
                 <p>IsoVis enables fast and informative visualization of gene isoforms and comparison of their exonic structures and relative expression levels. Uniquely, IsoVis displays the position of ORFs and protein domains within isoforms, allowing the potential changes to protein sequence and function between isoforms to be quickly established.</p>
                 <p>Genes commonly express multiple mRNA isoforms through processes such as alternative splicing initiation and termination. While the advent of long-read RNA-seq has revolutionised our ability to accurately quantify expression of both known and novel RNA isoforms. IsoVis now facilitates visualization and investigation of these isoforms.</p>
-                <p>Transcript structures (GFF, GTF or BED12 files) are displayed as an isoform stack, while quantitative, sample-based data such as isoform abundances (CSV or TXT files) are presented as a heatmap. Reference data including the canonical ENSEMBL transcript, open reading frame and encoded protein domains are sourced from external databases and integrated with the isoform information.</p>
+                <p>Transcript structures (GFF, GTF or BED files) are displayed as an isoform stack, while quantitative, sample-based data such as isoform abundances (CSV or TXT files) are presented as a heatmap. Reference data including the canonical ENSEMBL transcript, open reading frame and encoded protein domains are sourced from external databases and integrated with the isoform information.</p>
             </div>
         </div>
         <div class="card">

@@ -44,6 +44,15 @@
         </div>
         <br>
         <div>
+            Q: <b>What genome versions or builds can IsoVis use?</b><br>
+            A: If uploading data from one of the species supported by IsoVis, you must be using the genome version found in Ensembl to ensure correct visualization.<br>
+               Using an older genome version can lead to <b>mismatches</b> between the coordinates of features in your data and the ones from Ensembl.<br>
+               For <u>humans</u>, both GRCh38 (hg38) and GRCh37 (hg19) are currently supported by Ensembl.<br>
+               IsoVis will use GRCh38 by default. If using GRCh37, please tick the 'Use GRCh37 (hg19) instead of GRCh38 (hg38)' checkbox in the 'Upload data' pop-up.<br>
+               For <u>all other species supported by IsoVis</u>, please use the latest genome version to ensure correct visualization.
+        </div>
+        <br>
+        <div>
             Q: <b>I would like to visualize genes found on multiple chromosomes. How should the data files be formatted?</b><br>
             A: There are occasions when a gene is found on multiple chromosomes, such as the pseudoautosomal regions shared by the human X and Y chromosomes.<br>
                To allow transcript isoforms from each gene version to be correctly visualized, we suggest ensuring the transcript IDs differ before the dot character ('.').<br>
@@ -68,7 +77,7 @@
         <div>
             Q: <b>What data can I export from IsoVis?</b><br>
             A: You can export images of your isoform stack and heatmap either on their own or together using the 'Export image as...' button.<br>
-               The currently available image formats are PNG, JPEG and SVG.<br>
+               The currently available image formats are PNG, JPEG, SVG and PDF.<br>
                Exported images only show the uploaded data and do not contain website navigation or help features.
         </div>
         <br>
@@ -103,7 +112,8 @@
                 <li>Canonical transcript: The transcript isoform annotated as a canonical / major transcript in Ensembl. Provides a transcript to compare against user data.</li>
                 <li>Canonical protein: Protein domain and motif information from InterPro for the canonical transcript.</li>
                 <li>Protein domain mapping: Turn on or off the mapping of InterPro protein domains to exons.</li>
-                <li>Protein domain mapping: Turn on or off the mapping of InterPro protein motifs to exons.</li>
+                <li>Protein motif mapping: Turn on or off the mapping of InterPro protein motifs to exons.</li>
+                <li>Protein domain labels (beta): Show or hide labels of InterPro protein domains.</li>
                 <li>Known ORFs: Turn on or off the display of the coding sequence. Applicable to annotated isoforms with known ORFs only.</li>
             </ul>
         </div>

@@ -15,6 +15,7 @@ See 'secondaryData' key in demo_data.json for example data.
         
 <script>
 import * as d3 from 'd3';
+import {put_in_svg, rect} from "~/assets/svg_utils";
 
 export default {
     props: ["heatmapData"],
@@ -135,7 +136,6 @@ export default {
             let tooltip = d3.select("#heatmapDiv")
                             .append("div")
                             .attr("class", "tooltip")
-                            .attr("data-htmltoimage-ignore", true)
                             .style("visibility", "hidden")
                             .style("opacity", 1)
                             .style("background-color", "white")
@@ -146,7 +146,7 @@ export default {
 
             // function to stop tooltip extending past the edge of screen
             let calculateLeftVal = (x) => {
-                return (boundary.right - x < 165)? boundary.right - 165 : x;
+                return (boundary.right - x < 165) ? boundary.right - 165 : x;
             }
 
             // hide tooltip when mouse leaves heatmap
@@ -189,11 +189,12 @@ export default {
                 .on("mouseover", function (evt) {display_tooltip(evt);})
                 .on("mousemove", function (evt) {display_tooltip(evt);})
                 .on("mouseleave", hide_tooltip);
+        },
 
-            /*// dimensions
-            let svgWidth = 450,
-            svgHeight = 300,
-            padding = 16,
+        buildHeatmapSvg(symbol = false)
+        {
+            // dimensions
+            let padding = 16,
             cellDim = 50,
             cellPad = 1;
             let colour = {
@@ -202,42 +203,47 @@ export default {
                 heatmapHigh: '#fc7d0b',
                 invalid: '#c2c2c2'
             };
-            
-            // Clear target element of content
-            d3.select('#heatmapDiv').selectAll('*').remove();
 
             // make copy of data and compute plot width
             let el = document.getElementById("heatmapDiv");
-            if (!(el && this.heatmapData)) return;
+            if (!(el && this.heatmapData))
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
             let boundary = el.getBoundingClientRect();
-            svgWidth = boundary.width - 2 * padding;
-
-            // Append SVG and main group element
-            let svg = d3.select("#heatmapDiv").append("svg").style('background-color', colour.invalid);
-            let mapMain = svg.append("g").style("position", "relative");
+            let width = boundary.width - 2 * padding;
 
             // Labels of row and columns
-            let samples = this.heatmapData.samples.slice(1);
-            //let transcripts = this.primaryData ? JSON.parse(JSON.stringify(this.primaryData.transcriptOrder)).reverse() : Array.from(data.transcripts).reverse();
-            let transcripts = this.heatmapData.transcriptOrder.slice().reverse();
+            let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
+            samples.splice(this.heatmapData.gene_id_colnum, 1);
+
+            for (let i = 0; i < samples.length; ++i)
+            {
+                let sample = samples[i].toLowerCase();
+                if (sample === "transcript_id")
+                {
+                    samples.splice(i, 1);
+                    break;
+                }
+            }
+
+            let transcripts = this.heatmapData.transcriptOrder.slice();
             let rowCount = transcripts.length;
+            let height = rowCount * (cellDim + cellPad) - cellPad;
 
-            // Update dimensions of SVG
-            svgHeight = rowCount * (cellDim + cellPad) - cellPad;
-            svg.attr("height", svgHeight).attr("width", svgWidth);
+            // Create an array of uppercase transcripts so that case-insensitive comparison can be performed later
+            let uppercase_transcripts = [...transcripts];
+            for (let i = 0; i < rowCount; ++i)
+                uppercase_transcripts[i] = uppercase_transcripts[i].toUpperCase();
 
-            // Build X scales and axis:
-            let x = d3.scaleBand().range([ 0, svgWidth ]).domain(samples).padding(0.01);
-            mapMain.append("g")
-                .attr("transform", "translate(0," + svgHeight + ")")
-                .call(d3.axisBottom(x));
+            width = Math.ceil(width);
+            height = Math.ceil(height);
 
-            // Build Y scales and axis:
-            let y = d3.scaleBand().range([ svgHeight, 0 ]) // should align if height of heatmap is equal to height of stack
-                .domain(transcripts).padding(0.01);
-            mapMain.append("g").call(d3.axisLeft(y));
+            // Add background colour
+            let svg = rect(0, 0, width, height, colour.invalid);
 
-            // Build color scale
             let minVal = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
             let average = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
             let maxVal = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
@@ -245,76 +251,52 @@ export default {
                 .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
                 .domain([minVal, average, maxVal]);
 
-            // add tooltip
-            let self = this;
-            let tooltip = d3.select("#heatmapDiv").data(self.heatmapData.export)
-                .append("div")
-                .attr("class", "tooltip")
-                .style("visibility", "hidden")
-                .style("background-color", "white")
-                .style("border", "solid")
-                .style("border-width", "2px")
-                .style("border-radius", "5px")
-                .style("padding", "5px");
+            let rows = uppercase_transcripts.length;
+            let cols = samples.length;
+            let values = new Array(rows).fill(undefined).map(() => new Array(cols).fill(undefined));
 
-            // function to stop tooltip extending past the edge of screen
-            let calculateLeftVal = (x) => {
-                return (boundary.right - x < 165)? boundary.right - 165 : x;
-            }
-
-            // hide tooltip when mouse leaves heatmap
-            let hide_tooltip = function()
+            let cell_values = this.logTransform ? this.heatmapData.logExport : this.heatmapData.export;
+            for (let cell_value of cell_values)
             {
-                tooltip.style("visibility", "hidden");
+                let transcript = cell_value.transcript;
+                let sample = cell_value.sample;
+                let value = cell_value.value;
+
+                let transcript_index = uppercase_transcripts.indexOf(transcript.toUpperCase());
+                let sample_index = samples.indexOf(sample);
+
+                if (transcript_index === -1 || sample_index === -1)
+                    continue;
+
+                values[transcript_index][sample_index] = value;
             }
 
-            // make tooltip follow cursor
-            let display_tooltip = function(evt)
+            let cell_width = width / cols;
+            let cell_height = height / rows;
+
+            // Fill each cell with the correct colour
+            for (let i = 0; i < rows; ++i)
             {
-                let cell = evt.explicitOriginalTarget;
-                let sample = cell.getAttribute("sample");
-                if (sample == null)
-                    return;
-                let transcript = cell.getAttribute("transcript"),
-                    value = cell.getAttribute("value");
+                let row = values[i];
+                for (let j = 0; j < cols; ++j)
+                {
+                    let value = row[j];
+                    if (value == undefined)
+                        continue;
 
-                let heatmap_div = document.getElementById("heatmapDiv");
-                let boundary = heatmap_div.getBoundingClientRect();
-                let leftVal = (calculateLeftVal(evt.clientX) - boundary.left + padding + 7);
-                let topVal = (evt.clientY - boundary.top + padding + 5);
+                    let x = Math.round(cell_width * j);
+                    let y = Math.round(cell_height * i);
+                    let cell_colour = d3.color(myColor(value)).formatHex();
 
-                tooltip
-                .html(`Sample: ${sample}<br>Transcript: ${transcript}<br>Value: ${value}<br>`)
-                .style("visibility", "visible")
-                .style("left", leftVal + "px").style("top", topVal + "px");
+                    svg += rect(x, y, Math.ceil(cell_width), Math.ceil(cell_height), cell_colour);
+                }
             }
 
-            // Add cells to heatmap
-            mapMain.selectAll(".cell")
-                .data(self.logTransform ? self.heatmapData.logExport : self.heatmapData.export)
-                .enter()
-                .append('rect')
-                .attr("class", function(d) {
-                    let classVal = "cell";
-                    if (!transcripts.includes(d.transcript) || isNaN(d.value)) classVal += " to-remove";
-                    return classVal;
-                })
-                .attr("sample", function (d) {return d.sample})
-                .attr("transcript", function (d) {return d.transcript})
-                .attr("value", function (d) {return d.value})
-                .attr('x', function(d) {return x(d.sample)})
-                .attr('y', function(d) {return y(d.transcript)})
-                .attr('width', x.bandwidth())
-                .attr('height', y.bandwidth())
-                .style("fill", function(d) {return myColor(d.value);});
+            if (symbol)
+                return [width, height, svg];
 
-            // Add tooltip event listeners to the entire heatmap
-            d3.select("#heatmapDiv").select("svg")
-                .on("mouseover", function (evt) {display_tooltip(evt);})
-                .on("mousemove", function (evt) {display_tooltip(evt);})
-                .on("mouseleave", hide_tooltip);
-
-            d3.selectAll('.to-remove').remove();*/
+            svg = put_in_svg(width, height, svg);
+            return svg;
         }
     },
 

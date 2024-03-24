@@ -17,7 +17,7 @@ See 'secondaryData' key in demo_data.json for example data.
         
 <script>
 import * as d3 from 'd3';
-// import { isInteger } from 'lodash';
+import {put_in_svg, rect, line, heatmap_legend_text, linear_gradient, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
 
 export default {
     props: ["heatmapData"],
@@ -57,23 +57,6 @@ export default {
                 heatmapHigh: '#fc7d0b',
                 invalid: '#c2c2c2'
             };
-
-            // Build X scales and axis:
-            // let x = d3.scaleBand().range([ 0, width ]).domain(data).padding(0);
-
-            // calculate the required height (based on length of sample names)
-            // let height = 0;
-            // let heightCalcSvg = d3.select("#heatmapLegendDiv").append("svg");
-            // heightCalcSvg.append("g")
-            //     .call(d3.axisBottom(x))
-            //     .selectAll("text")
-            //     .each(function(d) {
-            //         let w = this.getBBox().width;
-            //         if (w > height) height = w;
-            //     })
-
-            // height += 30 + 15 + 25;
-            // heightCalcSvg.remove();
 
             let height = 0;
             let font_size = 14.0;
@@ -122,7 +105,6 @@ export default {
             let heightCalcCanvas_ctx = heightCalcCanvas.getContext("2d");
             heightCalcCanvas_ctx.font = `${font_size}px sans-serif`;
 
-            // let num_samples = data.length;
             for (let i = 0; i < num_samples; ++i)
             {
                 let sample = data[i];
@@ -143,23 +125,22 @@ export default {
             ctx.font = `${font_size}px sans-serif`;
             ctx.textBaseline = "bottom";
 
-            // Draw the horizontal axis line
             ctx.beginPath();
+
+            // Draw the horizontal axis line
             ctx.moveTo(0, 0);
             ctx.lineTo(canvas.width - 1, 0);
-            ctx.stroke();
 
             // Draw the vertical ticks
-            // let num_samples = data.length;
-            // let cell_width = canvas.width / num_samples;
             for (let i = 0; i < num_samples; ++i)
             {
                 let x_coord = Math.round(cell_width * (i + 0.5));
-                ctx.beginPath();
+
                 ctx.moveTo(x_coord, 0);
                 ctx.lineTo(x_coord, 5);
-                ctx.stroke();
             }
+
+            ctx.stroke();
 
             // Draw the sample names below the ticks
             ctx.save();
@@ -232,45 +213,88 @@ export default {
             ctx.fillText(min_label, (canvas.width - legendWidth) / 2, height);
             ctx.fillText(mid_label, mid_label_start, height);
             ctx.fillText(max_label, max_label_start, height);
+        },
 
-            /* height += 30;
-            heightCalcSvg.remove();
+        buildHeatmapLegendSvg(symbol = false)
+        {
+            let el = document.getElementById("heatmapDiv");
+            if (!(el && this.heatmapData))
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
 
-            // append the svg object to the body of the page
-            let labelSvg = d3.select("#heatmapLegendDiv")
-                .append("svg").attr("width", width).attr("height", height).append("g");
+            let data = JSON.parse(JSON.stringify(this.heatmapData.samples));
+            data.splice(this.heatmapData.gene_id_colnum, 1);
 
-            let axisBottom = labelSvg.append("g")
-                .call(d3.axisBottom(x))
-                .selectAll("text")
-                .attr("y", 0)
-                .attr("x", 9)
-                .attr("dy", ".35em")
-                .attr("transform", "rotate(90)")
-                .style("text-anchor", "start");
+            for (let i = 0; i < data.length; ++i)
+            {
+                let sample = data[i].toLowerCase();
+                if (sample === "transcript_id")
+                {
+                    data.splice(i, 1);
+                    break;
+                }
+            }
 
-            let legendWidth = width / 1.5;
-            let legendSvg = d3.select("#heatmapLegendDiv")
-                    .append("svg")
-                    .attr("width", legendWidth)
-                    .attr("height", 55)
+            let padding = 16;
+            let boundary = el.getBoundingClientRect();
+            let width = boundary.width - 2 * padding;
+            let colour = {
+                heatmapLow: '#1170aa', // '#962705',
+                heatmapMid: '#fff8e6', // 'white',
+                heatmapHigh: '#fc7d0b',
+                invalid: '#c2c2c2'
+            };
 
-            // build colour gradient for legend
-            let gradientDef = legendSvg.append('defs');
-            let gradient = gradientDef.append('linearGradient').attr('id', 'gradient');
-            gradient.append('stop').attr('stop-color', colour.heatmapLow).attr('offset',  '0%');
-            gradient.append('stop').attr('stop-color', colour.heatmapMid).attr('offset',  '50%');
-            gradient.append('stop').attr('stop-color', colour.heatmapHigh).attr('offset',  '100%');
+            let height = 0;
+            let font_size = 14.0;
 
-            // add legend
-            let legendMain = legendSvg.append('g')
-                .attr('class', 'legendMain').attr("width", legendWidth).attr("height", 55).style('position', 'relative');
-            let legend = legendMain.append('rect').attr("width", legendWidth).attr("height", 15).style('fill', 'url(#gradient)');
-        
+            d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
+            let fontSizeCalcCanvas = document.getElementById("fontSizeCalcCanvas");
+            let fontSizeCalcCanvas_ctx = fontSizeCalcCanvas.getContext("2d");
+            let canvas_width = Math.ceil(width);
+            let num_samples = data.length;
+            let cell_width = canvas_width / num_samples;
+
+            fontSizeCalcCanvas_ctx.textBaseline = "bottom";
+            while (font_size > 2.0)
+            {
+                fontSizeCalcCanvas_ctx.font = `${font_size}px sans-serif`;
+                let spans = [];
+                for (let i = 0; i < num_samples; ++i)
+                {
+                    let sample = data[i];
+                    let x_coord = -Math.round(cell_width * (i + 0.5));
+                    let sample_text_metrics = fontSizeCalcCanvas_ctx.measureText(sample);
+                    let sample_text_height = sample_text_metrics.actualBoundingBoxAscent + sample_text_metrics.actualBoundingBoxDescent;
+                    spans.push([x_coord + Math.round(sample_text_height / 2), x_coord - sample_text_height / 2]);
+                }
+
+                let not_overlapping = true;
+                for (let i = 0; i < spans.length - 1; ++i)
+                {
+                    if (spans[i][1] - spans[i + 1][0] < 1)
+                    {
+                        not_overlapping = false;
+                        break;
+                    }
+                }
+
+                if (not_overlapping && (spans[0][0] < 0) && (spans[spans.length - 1][1] >= -(canvas_width - 1)))
+                    break;
+
+                font_size -= 0.1;
+            }
+
             // text formatting for min/max/avg value labels
             let getLabel = (val) => {
-                val = isInteger(val) ? val.toFixed() : val.toFixed(2);
-                if (val.length > 1 && val.split('.')[1] == '00') val = val.split('.')[0];
+                if (val === undefined)
+                    return "NaN";
+                val = Number.isInteger(val) ? val.toFixed() : val.toFixed(2);
+                if (val.length > 1 && val.split('.')[1] == '00')
+                    val = val.split('.')[0];
                 return val;
             }
 
@@ -278,27 +302,109 @@ export default {
             let min = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
             let mid = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
             let max = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
-            const minLabel = legendMain.append('text')
-                .attr('class', 'label').attr('id', 'min')
-                .text(getLabel(min))
-                .attr('x', 0).attr('y', 45)
-                .attr('font-size', 'smaller');
 
-            const midLabel = legendMain.append('text')
-                .attr('class', 'label').attr('id', 'mid')
-                .text(getLabel(mid))
-                .attr('y', 45)
-                .attr('font-size', 'smaller');
+            let min_label = getLabel(min);
+            let mid_label = getLabel(mid);
+            let max_label = getLabel(max);
 
-            const maxLabel = legendMain.append('text')
-                .attr('class', 'label').attr('id', 'max')
-                .text(getLabel(max))
-                .attr('y', 45)
-                .attr('font-size', 'smaller');
+            let text_font_size = 12.0;
+            let min_label_end, mid_label_start, mid_label_end, mid_label_width, max_label_start;
 
-            midLabel.attr('x', (legendWidth - midLabel.node().getComputedTextLength()) / 2);
-            maxLabel.attr('x', legendWidth - maxLabel.node().getComputedTextLength());*/
-        },
+            let svg_width = Math.ceil(width);
+            let legendWidth = svg_width / 1.5;
+
+            while (text_font_size > 2.0)
+            {
+                fontSizeCalcCanvas_ctx.font = `${text_font_size}px sans-serif`;
+
+                min_label_end = ((svg_width - legendWidth) / 2) + fontSizeCalcCanvas_ctx.measureText(min_label).width;
+                max_label_start = ((svg_width + legendWidth) / 2) - fontSizeCalcCanvas_ctx.measureText(max_label).width;
+
+                mid_label_width = fontSizeCalcCanvas_ctx.measureText(mid_label).width;
+                mid_label_start = (svg_width - mid_label_width) / 2;
+                mid_label_end = (svg_width + mid_label_width) / 2;
+
+                if ((mid_label_start - min_label_end >= 5) && (max_label_start - mid_label_end >= 5))
+                    break;
+
+                text_font_size -= 0.1;
+            }
+
+            let log_transform_enabled_font_size = 12.0;
+            if (this.logTransform)
+            {
+                while (log_transform_enabled_font_size > 2.0)
+                {
+                    fontSizeCalcCanvas_ctx.font = `${log_transform_enabled_font_size}px sans-serif`;
+
+                    let text_width = fontSizeCalcCanvas_ctx.measureText("(Log-transformed)").width;
+                    if (svg_width - text_width >= 2)
+                        break;
+
+                    log_transform_enabled_font_size -= 0.1;
+                }
+            }
+
+            document.querySelector('#fontSizeCalcCanvas').remove();
+
+            d3.select("#heatmapLegendDiv").append("canvas").attr("id", "heightCalcCanvas");
+            let heightCalcCanvas = document.getElementById("heightCalcCanvas");
+            let heightCalcCanvas_ctx = heightCalcCanvas.getContext("2d");
+            heightCalcCanvas_ctx.font = `${font_size}px sans-serif`;
+
+            for (let i = 0; i < num_samples; ++i)
+            {
+                let sample = data[i];
+                let sample_text_height = heightCalcCanvas_ctx.measureText(sample).width;
+                if (height < sample_text_height)
+                    height = sample_text_height;
+            }
+
+            height += 30 + 15 + 25;
+            document.querySelector('#heightCalcCanvas').remove();
+
+            let svg_height = Math.ceil(height);
+
+            let svg = "";
+
+            svg += line(0, 0, svg_width - 1, 0, "black", 1);
+
+            // Draw the vertical ticks
+            for (let i = 0; i < num_samples; ++i)
+            {
+                let x_coord = Math.round(cell_width * (i + 0.5));
+                svg += line(x_coord, 0, x_coord, 5, "black", 1);
+            }
+
+            // Draw the sample names below the ticks
+            for (let i = 0; i < num_samples; ++i)
+            {
+                let sample = data[i];
+                let x_coord = Math.round(cell_width * (i + 0.5));
+                svg += heatmap_legend_text(sample, x_coord, 9, font_size, "sans-serif");
+            }
+
+            // Draw the colour gradient
+            svg = linear_gradient("gradient", [["0%", colour.heatmapLow], ["50%", colour.heatmapMid], ["100%", colour.heatmapHigh]]) + svg;
+            svg += rect((svg_width - legendWidth) / 2, svg_height - 15 - 25, legendWidth, 15, "url(#gradient)");
+
+            // Draw the min/mid/max value labels
+            svg += text(min_label, (svg_width - legendWidth) / 2, svg_height, text_font_size, "sans-serif");
+            svg += text_centered(mid_label, svg_width / 2, svg_height, text_font_size, "sans-serif");
+            svg += text_right_aligned(max_label, (svg_width + legendWidth) / 2, svg_height, text_font_size, "sans-serif");
+
+            if (this.logTransform)
+            {
+                svg_height += 60;
+                svg += text_centered("(Log-transformed)", svg_width / 2, svg_height - 20, log_transform_enabled_font_size, "sans-serif");
+            }
+
+            if (symbol)
+                return [svg_width, svg_height, svg];
+
+            svg = put_in_svg(svg_width, svg_height, svg);
+            return svg;
+        }
     },
 
     watch: {

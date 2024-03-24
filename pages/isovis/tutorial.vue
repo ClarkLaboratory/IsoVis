@@ -43,13 +43,15 @@
         <h3>Introduction</h3>
         <br>
         <div>
-            IsoVis is a tool for visualizing and analyzing alternative mRNA isoforms. It displays the exonic structures of isoforms from GFF, GTF or BED12 files as an isoform stack. It can also show quantitative expression data of the displayed isoforms from CSV or tab-separated text files as a heatmap.
+            IsoVis is a tool for visualizing and analyzing alternative mRNA isoforms. It displays the exonic structures of isoforms from GFF, GTF or BED files as an isoform stack. It can also show quantitative expression data of the displayed isoforms from CSV or tab-separated text files as a heatmap.
             <br><br>
             IsoVis can integrate relevant information from <b-link href="https://www.ensembl.org/index.html" target="_blank">Ensembl</b-link> and <b-link href="https://www.ebi.ac.uk/interpro/" target="_blank">InterPro</b-link> into visualizations. When isoforms are labelled by their Ensembl gene and transcript IDs in the stack file, IsoVis can retrieve the open reading frames of known transcripts, the canonical Ensembl transcript, and the protein domains and motifs of that transcript.
             <br><br>
             Users can upload files containing isoform information on one gene to a whole transcriptome to IsoVis. Isovis allows users to select and switch between genes to visualize, with the central visualization displaying the isoform information of one gene at a time.
             <br><br>
             IsoVis can accept and visualize properly formatted stack and heatmap files containing isoform information from any species (see <b-link href="../help_upload/" target="_blank">help page on proper formatting on input files</b-link>). Currently, IsoVis can integrate Ensembl and InterPro information from any chordate species in Ensembl, plus Drosophila and yeast.
+            <br><br>
+            IsoVis can also accept stack data from the GRCh37 (hg19) genome build.
         </div>
         <br>
         <b-link name="home"></b-link>
@@ -143,7 +145,7 @@
         </div>
         <br>
         <div>
-            The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript, the canonical protein, the mapping for protein domains and motifs, and any known ORFs (open reading frames).
+            The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript, the canonical protein, the mapping for protein domains and motifs, labels for the protein domains (beta), and any known ORFs (open reading frames).
             <br><br>
             If the 'Known ORFs' stack option is enabled, then Ensembl isoforms that have known ORFs show grey, thinner rectangles for untranslated regions and thicker rectangles for ORFs.
         </div>
@@ -211,7 +213,7 @@
         </div>
         <br>
         <div>
-            An image showing the visualized data can be exported using the options under the 'Export image as...' menu. Only relevant details of the webpage are included in the exported image. Currently, image export options are PNG, JPEG and SVG (in beta).
+            An image showing the visualized data can be exported using the options under the 'Export image as...' menu. Only relevant details of the webpage are included in the exported image. Currently, image export options are PNG, JPEG, SVG and PDF.
         </div>
         <br>
         <b-link name="uploading_data"></b-link>
@@ -227,6 +229,8 @@
             To upload data into IsoVis for visualization, click on the 'Upload data' button in the home page, then specify the data files to be uploaded. The formatting requirements of the uploaded files can be found from the <b-link href="../help_upload/" target="_blank">help page on upload data</b-link>. 
             <br><br>
             Selecting a species is optional. IsoVis can visualize properly formatted stack and heatmap files from any species. To include linked gene, isoform and protein information from external databases, select the species the data came from in the 'Upload data' pop-up. Currently, IsoVis supports all chordate species in Ensembl, plus the fruit fly (<i>Drosophila melanogaster</i>), and yeast (<i>Saccharomyces cerevisiae</i>).
+            <br><br>
+            IsoVis also supports data from the GRCh37 (hg19) genome build. To upload stack data from GRCh37, the 'Use GRCh37 (hg19) instead of GRCh38 (hg38)' checkbox should be ticked.
             <br><br>
             If the uploaded isoform stack file contains data on more than one gene, the user is prompted by a pop-up to select a gene to visualize. To do so, start typing either the symbol or ID of the gene in the search box, then select from a list of possible genes to visualize and press Enter.
             <br><br>

@@ -30,13 +30,18 @@ export class PrimaryData {
      * 
      * @param {string} file the input file
      * @param {string} gene ID for the gene of interest
+     * @param {string} species the species the data came from
+     * @param {boolean} is_use_grch37 whether the data uses the GRCh37 genome build instead of GRCh38 (applicable for human data only)
      */
-    constructor(file, gene)
+    constructor(file, gene, species, is_use_grch37)
     {
         this.valid = false; // set to true at the end
         this.error = "";
         this.file = file;
         this.gene = gene;
+        this.species = species;
+        this.is_use_grch37 = is_use_grch37;
+        this.is_strand_unknown = false;
     }
 
     async parseFile()
@@ -63,16 +68,115 @@ export class PrimaryData {
             return;
         }
 
+        if (filename.indexOf('.') === -1)
+        {
+            this.error = "Stack file does not contain a file extension. Please specify the correct file extension in its filename.";
+            return;
+        }
+
+        this.is_bed_type_unknown = false;
+        this.is_reduced_bed = false;
+        this.is_minimal_bed = false;
+        this.num_reduced_bed_columns = -1;
+
         if (filename.endsWith(".gff3"))
             this.filetype = "GFF3";
         else if (filename.endsWith(".gff") || filename.endsWith(".gff2") || filename.endsWith(".gtf"))
             this.filetype = "GTF";
-        else if (filename.endsWith(".bed") || filename.endsWith(".bed12"))
+        else if (filename.endsWith(".bed12"))
             this.filetype = "BED";
+        else if (filename.endsWith(".bed"))
+        {
+            this.filetype = "BED";
+            this.is_bed_type_unknown = true;
+        }
         else
         {
-            this.error = "Invalid stack file extension.";
-            return;
+            let last_dot_index = filename.lastIndexOf('.');
+            let file_extension = filename.substring(last_dot_index + 1);
+
+            // Is this a reduced BED file? (BED6 to BED9)
+            let valid_column_numbers = [6, 7, 8, 9];
+            for (let valid_column_number of valid_column_numbers)
+            {
+                if (file_extension === `bed${valid_column_number}`)
+                {
+                    this.filetype = "BED";
+                    this.is_reduced_bed = true;
+                    this.num_reduced_bed_columns = valid_column_number;
+                    break;
+                }
+            }
+
+            // Is this a minimal BED file? (BED4 to BED5)
+            valid_column_numbers = [4, 5];
+            for (let valid_column_number of valid_column_numbers)
+            {
+                if (file_extension === `bed${valid_column_number}`)
+                {
+                    this.filetype = "BED";
+                    this.is_minimal_bed = true;
+                    this.num_reduced_bed_columns = valid_column_number;
+                    break;
+                }
+            }
+
+            if (this.num_reduced_bed_columns === -1)
+            {
+                this.error = "Invalid stack file extension.";
+                return;
+            }
+        }
+
+        // The user has uploaded a .bed file, so determine the number of columns it should have
+        if (this.is_bed_type_unknown)
+        {
+            let slice_index = 0;
+            while (slice_index !== -1)
+            {
+                let arr = await this.filteredLines(slice_index);
+                let filtered_lines = arr[0];
+                slice_index = arr[1];
+
+                if (filtered_lines.length === 0)
+                    continue;
+
+                let num_columns = filtered_lines[0].split('\t').length;
+                if ((num_columns <= 3) || (num_columns === 10) || (num_columns === 11) || (num_columns >= 13))
+                {
+                    this.error = "Incorrect number of columns found in the uploaded BED stack file. Please upload a BED4 to BED9 file or a BED12 file.";
+                    break;
+                }
+
+                // If there are 12 columns, this is a BED12 file
+                if (num_columns === 12)
+                {
+                    this.is_bed_type_unknown = false;
+                    break;
+                }
+
+                // If there are 6 to 9 columns, this is a reduced BED file
+                if ((num_columns >= 6) && (num_columns <= 9))
+                {
+                    this.is_reduced_bed = true;
+                    this.num_reduced_bed_columns = num_columns;
+                    this.is_bed_type_unknown = false;
+                    break;
+                }
+
+                // If there are 4 or 5 columns, this is a minimal BED file
+                this.is_minimal_bed = true;
+                this.num_reduced_bed_columns = num_columns;
+                this.is_bed_type_unknown = false;
+                break;
+            }
+
+            if (this.is_bed_type_unknown)
+            {
+                if (!this.error)
+                    this.error = "The uploaded BED stack file does not contain any valid BED line. Please upload a BED4 to BED9 file or a BED12 file.";
+                return;
+            }
         }
 
         this.transcripts = {};
@@ -120,9 +224,23 @@ export class PrimaryData {
             else if (first_parser_type === "e_GTF")
                 this.exonsFromGTF(filtered_lines);
             else if (first_parser_type === "g_BED")
-                this.genesFromBED(filtered_lines);
+            {
+                if (this.is_reduced_bed)
+                    this.genesFromReducedBED(filtered_lines);
+                else if (this.is_minimal_bed)
+                    this.genesFromMinimalBED(filtered_lines);
+                else
+                    this.genesFromBED(filtered_lines);
+            }
             else if (first_parser_type === "e_BED")
-                this.exonsFromBED(filtered_lines);
+            {
+                if (this.is_reduced_bed)
+                    this.exonsFromReducedBED(filtered_lines);
+                else if (this.is_minimal_bed)
+                    await this.exonsFromMinimalBED(filtered_lines);
+                else
+                    this.exonsFromBED(filtered_lines);
+            }
 
             this.update_loading_percentage(loading_percentage);
         }
@@ -161,7 +279,14 @@ export class PrimaryData {
                 else if (second_parser_type === "e_GTF")
                     this.exonsFromGTF(filtered_lines);
                 else if (second_parser_type === "e_BED")
-                    this.exonsFromBED(filtered_lines);
+                {
+                    if (this.is_reduced_bed)
+                        this.exonsFromReducedBED(filtered_lines);
+                    else if (this.is_minimal_bed)
+                        await this.exonsFromMinimalBED(filtered_lines);
+                    else
+                        this.exonsFromBED(filtered_lines);
+                }
 
                 this.update_loading_percentage(loading_percentage);
             }
@@ -194,8 +319,6 @@ export class PrimaryData {
         this.end = this.isoformList[0].strand === '+' ? 
             this.mergedRanges[this.mergedRanges.length - 1][1] : 
             this.mergedRanges[0][0];
-        this.leftEnd = this.mergedRanges[0][0];
-        this.rightEnd = this.mergedRanges[this.mergedRanges.length - 1][1];
         this.width = Math.abs(this.end - this.start);
         this.strand = this.isoformList[0].strand;
 
@@ -364,6 +487,142 @@ export class PrimaryData {
         }
     }
 
+    exonsFromReducedBED(lines)
+    {
+        for (let raw_line of lines)
+        {
+            let line = new ReducedBEDLine(raw_line, this.num_reduced_bed_columns);
+            if (!line.valid)
+                continue;
+
+            let gene_to_search = this.gene;
+            if (gene_to_search)
+            {
+                let gene_name = line.gene;
+                if (!gene_name)
+                    continue;
+
+                let period_index = gene_name.indexOf('.');
+                if (period_index !== -1)
+                    gene_name = gene_name.substring(0, period_index);
+
+                gene_name = gene_name.toUpperCase();
+                gene_to_search = gene_to_search.toUpperCase();
+                if (gene_to_search !== gene_name)
+                    continue;
+            }
+
+            // Extract the transcript's chromosome
+            if ((!this.chromosome) && line.chromosome)
+                this.chromosome = line.chromosome;
+
+            let transcript = line.transcript;
+            if (!transcript)
+                continue;
+
+            transcript = transcript.split(".")[0];
+
+            if (!(transcript in this.transcripts))
+                this.transcripts[transcript] = {};
+
+            let exon_number = 0;
+            while (true)
+            {
+                if (!this.transcripts[transcript][exon_number])
+                {
+                    let start = line.start;
+                    let end = line.end;
+                    let range = [start, end];
+                    this.transcripts[transcript][exon_number] = range;
+                    break;
+                }
+                exon_number += 1;
+            }
+
+            this.transcripts[transcript].strand = line.strand;
+        }
+    }
+
+    async exonsFromMinimalBED(lines)
+    {
+        let gene_strand = "";
+
+        for (let raw_line of lines)
+        {
+            let line = new MinimalBEDLine(raw_line, this.num_reduced_bed_columns);
+            if (!line.valid)
+                continue;
+
+            let gene_to_search = this.gene;
+            if (gene_to_search)
+            {
+                let gene_name = line.gene;
+                if (!gene_name)
+                    continue;
+
+                let period_index = gene_name.indexOf('.');
+                if (period_index !== -1)
+                    gene_name = gene_name.substring(0, period_index);
+
+                gene_name = gene_name.toUpperCase();
+                gene_to_search = gene_to_search.toUpperCase();
+                if (gene_to_search !== gene_name)
+                    continue;
+            }
+
+            // Extract the transcript's chromosome
+            if ((!this.chromosome) && line.chromosome)
+                this.chromosome = line.chromosome;
+
+            let transcript = line.transcript;
+            if (!transcript)
+                continue;
+
+            // Attempt to determine the strandedness of the gene
+            if (!gene_strand && line.gene)
+            {
+                let gene_name = line.gene;
+
+                let period_index = gene_name.indexOf('.');
+                if (period_index !== -1)
+                    gene_name = gene_name.substring(0, period_index);
+
+                // Look up the gene's strandedness on Ensembl
+                let loading_msg = `Determining strandedness of gene '${gene_name}'...`;
+                this.update_loading_msg(loading_msg);
+                this.update_loading_percentage(0);
+
+                gene_strand = await this.getGeneStrand(gene_name);
+                if (gene_strand === "Unknown")
+                {
+                    this.is_strand_unknown = true;
+                    gene_strand = '+'; // For unknown strandedness, assume all data is on the forward strand
+                }
+            }
+
+            transcript = transcript.split(".")[0];
+
+            if (!(transcript in this.transcripts))
+                this.transcripts[transcript] = {};
+
+            let exon_number = 0;
+            while (true)
+            {
+                if (!this.transcripts[transcript][exon_number])
+                {
+                    let start = line.start;
+                    let end = line.end;
+                    let range = [start, end];
+                    this.transcripts[transcript][exon_number] = range;
+                    break;
+                }
+                exon_number += 1;
+            }
+
+            this.transcripts[transcript].strand = gene_strand;
+        }
+    }
+
     genesFromGFF3(lines)
     {
         for (let line of lines)
@@ -422,7 +681,43 @@ export class PrimaryData {
             let gene = line.gene;
             if (!gene)
                 continue;
-            
+
+            gene = gene.toUpperCase();
+            if (!(gene in this.geneInfo))
+                this.geneInfo[gene] = null;
+        }
+    }
+
+    genesFromReducedBED(lines)
+    {
+        for (let raw_line of lines)
+        {
+            let line = new ReducedBEDLine(raw_line, this.num_reduced_bed_columns);
+            if (!line.valid)
+                continue;
+
+            let gene = line.gene;
+            if (!gene)
+                continue;
+
+            gene = gene.toUpperCase();
+            if (!(gene in this.geneInfo))
+                this.geneInfo[gene] = null;
+        }
+    }
+
+    genesFromMinimalBED(lines)
+    {
+        for (let raw_line of lines)
+        {
+            let line = new MinimalBEDLine(raw_line, this.num_reduced_bed_columns);
+            if (!line.valid)
+                continue;
+
+            let gene = line.gene;
+            if (!gene)
+                continue;
+
             gene = gene.toUpperCase();
             if (!(gene in this.geneInfo))
                 this.geneInfo[gene] = null;
@@ -491,8 +786,33 @@ export class PrimaryData {
         ).catch(err =>
         {
             console.log("Error parsing file!");
+            console.log(err);
         });
         return text;
+    }
+
+    async getGeneStrand(gene_name)
+    {
+        let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_name}?species=${this.species}&content-type=application/json`;
+        let response = await this.fetchJSON(url);
+        if (!response || response.error || !response.strand)
+            return "Unknown";
+
+        let strand = response.strand;
+        let strandedness = (strand === 1) ? '+' : ((strand === -1) ? '-' : "Unknown");
+        return strandedness;
+    }
+
+    async fetchJSON(url)
+    {
+        let response = await fetch(url).then(
+            res => res.json()
+        ).catch(err =>
+        {
+            console.log("Error fetching JSON from", url);
+            console.log(err);
+        });
+        return response;
     }
 
     updateTranscriptOrder(transcripts) {
@@ -771,6 +1091,7 @@ export class SecondaryData {
         ).catch(err =>
         {
             console.log("Error parsing file!");
+            console.log(err);
         });
         return text;
     }
@@ -795,8 +1116,8 @@ export class CanonData {
      * jsonData object format determined by ensembl: https://rest.ensembl.org/lookup/id/{geneID}?expand=1;content-type=application/json
      * @param {object} jsonData data returned from API
      */
-    constructor(jsonData) {
-
+    constructor(jsonData)
+    {
         // Enumerate all exons of each transcript and store coordinates and strand
         this.transcripts = {};
         this.transcripts[jsonData.id] = {};
@@ -824,13 +1145,9 @@ export class CanonData {
         this.end = this.isoformList[0].strand == '+' ? 
             this.mergedRanges[this.mergedRanges.length - 1][1] : 
             this.mergedRanges[0][0];
-        this.leftEnd = this.mergedRanges[0][0];
-        this.rightEnd = this.mergedRanges[this.mergedRanges.length - 1][1];
         this.width = Math.abs(this.end - this.start);
         this.strand = jsonData.strand > 0 ? '+' : '-';
         this.display = jsonData.display_name;
-        this.proteinID = jsonData.Translation ? jsonData.Translation.id : null;
-        this.uniprotID = jsonData.uniprotID ? jsonData.uniprotID : null;
     }
 }
 
@@ -843,7 +1160,6 @@ export class ProteinData
      */
     constructor([metadata_json, features_json, domains_json], accession, canon_data)
     {
-        this.isoformCoords = null;
         this.labels = {"canonical": accession, "isoform": accession};
         this.ready = false;
         this.domainMap = {};
@@ -855,7 +1171,7 @@ export class ProteinData
         this.orf = [];
         if (canon_data.orf)
             this.orf = JSON.parse(JSON.stringify(canon_data.orf));
-        
+
         this.json = {"markups": [], "motifs": []};
         this.readMetadata(metadata_json);
         this.readFeatures(features_json);
@@ -1014,7 +1330,6 @@ export class ProteinData
                             regions.push(region_obj);
                         }
                     }
-                    
                 }
             }
             this.json.regions = regions;
@@ -1070,8 +1385,8 @@ export class ProteinData
 
         // map domains
         for (let coord of domainCoords) {
-            let start = this.isoformCoords ? parseInt(this.isoformCoords[coord[0]]) : coord[0]; // use updated coords if necessary
-            let end = this.isoformCoords ? parseInt(this.isoformCoords[coord[1]]) : coord[1];
+            let start = coord[0]; // use updated coords if necessary
+            let end = coord[1];
             this.domainMap[start] = this.C2GMap(this.P2CMap(this.reversed ? end : start)[0]); // map coords
             this.domainMap[end] = this.C2GMap(this.P2CMap(this.reversed ? start : end)[1]);
         }
@@ -1283,6 +1598,106 @@ class BEDLine
     }
 }
 
+class ReducedBEDLine
+{
+    /**
+     * Create a ReducedBEDLine instance
+     * The difference between ReducedBEDLine and BEDLine is that the former represents a single exon in a transcript of a gene,
+     * while the latter represents all exons of a transcript of a gene
+     *
+     * @param {string} dataString line of a reduced BED file in string format
+     * @param {number} num_columns number of columns in the line; there should only be 6 to 9 columns
+     */
+    constructor(dataString, num_columns)
+    {
+        this.valid = true;
+
+        // extract data from input
+        let line = dataString.split('\t');
+        if (line.length !== num_columns)
+        {
+            this.valid = false;
+            return;
+        }
+
+        let start = parseInt(line[1]);
+        let end = parseInt(line[2]);
+        let strand = line[5].trim();
+        if (isNaN(start) || isNaN(end) || ((strand !== '+') && (strand !== '-')))
+        {
+            this.valid = false;
+            return;
+        }
+
+        // Extract the gene ID and transcript ID
+        let split_column = line[3].split('|', 2);
+        if (split_column.length !== 2)
+            split_column = line[3].split('_', 2);
+
+        if (split_column.length !== 2)
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.chromosome = line[0];
+        this.start = start;         // The exon start
+        this.end = end;             // The exon end
+        this.gene = split_column[1].split('.')[0].trim();
+        this.transcript = split_column[0].split('.')[0].trim();
+        this.strand = strand;
+    }
+}
+
+class MinimalBEDLine
+{
+    /**
+     * Create a MinimalBEDLine instance
+     * The difference between MinimalBEDLine and ReducedBEDLine is that the former does not have the gene strand column,
+     * while the latter does
+     *
+     * @param {string} dataString line of a minimal BED file in string format
+     * @param {number} num_columns number of columns in the line; there should only be 4 to 5 columns
+     */
+    constructor(dataString, num_columns)
+    {
+        this.valid = true;
+
+        // extract data from input
+        let line = dataString.split('\t');
+        if (line.length !== num_columns)
+        {
+            this.valid = false;
+            return;
+        }
+
+        let start = parseInt(line[1]);
+        let end = parseInt(line[2]);
+        if (isNaN(start) || isNaN(end))
+        {
+            this.valid = false;
+            return;
+        }
+
+        // Extract the gene ID and transcript ID
+        let split_column = line[3].split('|', 2);
+        if (split_column.length !== 2)
+            split_column = line[3].split('_', 2);
+
+        if (split_column.length !== 2)
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.chromosome = line[0];
+        this.start = start;         // The exon start
+        this.end = end;             // The exon end
+        this.gene = split_column[1].split('.')[0].trim();
+        this.transcript = split_column[0].split('.')[0].trim();
+    }
+}
+
 /**
  * Class for representing an isoform
  */
@@ -1304,7 +1719,7 @@ class Isoform {
             }
         }
         this.strand = exons.strand;
-        this.exonRanges = []
+        this.exonRanges = [];
         for (let value of Object.values(this.exons)) {
             this.exonRanges.push(value);
         }

@@ -19,13 +19,13 @@
     <br>
     <b-row>
         <b-col cols="3" style="padding-right: 0px;">
-            <b-img class="float-right" src="~/assets/logos/IsovisLogo.png" height="170px"></b-img>
+            <b-img class="float-right" src="~/assets/logos/IsovisLogo.svg" height="170px"></b-img>
         </b-col>
         <b-col cols="8" style="text-align: justify; text-justify: auto;">
             <p>
                 IsoVis enables fast and informative visualization of gene isoforms including their exonic structures, protein features and relative expression levels.
                 <br><br>
-                IsoVis displays the exonic structures of isoforms from GFF, GTF or BED12 files as an isoform stack. It can also show isoform expression data from CSV or tab-separated text files as a heatmap.
+                IsoVis displays the exonic structures of isoforms from GFF, GTF or BED files as an isoform stack. It can also show isoform expression data from CSV or tab-separated text files as a heatmap.
                 <br><br>
                 Reference data including the canonical ENSEMBL transcript, open reading frames and encoded protein features are integrated with the isoform information.
             </p>
@@ -85,10 +85,10 @@
         <p></p>
 
         <p style="margin-bottom: 0px">Demo data</p>
-        <b-button variant="primary" @click="downloadFile('demo_data.zip')">.zip (1.09 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.7z')">.7z (0.93 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.tar.gz')">.tar.gz (0.89 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.tar.xz')">.tar.xz (0.89 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.zip')">.zip (2.3 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.7z')">.7z (1.6 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.tar.gz')">.tar.gz (1.6 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.tar.xz')">.tar.xz (1.6 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
     </b-modal>
 </b-container>
 </template>

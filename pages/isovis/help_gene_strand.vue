@@ -17,11 +17,13 @@
             <br><br>
             Gene with intron normalization:
             <br>
-            <b-img src="~/assets/gene_strand/normalized.png"></b-img> <br>
+            <b-img src="~/assets/gene_strand/normalized.png"></b-img><br>
             <br><br>
             The same gene without intron normalization:
             <br>
-            <b-img src="~/assets/gene_strand/uniform.png"></b-img> <br>
+            <b-img src="~/assets/gene_strand/uniform.png"></b-img><br>
+            <br><br>
+            For genes with unknown strandedness (e.g. non-Ensembl gene IDs in uploaded BED4 to BED5 stack data files), IsoVis would <u>assume</u> that they are on the forward strand, and the gene strand diagram would display 'Assumed forward strand.'
         </div>
     </b-container>
 </template>

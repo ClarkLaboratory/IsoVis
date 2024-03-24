@@ -6,8 +6,17 @@
 
 <template>
 <b-container class="pt-2 text-justify">
+    <strong><em>Supported genome builds:</em></strong><br>
+    IsoVis queries Ensembl to integrate additional information about the displayed gene and known Ensembl transcripts in uploaded stack data into visualizations.<br>
+    Ensembl supports only the most recent genome build for all species and additionally supports GRCh37 (hg19) for human data.<br>
+    To correctly visualize your data, please ensure you are using either GRCh38 (hg38) or GRCh37 (hg19) for human data, and the most recent genome build found in Ensembl for data from any other species supported by IsoVis.
+
+    <hr>
+
     <strong><em>GFF/GTF:</em></strong><br>
-    Stack data can be provided in GFF or GTF files.
+    Stack data can be provided in GFF or GTF files.<br>
+    GFF3 files must have a file extension of '.gff3'.<br>
+    GTF files must have a file extension of '.gtf', '.gff', or '.gff2'.<br><br>
     The attributes column (column 9) of each line <strong> must contain</strong>:<ol>
         <li>
             A <strong>'gene_id'</strong> attribute storing either<ul>
@@ -31,9 +40,12 @@
 
     <hr>
 
-    <strong><em>BED:</em></strong><br>
-    Stack data can also be provided as a BED12 file (smaller BED filetypes do not contain sufficient information to build the visualization). 
-    The name column (column 4) of each line <strong>must contain</strong> a gene ID and transcript ID in the format <strong>transcriptID_geneID</strong> or <strong>transcriptID|geneID</strong>. Example:<ul>
+    <strong><em>BED12:</em></strong><br>
+    Stack data can be provided as a BED12 file.<br>
+    BED12 files must have a file extension of either '.bed' or '.bed12'.<br><br>
+
+    The name column (column 4) of each line <strong>must contain</strong> a gene ID and transcript ID in the format <strong>transcriptID_geneID</strong> or <strong>transcriptID|geneID</strong>. Example:
+    <ul>
         <li><strong>ENST00000123456.1_ENSG00000123456.1</strong> or <strong>ENST00000123456.1|ENSG00000123456.1</strong> (for known transcripts)</li>
         <li><strong>novelTranscript1_ENSG00000123456.1</strong> or <strong>novelTranscript1|ENSG00000123456.1</strong> (for novel transcripts)</li>
     </ul>
@@ -41,8 +53,37 @@
 
     <hr>
 
+    <strong><em>BED6 to BED9:</em></strong><br>
+    Stack data can be provided as a BED6, BED7, BED8 or BED9 file.<br>
+    BED6 to BED9 files must have a file extension of either '.bed' or '.bedx', where 'x' is 6, 7, 8, or 9.<br><br>
+
+    These files have the same formatting requirements as BED12 files along with the following additional requirements:
+    <ol>
+        <li>The start (column 2) and end (column 3) of the chromosome region in each line represents the start and end of an exon instead of a whole transcript.</li>
+        <li>The exons of each transcript must be ordered by ascending starting genome coordinates.</li>
+    </ol>
+
+    <hr>
+
+    <strong><em>BED4 to BED5:</em></strong><br>
+    Stack data can be provided as a BED4 or BED5 file.<br>
+    BED4 to BED5 files must have a file extension of either '.bed' or '.bedx', where 'x' is 4 or 5.<br><br>
+
+    These files have the same formatting requirements as BED6 to BED9 files.<br><br>
+
+    <b>Note on determining gene strandedness:</b><br>
+    As BED4 to BED5 files do not contain the gene strand column, IsoVis would attempt to fetch this information from Ensembl using the gene ID and species specified by the user.<br>
+    If this information could not be fetched, IsoVis would <u>assume</u> that the transcripts of the gene are on the forward strand, and the gene strand diagram would display 'Assumed forward strand.'<br>
+    To ensure that the gene strandedness could be determined, please specify the correct gene IDs in the stack file and the correct species when uploading stack data.
+
+    <hr>
+
     <strong><em>Heatmap data:</em></strong><br>
-    Heatmap data can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>. The first row of the file should contain column names.<br><br>
+    Heatmap data can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
+    Heatmap files must have a file extension of either '.csv' or '.txt'.<br><br>
+
+    The first row of the file should contain column names.<br><br>
+
     These two columns <strong>must</strong> be in the file:
     <ul>
         <li>gene_id, which stores the gene ID of each row (e.g. ENSG00000116786.13).</li>

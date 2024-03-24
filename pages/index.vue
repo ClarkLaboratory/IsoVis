@@ -31,7 +31,7 @@
         </div>
         <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
-                <img src="~/assets/logos/IsovisLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <img src="~/assets/logos/IsovisLogo.svg" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
                 <div class="card-body">
                     <h5 class="card-title">IsoVis</h5>
                     <p class="card-text">Visualize transcript structures and expression levels of alternative mRNA isoforms</p>

@@ -6,7 +6,7 @@ IsoVis enables fast and informative visualization of gene isoforms and compariso
 
 Genes commonly express multiple mRNA isoforms through processes such as alternative splicing initiation and termination. While the advent of long-read RNA-seq has revolutionised our ability to accurately quantify expression of both known and novel RNA isoforms. IsoVis now facilitates visualization and investigation of these isoforms.
 
-Transcript structures (GFF, GTF or BED12 files) are displayed as an isoform stack, while quantitative, sample-based data such as isoform abundances (CSV or TXT files) are presented as a heatmap. Reference data including the canonical ENSEMBL transcript, open reading frame and encoded protein domains are sourced from external databases and integrated with the isoform information.
+Transcript structures (GFF, GTF or BED files) are displayed as an isoform stack, while quantitative, sample-based data such as isoform abundances (CSV or TXT files) are presented as a heatmap. Reference data including the canonical ENSEMBL transcript, open reading frame and encoded protein domains are sourced from external databases and integrated with the isoform information.
 
 Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark. Developed in the Clark Laboratory at the University of Melbourne.
 
@@ -33,14 +33,31 @@ The following dependencies are used by IsoVis:
 - `BootstrapVue`: For making IsoVis a responsive web application.
 - `d3`: For creating some of the data visualizations seen in IsoVis.
 - `domain-gfx`: For drawing the diagram of protein domains and motifs.
-- `html-to-image`: For exporting PNGs, JPEGs and SVGs of the data visualization view.
+- `svg-to-pdfkit`: For converting SVGs of the visualization webpage into a PDF.
+- `blob-stream`: For converting the output of Node streams into HTML5 Blobs, which is necessary for the PDF export functionality to work.
 - `vuedraggable`: For enabling the isoforms in the isoform list to be rearranged via dragging.
 
 To install them, run the following command:
 
 ```bash
-npm install nuxt@2.* bootstrap-vue d3 domain-gfx html-to-image vuedraggable
+npm install nuxt@2.* bootstrap-vue d3 domain-gfx svg-to-pdfkit blob-stream vuedraggable
 ```
+
+### Applying an IsoVis-specific modification to `domain-gfx` source code
+
+IsoVis applies a minor modification to the source code of the `domain-gfx` library: Protein domains in the protein diagram now look flat rather than three-dimensional as in previous IsoVis versions.
+
+The reasons for this modification so are as follows:
+
+1. We believe this change helps modernize the protein diagram slightly.
+2. From our testing, when exporting PDFs with three-dimensional protein domains drawn, some PDF readers cannot render those domains fully when zoomed in. However, this issue does not occur with flat protein domains.
+
+To apply this modification when installing IsoVis, follow these steps:
+
+1. After installing the dependencies as stated above, open `node_modules/domain-gfx/src/index.js` in a text editor.
+2. Locate the line that contains the text `height: this._computeHeight(),`.
+3. To the right of the comma, enter `spotlight: false`.
+4. Save the file.
 
 ### Resolving the 'digital envelope routines unsupported' error for OpenSSL
 

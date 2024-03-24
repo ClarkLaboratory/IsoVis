@@ -72,15 +72,16 @@ the exact state of that page from the previous state.
             <b-link href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form @submit="handleFileUpload" @submit.stop.prevent inline>
-            <em><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 2 GB)</em> 
-            <b-form-file v-model="modal.uploadData.stackFile" no-drop accept=".gtf, .gff, .gff2, .gff3, .bed, .bed12"></b-form-file>
-            <em class="mt-3"><b>Heatmap data</b> file (.csv/.txt) (optional, max. 2 GB)</em> 
+            <em><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 2 GB)</em>
+            <b-form-file v-model="modal.uploadData.stackFile" no-drop accept=".gtf, .gff, .gff2, .gff3, .bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
+            <em class="mt-3"><b>Heatmap data</b> file (.csv/.txt) (optional, max. 2 GB)</em>
             <b-form-file v-model="modal.uploadData.heatmapFile" no-drop accept=".csv, .txt"></b-form-file>
-            <em class="mt-3"><b>Species</b> (default: Homo_sapiens)</em> 
+            <em class="mt-3"><b>Species</b> (default: Homo_sapiens)</em>
             <b-form-input v-model="enteredSpecies" list="acceptedSpecies" class="mb-3" style="width: 100%"></b-form-input>
             <b-form-datalist id="acceptedSpecies">
                 <option v-for="ensemblSpecies in ensemblSpeciesList" :key="ensemblSpecies">{{ ensemblSpecies }}</option>
             </b-form-datalist>
+            <b-form-checkbox v-model="is_use_grch37">Use GRCh37 (hg19) instead of GRCh38 (hg38)</b-form-checkbox>
         </b-form>
         <b-form inline class="float-right mt-3">
             <b-button @click="modal.uploadData.show=false" variant="dark">Cancel</b-button>
@@ -137,10 +138,6 @@ the exact state of that page from the previous state.
 </template>
     
 <script>
-// import Vue from 'vue'
-// import { BootstrapVueIcons } from 'bootstrap-vue'
-// Vue.use(BootstrapVueIcons)
-
 import { PrimaryData, SecondaryData } from '~/assets/data_parser';
 import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';
 
@@ -180,7 +177,7 @@ export default
             views: ["Main", "Welcome", "About", "Privacy"],
             selectedView: "Welcome",
 
-            mainData: {init: false, isoformData:{}, heatmapData:null, canonData:{}, selectedGene:'', geneLabel:'', demoData:false},
+            mainData: {init: false, isoformData:{}, heatmapData:null, canonData:{}, selectedGene:'', geneLabel:'', demoData:false, is_use_grch37:false},
 
             modal: {
                 uploadData:
@@ -222,6 +219,7 @@ export default
 
             enteredZoom: null,
             enteredSpecies: null,
+            is_use_grch37: false,
 
             controller: null,
             options: {},
@@ -270,7 +268,7 @@ export default
                 data.secondaryData.transcriptOrder = JSON.parse(JSON.stringify(data.primaryData.transcriptOrder));
 
                 this.mainData = {isoformData:data.primaryData, heatmapData:data.secondaryData, canonData:data.canonData, 
-                    proteinData:data.proteinData, selectedGene:data.selectedGene, geneLabel:data.geneLabel, demoData:true, species:"Homo_sapiens"};
+                    proteinData:data.proteinData, selectedGene:data.selectedGene, geneLabel:data.geneLabel, demoData:true, species:"Homo_sapiens", is_use_grch37: false};
             });
         },
 
@@ -297,7 +295,7 @@ export default
             if (isNaN(start) || isNaN(end))
                 return;
 
-            this.$root.$emit("set_zoom", [start, end]);
+            this.$root.$emit("set_zoom", [start, end, false]);
         },
 
         resetZoom()
@@ -321,13 +319,14 @@ export default
             this.all_genes = [];
             this.enteredZoom = null;
             this.enteredSpecies = null;
+            this.is_use_grch37 = false;
             this.taxon_id = -1;
             this.modal.uploadData.stackFile = null;
             this.modal.uploadData.heatmapFile = null;
             this.modal.heatmapUploadData.heatmapFile = null;
 
             this.$refs.componentMain.abortFetches();
-            this.mainData = {init: false, isoformData:{}, heatmapData:null, canonData:{}, selectedGene:'', geneLabel:'', demoData:false, species:"Homo_sapiens"};
+            this.mainData = {init: false, isoformData:{}, heatmapData:null, canonData:{}, selectedGene:'', geneLabel:'', demoData:false, species:"Homo_sapiens", is_use_grch37:false};
         },
 
         checkInput()
@@ -521,7 +520,7 @@ export default
             let file = this.modal.uploadData.stackFile;
             let hfile = (this.modal.heatmapUploadData.heatmapFile) ? this.modal.heatmapUploadData.heatmapFile : this.modal.uploadData.heatmapFile;
 
-            let isoformData = new PrimaryData(file, this.selectedGene);
+            let isoformData = new PrimaryData(file, this.selectedGene, species, (this.is_use_grch37 && (species === "Homo_sapiens")));
 
             this.modal.loading.show = true;
             await isoformData.parseFile();
@@ -568,7 +567,7 @@ export default
                     this.$refs.componentMain.abortFetches();
                 }
 
-                this.mainData = {isoformData:isoformData, heatmapData:heatmapData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species};
+                this.mainData = {isoformData:isoformData, heatmapData:heatmapData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
                 this.modal.uploadData.show = false;
                 this.selectedView = 'Main';
             }
@@ -601,7 +600,7 @@ export default
                     this.$refs.componentMain.abortFetches();
                 }
 
-                this.mainData = {isoformData:isoformData, heatmapData:heatmapData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species};
+                this.mainData = {isoformData:isoformData, heatmapData:heatmapData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
                 this.modal.uploadData.show = false;
                 this.selectedView = 'Main';
             }

@@ -231,55 +231,6 @@ export class BaseAxis {
         } else {
             xPosition -= intronLength;
         }
-
-        /*const ranges = [];
-        
-        for (var range of this.mergedRanges) ranges.push(range);  
-        
-        if (ranges.length < 1) return;
-
-        // Initialise helper variables
-        const width = this.width;
-        const rangeCount = ranges.length;
-        let betweenRanges = rangeCount - 1;
-        const intronLength = betweenRanges > 1 ? Math.max(this.fixedIntronLength, (width * 0.25) / betweenRanges) : this.fixedIntronLength;
-        this.avgExonLength = (width - betweenRanges * intronLength) / rangeCount;
-        const allExonLength = ranges.reduce(function (previous, range) {return previous + Math.abs(range[1] - range[0])}, 0);
-        const rangeToLength = d3.scaleLinear().domain([0, allExonLength / rangeCount]).range([0, this.avgExonLength]);
-        const d3Domain = [];
-        const d3Range = [];
-        let xPosition = 0;
-
-        // Sort exons into genomic order
-        ranges.sort(function (a, b) {return a[0] - b[0];});
-
-        // Start the list of scaling parameters
-        if (ranges[0][0] > this.start) {
-            d3Domain.push(this.start);
-            d3Range.push(xPosition);
-            xPosition += intronLength;
-            betweenRanges += 1;
-        }
-
-        // Append the start and end coordinates to the list of scaling parameters
-        ranges.forEach(function (range) {
-            let rangeLength = Math.abs(range[1] - range[0]);
-            d3Domain.push(range[0]);
-            d3Domain.push(range[1]);
-            d3Range.push(xPosition);
-            xPosition += rangeToLength(rangeLength);
-            d3Range.push(xPosition);
-            xPosition += intronLength;
-        });
-
-        // End the list of scaling parameters
-        if (ranges[ranges.length - 1][1] < this.end) {
-            d3Domain.push(this.end);
-            d3Range.push(xPosition);
-            betweenRanges += 1;
-        } else {
-            xPosition -= intronLength;
-        }*/
         
         // Update axis attributes
         this.width = xPosition;
