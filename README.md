@@ -47,7 +47,7 @@ npm install nuxt@2.* bootstrap-vue d3 domain-gfx svg-to-pdfkit blob-stream vuedr
 
 IsoVis applies a minor modification to the source code of the `domain-gfx` library: Protein domains in the protein diagram now look flat rather than three-dimensional as in previous IsoVis versions.
 
-The reasons for this modification so are as follows:
+The reasons for this modification are as follows:
 
 1. We believe this change helps modernize the protein diagram slightly.
 2. From our testing, when exporting PDFs with three-dimensional protein domains drawn, some PDF readers cannot render those domains fully when zoomed in. However, this issue does not occur with flat protein domains.
