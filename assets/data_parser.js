@@ -309,7 +309,7 @@ export class PrimaryData {
         this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList)) // keep a copy to allow for manually adding/removing rows
 
         this.mergedRanges = mergeRanges(this.isoformList); // build the metagene
-        
+
         // extra information about the gene
         this.minExons = this.mergedRanges.length; 
         this.gene = gene;
@@ -1193,7 +1193,7 @@ export class ProteinData
             this.C2GRange.push(exon[1]);
         }
         this.C2GMap = d3.scaleLinear().domain(this.C2GDomain).range(this.C2GRange); // CDS to Genome
-        this.P2CMap = (coord) => ([3 * (coord), 3 * (coord) - 1]); // Protein to CDS: 3 nt for each aa
+        this.P2CMap = (coord) => ([3 * (coord - 1), 3 * coord - 1]); // Protein to CDS: 3 nt for each aa
 
         this.originalData = JSON.parse(JSON.stringify(this.json));
         this.reversedData = JSON.parse(JSON.stringify(this.json));
@@ -1377,26 +1377,26 @@ export class ProteinData
 
     getMap()
     {
-        // initalise coordinate lists
-        let domainCoords = [];
-        let motifCoords = [];
-        for (let region of this.originalData.regions) domainCoords.push([region.start, region.end]);
-        for (let region of this.originalData.motifs) if (region.display) motifCoords.push([region.start, region.end]); // only map features displayed in the graphic (some are occasionally hidden)
+        for (let region of this.originalData.regions)
+        {
+            let start = region.start;
+            let end = region.end;
+            let region_key = `${region.type}_${start}_${end}`;
 
-        // map domains
-        for (let coord of domainCoords) {
-            let start = coord[0]; // use updated coords if necessary
-            let end = coord[1];
-            this.domainMap[start] = this.C2GMap(this.P2CMap(this.reversed ? end : start)[0]); // map coords
-            this.domainMap[end] = this.C2GMap(this.P2CMap(this.reversed ? start : end)[1]);
+            this.domainMap[region_key] = {};
+            this.domainMap[region_key][start] = this.C2GMap(this.P2CMap(start)[0]);
+            this.domainMap[region_key][end] = this.C2GMap(this.P2CMap(end)[1]);
         }
 
-        // map features
-        for (let coord of motifCoords) {
-            let start = coord[0];
-            let end = coord[1];
-            this.motifMap[start] = this.C2GMap(this.P2CMap(this.reversed ? end : start)[0]); // map coords
-            this.motifMap[end] = this.C2GMap(this.P2CMap(this.reversed ? start : end)[1]);
+        for (let motif of this.originalData.motifs)
+        {
+            let start = motif.start;
+            let end = motif.end;
+            let motif_key = `${motif.type}_${start}_${end}`;
+
+            this.motifMap[motif_key] = {};
+            this.motifMap[motif_key][start] = this.C2GMap(this.P2CMap(start)[0]);
+            this.motifMap[motif_key][end] = this.C2GMap(this.P2CMap(end)[1]);
         }
     }
 }
@@ -1620,7 +1620,7 @@ class ReducedBEDLine
             return;
         }
 
-        let start = parseInt(line[1]);
+        let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
         let strand = line[5].trim();
         if (isNaN(start) || isNaN(end) || ((strand !== '+') && (strand !== '-')))
@@ -1671,7 +1671,7 @@ class MinimalBEDLine
             return;
         }
 
-        let start = parseInt(line[1]);
+        let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
         if (isNaN(start) || isNaN(end))
         {
@@ -1714,7 +1714,7 @@ class Isoform {
         this.exons = {}
         for (let key of Object.keys(exons)) {
             key = parseInt(key);
-            if (!isNaN(key)) {          
+            if (!isNaN(key)) {
                 this.exons[key] = exons[key];
             }
         }
@@ -1727,6 +1727,93 @@ class Isoform {
         this.end = this.strand == '+' ? this.exonRanges[this.exonRanges.length - 1][1] : this.exonRanges[0][0];
         this.length = Math.abs(this.end - this.start);
         this.orf = []
+    }
+}
+
+/**
+ * Class for representing the data of all other Ensembl isoforms
+ */
+export class OtherIsoformData
+{
+    constructor(transcripts, all_stack_isoform_ids, isoform_list)
+    {
+        this.transcripts = {};
+        this.id_to_symbol = {};
+        this.strand = '';
+        this.start = -1;
+        this.end = -1;
+
+        for (let transcript of transcripts)
+        {
+            if (!transcript.Exon || !transcript.id)
+                continue;
+
+            let transcript_id = transcript.id;
+            if (all_stack_isoform_ids.indexOf(transcript_id) !== -1)
+                continue;
+
+            let symbol = transcript.display_name;
+            if (!symbol)
+                symbol = "Novel";
+
+            this.id_to_symbol[transcript_id] = symbol;
+
+            let strand = (transcript.strand === 1) ? '+' : '-';
+            if (!this.strand)
+                this.strand = strand;
+
+            let transcript_start = transcript.start;
+            let transcript_end = transcript.end;
+            if (this.strand === '+')
+            {
+                if (this.start === -1)
+                    this.start = transcript_start;
+                else
+                    this.start = Math.min(transcript_start, this.start);
+
+                if (this.end === -1)
+                    this.end = transcript_end;
+                else
+                    this.end = Math.max(transcript_end, this.end);
+            }
+            else
+            {
+                if (this.start === -1)
+                    this.start = transcript_start;
+                else
+                    this.start = Math.max(transcript_start, this.start);
+
+                if (this.end === -1)
+                    this.end = transcript_end;
+                else
+                    this.end = Math.min(transcript_end, this.end);
+            }
+
+            this.transcripts[transcript_id] = {};
+            let exons = transcript.Exon;
+            if (strand === '-')
+                exons.reverse();
+
+            for (let i = 0; i < exons.length; ++i)
+            {
+                let exon = exons[i];
+                let exon_start = exon.start;
+                let exon_end = exon.end;
+                this.transcripts[transcript_id][i] = [exon_start, exon_end];
+            }
+            this.transcripts[transcript_id].strand = this.strand;
+        }
+
+        this.transcriptOrder = prioritiseKnownTranscripts(Object.keys(JSON.parse(JSON.stringify(this.transcripts))));
+        this.isoformList = [];
+        for (let i = 0; i < this.transcriptOrder.length; ++i)
+            this.isoformList.push(new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]]));
+
+        let all_isoforms = JSON.parse(JSON.stringify(this.isoformList));
+        all_isoforms = all_isoforms.concat(JSON.parse(JSON.stringify(isoform_list)));
+        this.mergedRanges = mergeRanges(all_isoforms);
+
+        this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList));
     }
 }
 

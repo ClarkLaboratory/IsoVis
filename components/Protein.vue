@@ -64,11 +64,11 @@ export default {
                 let end = data.originalData.regions[i].end;
                 let coordPair = [{
                     original: start,
-                    scaled: this.baseAxis.isAscending() ? data.json.regions[i].start : data.json.regions[i].end
+                    scaled: data.json.regions[i].start
                 }, 
                 {
                     original: end,
-                    scaled: this.baseAxis.isAscending() ? data.json.regions[i].end : data.json.regions[i].start
+                    scaled: data.json.regions[i].end
                 }]
                 if (paired)
                     coords.push(coordPair)
@@ -87,11 +87,11 @@ export default {
                 let end = data.originalData.motifs[i].end;
                 let coordPair = [{
                     original: start,
-                    scaled: this.baseAxis.isAscending() ? data.json.motifs[i].start : data.json.motifs[i].end
+                    scaled: data.json.motifs[i].start
                 }, 
                 {
                     original: end,
-                    scaled: this.baseAxis.isAscending() ? data.json.motifs[i].end : data.json.motifs[i].start
+                    scaled: data.json.motifs[i].end
                 }]
                 if (paired)
                     coords.push(coordPair);
@@ -212,6 +212,8 @@ export default {
             let ctx = canvas.getContext("2d");
             ctx.strokeStyle = "rgb(83, 83, 83)";
 
+            let need_flip = (this.baseAxis.isAscending() && (this.baseAxis.strand !== '+')) || (!this.baseAxis.isAscending() && !(this.baseAxis.strand !== '+'));
+
             if (this.show_domains)
             {
                 // Add shading for mapped domain regions
@@ -222,6 +224,7 @@ export default {
                 {
                     let start = region.start;
                     let end = region.end;
+                    let region_key = `${region.type}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     // Assume that colours are in the form '#rrggbb'
@@ -236,10 +239,10 @@ export default {
                         let pair = [coord[0].original, coord[1].original].sort()
                         if ((pair[0] == points[0]) && (pair[1] == points[1]))
                         {
-                            let pt0 = [axis.proteinScale(coord[0].scaled), 0];
-                            let pt1 = [axis.scale(data.domainMap[coord[0].original]), height];
-                            let pt2 = [axis.scale(data.domainMap[coord[1].original]), height];
-                            let pt3 = [axis.proteinScale(coord[1].scaled), 0];
+                            let pt0 = [axis.proteinScale(coord[need_flip ? 1 : 0].scaled), 0];
+                            let pt1 = [axis.scale(data.domainMap[region_key][coord[0].original]), height];
+                            let pt2 = [axis.scale(data.domainMap[region_key][coord[1].original]), height];
+                            let pt3 = [axis.proteinScale(coord[need_flip ? 0 : 1].scaled), 0];
 
                             let path = new Path2D();
                             path.moveTo(pt0[0], pt0[1]);
@@ -250,29 +253,30 @@ export default {
                             path.closePath();
 
                             ctx.fill(path);
+
+                            // Add mapping lines
+
+                            ctx.beginPath();
+
+                            let y0 = 0;
+                            let y1 = height;
+
+                            let x0 = axis.proteinScale(coord[need_flip ? 1 : 0].scaled);
+                            let x1 = axis.scale(data.domainMap[region_key][coord[0].original]);
+
+                            ctx.moveTo(x0, y0);
+                            ctx.lineTo(x1, y1);
+
+                            x0 = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
+                            x1 = axis.scale(data.domainMap[region_key][coord[1].original]);
+
+                            ctx.moveTo(x0, y0);
+                            ctx.lineTo(x1, y1);
+
+                            ctx.stroke();
                         }
                     }
                 }
-
-                ctx.beginPath();
-
-                // Add mapping lines for the start and end of each domain region
-                let domain_coords = this.domainCoords();
-                for (let domain_coord of domain_coords)
-                {
-                    if (!data.domainMap[domain_coord.original])
-                        continue;
-
-                    let x0 = axis.proteinScale(domain_coord.scaled);
-                    let y0 = 0;
-                    let x1 = axis.scale(data.domainMap[domain_coord.original]);
-                    let y1 = height;
-
-                    ctx.moveTo(x0, y0);
-                    ctx.lineTo(x1, y1);
-                }
-
-                ctx.stroke();
             }
 
             if (this.show_motifs)
@@ -285,6 +289,7 @@ export default {
                 {
                     let start = motif.start;
                     let end = motif.end;
+                    let motif_key = `${motif.type}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     // Assume that colours are in the form '#rrggbb'
@@ -299,10 +304,10 @@ export default {
                         let pair = [coord[0].original, coord[1].original].sort()
                         if ((pair[0] == points[0]) && (pair[1] == points[1]))
                         {
-                            let pt0 = [axis.proteinScale(coord[0].scaled), 0];
-                            let pt1 = [axis.scale(data.motifMap[coord[0].original]), height];
-                            let pt2 = [axis.scale(data.motifMap[coord[1].original]), height];
-                            let pt3 = [axis.proteinScale(coord[1].scaled), 0];
+                            let pt0 = [axis.proteinScale(coord[need_flip ? 1 : 0].scaled), 0];
+                            let pt1 = [axis.scale(data.motifMap[motif_key][coord[0].original]), height];
+                            let pt2 = [axis.scale(data.motifMap[motif_key][coord[1].original]), height];
+                            let pt3 = [axis.proteinScale(coord[need_flip ? 0 : 1].scaled), 0];
 
                             let path = new Path2D();
                             path.moveTo(pt0[0], pt0[1]);
@@ -313,29 +318,30 @@ export default {
                             path.closePath();
 
                             ctx.fill(path);
+
+                            // Add mapping lines
+
+                            ctx.beginPath();
+
+                            let y0 = 0;
+                            let y1 = height;
+
+                            let x0 = axis.proteinScale(coord[need_flip ? 1 : 0].scaled);
+                            let x1 = axis.scale(data.motifMap[motif_key][coord[0].original]);
+
+                            ctx.moveTo(x0, y0);
+                            ctx.lineTo(x1, y1);
+
+                            x0 = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
+                            x1 = axis.scale(data.motifMap[motif_key][coord[1].original]);
+
+                            ctx.moveTo(x0, y0);
+                            ctx.lineTo(x1, y1);
+
+                            ctx.stroke();
                         }
                     }
                 }
-
-                ctx.beginPath();
-
-                // Add mapping lines for the start and end of each motif region
-                let motif_coords = this.motifCoords();
-                for (let motif_coord of motif_coords)
-                {
-                    if (!data.motifMap[motif_coord.original])
-                        continue;
-
-                    let x0 = axis.proteinScale(motif_coord.scaled);
-                    let y0 = 0;
-                    let x1 = axis.scale(data.motifMap[motif_coord.original]);
-                    let y1 = height;
-
-                    ctx.moveTo(x0, y0);
-                    ctx.lineTo(x1, y1);
-                }
-
-                ctx.stroke();
             }
         },
 
@@ -385,15 +391,18 @@ export default {
 
             let svg = "";
 
+            let need_flip = (this.baseAxis.isAscending() && (this.baseAxis.strand !== '+')) || (!this.baseAxis.isAscending() && !(this.baseAxis.strand !== '+'));
+
             if (this.show_domains)
             {
-                // Add shading for mapped domain regions
+                // Draw the mapped domain regions
                 let coords = this.domainCoords(true);
                 let regions = this.proteinData.originalData.regions;
                 for (let region of regions)
                 {
                     let start = region.start;
                     let end = region.end;
+                    let region_key = `${region.type}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     for (let coord of coords)
@@ -402,14 +411,16 @@ export default {
                         if (!((pair[0] == points[0]) && (pair[1] == points[1])))
                             continue;
 
+                        // Shade the region
+
                         let side_1 = [];
                         let side_2 = [];
 
-                        let side_1_top_x = axis.proteinScale(coord[0].scaled);
-                        let side_1_bottom_x = axis.scale(data.domainMap[coord[0].original]);
+                        let side_1_top_x = axis.proteinScale(coord[need_flip ? 1 : 0].scaled);
+                        let side_1_bottom_x = axis.scale(data.domainMap[region_key][coord[0].original]);
 
-                        let side_2_top_x = axis.proteinScale(coord[1].scaled);
-                        let side_2_bottom_x = axis.scale(data.domainMap[coord[1].original]);
+                        let side_2_top_x = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
+                        let side_2_bottom_x = axis.scale(data.domainMap[region_key][coord[1].original]);
 
                         // For easier processing: The top X coordinate for side 1 must be lower than side 2
                         if (side_1_top_x > side_2_top_x)
@@ -494,34 +505,46 @@ export default {
 
                         region_points = region_points.substring(0, region_points.length - 1);
                         svg += polygon_strokeless_transparent(region_points, region.colour, 0.36);
+
+                        // Add mapping lines
+
+                        let y0 = 0;
+                        let y1 = svg_height;
+
+                        let x0 = axis.proteinScale(coord[need_flip ? 1 : 0].scaled);
+                        let x1 = axis.scale(data.domainMap[region_key][coord[0].original]);
+
+                        // Bottom X might be invisible
+                        if (x1 < 0)
+                        {
+                            y1 = (svg_height / (x0 - x1)) * x0;
+                            x1 = 0;
+                        }
+                        else if (x1 > svg_width)
+                        {
+                            y1 = (svg_height / (x1 - x0)) * (svg_width - x0);
+                            x1 = svg_width;
+                        }
+
+                        svg += line(x0, y0, x1, y1, "#535353", 1);
+
+                        x0 = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
+                        x1 = axis.scale(data.domainMap[region_key][coord[1].original]);
+
+                        // Bottom X might be invisible
+                        if (x1 < 0)
+                        {
+                            y1 = (svg_height / (x0 - x1)) * x0;
+                            x1 = 0;
+                        }
+                        else if (x1 > svg_width)
+                        {
+                            y1 = (svg_height / (x1 - x0)) * (svg_width - x0);
+                            x1 = svg_width;
+                        }
+
+                        svg += line(x0, y0, x1, y1, "#535353", 1);
                     }
-                }
-
-                // Add mapping lines for the start and end of each domain region
-                let domain_coords = this.domainCoords();
-                for (let domain_coord of domain_coords)
-                {
-                    if (!data.domainMap[domain_coord.original])
-                        continue;
-
-                    let x0 = axis.proteinScale(domain_coord.scaled);
-                    let y0 = 0;
-                    let x1 = axis.scale(data.domainMap[domain_coord.original]);
-                    let y1 = svg_height;
-
-                    // Bottom X might be invisible
-                    if (x1 < 0)
-                    {
-                        y1 = (svg_height / (x0 - x1)) * x0;
-                        x1 = 0;
-                    }
-                    else if (x1 > svg_width)
-                    {
-                        y1 = (svg_height / (x1 - x0)) * (svg_width - x0);
-                        x1 = svg_width;
-                    }
-
-                    svg += line(x0, y0, x1, y1, "#535353", 1);
                 }
             }
 
@@ -534,6 +557,7 @@ export default {
                 {
                     let start = motif.start;
                     let end = motif.end;
+                    let motif_key = `${motif.type}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     for (let coord of coords)
@@ -542,14 +566,16 @@ export default {
                         if (!((pair[0] == points[0]) && (pair[1] == points[1])))
                             continue;
 
+                        // Shade the region
+
                         let side_1 = [];
                         let side_2 = [];
 
-                        let side_1_top_x = axis.proteinScale(coord[0].scaled);
-                        let side_1_bottom_x = axis.scale(data.motifMap[coord[0].original]);
+                        let side_1_top_x = axis.proteinScale(coord[need_flip ? 1 : 0].scaled);
+                        let side_1_bottom_x = axis.scale(data.motifMap[motif_key][coord[0].original]);
 
-                        let side_2_top_x = axis.proteinScale(coord[1].scaled);
-                        let side_2_bottom_x = axis.scale(data.motifMap[coord[1].original]);
+                        let side_2_top_x = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
+                        let side_2_bottom_x = axis.scale(data.motifMap[motif_key][coord[1].original]);
 
                         // For easier processing: The top X coordinate for side 1 must be lower than side 2
                         if (side_1_top_x > side_2_top_x)
@@ -634,34 +660,46 @@ export default {
 
                         motif_points = motif_points.substring(0, motif_points.length - 1);
                         svg += polygon_strokeless_transparent(motif_points, motif.colour, 0.36);
+
+                        // Add mapping lines
+
+                        let y0 = 0;
+                        let y1 = svg_height;
+
+                        let x0 = axis.proteinScale(coord[need_flip ? 1 : 0].scaled);
+                        let x1 = axis.scale(data.motifMap[motif_key][coord[0].original]);
+
+                        // Bottom X might be invisible
+                        if (x1 < 0)
+                        {
+                            y1 = (svg_height / (x0 - x1)) * x0;
+                            x1 = 0;
+                        }
+                        else if (x1 > svg_width)
+                        {
+                            y1 = (svg_height / (x1 - x0)) * (svg_width - x0);
+                            x1 = svg_width;
+                        }
+
+                        svg += line(x0, y0, x1, y1, "#535353", 1);
+
+                        x0 = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
+                        x1 = axis.scale(data.motifMap[motif_key][coord[1].original]);
+
+                        // Bottom X might be invisible
+                        if (x1 < 0)
+                        {
+                            y1 = (svg_height / (x0 - x1)) * x0;
+                            x1 = 0;
+                        }
+                        else if (x1 > svg_width)
+                        {
+                            y1 = (svg_height / (x1 - x0)) * (svg_width - x0);
+                            x1 = svg_width;
+                        }
+
+                        svg += line(x0, y0, x1, y1, "#535353", 1);
                     }
-                }
-
-                // Add mapping lines for the start and end of each motif region
-                let motif_coords = this.motifCoords();
-                for (let motif_coord of motif_coords)
-                {
-                    if (!data.motifMap[motif_coord.original])
-                        continue;
-
-                    let x0 = axis.proteinScale(motif_coord.scaled);
-                    let y0 = 0;
-                    let x1 = axis.scale(data.motifMap[motif_coord.original]);
-                    let y1 = svg_height;
-
-                    // Bottom X might be invisible
-                    if (x1 < 0)
-                    {
-                        y1 = (svg_height / (x0 - x1)) * x0;
-                        x1 = 0;
-                    }
-                    else if (x1 > svg_width)
-                    {
-                        y1 = (svg_height / (x1 - x0)) * (svg_width - x0);
-                        x1 = svg_width;
-                    }
-
-                    svg += line(x0, y0, x1, y1, "#535353", 1);
                 }
             }
 

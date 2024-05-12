@@ -43,17 +43,29 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="orfs_ready && !no_orfs && show_stack" @click="setShowOrfs(!show_orfs)" v-b-tooltip.hover.right="'Display known ORFs for known transcripts (externally sourced)'">
                 Known ORFs<b-icon-check v-if="show_orfs" variant="success"></b-icon-check>
             </b-dropdown-item>
+            <b-dropdown-item v-if="(canon_disabled || protein_disabled || protein_ready) && !is_other_isoforms_button_clicked" @click="getAllOtherIsoforms()" v-b-tooltip.hover.right="'Load all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
+                Load all other Ensembl isoforms (beta)
+            </b-dropdown-item>
+            <b-dropdown-item v-if="other_isoforms_loading" disabled>
+                Loading all other Ensembl isoforms...
+            </b-dropdown-item>
+            <b-dropdown-item v-if="other_isoforms_disabled" disabled>
+                All other Ensembl isoforms (none found)
+            </b-dropdown-item>
+            <b-dropdown-item v-if="is_other_isoforms_button_clicked && !other_isoforms_disabled && !other_isoforms_loading" @click="setShowAllOtherIsoforms(!show_all_other_isoforms)" v-b-tooltip.hover.right="'Display all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
+                All other Ensembl isoforms<b-icon-check v-if="show_all_other_isoforms" variant="success"></b-icon-check>
+            </b-dropdown-item>
         </b-dropdown>
-        <b-button variant="primary" size="sm" @click="setShowStack(!show_stack)">
+        <b-button v-show="mainData.heatmapData && show_heatmap" variant="primary" size="sm" @click="setShowStack(!show_stack)">
             {{show_stack ? "Hide stack" : "Show stack"}}
         </b-button>
         <b-button v-show="!mainData.heatmapData" variant="warning" size="sm" class="ml-2" @click="requestHeatmapDataUpload()">
             Add a heatmap
         </b-button>
-        <b-button v-show="mainData.heatmapData" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
+        <b-button v-show="mainData.heatmapData && show_stack" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
             {{show_heatmap ? "Hide heatmap" : "Show heatmap"}}
         </b-button>
-        <b-dropdown v-if="((canon_disabled || protein_disabled) || protein_ready) && (show_stack || (mainData.heatmapData && show_heatmap))" text="Export page as..." size="sm" variant="dark" class="ml-3">
+        <b-dropdown v-if="canon_disabled || protein_disabled || protein_ready" text="Export page as..." size="sm" variant="dark" class="ml-3">
             <b-dropdown-item @click="exportPNG()">PNG</b-dropdown-item>
             <b-dropdown-item @click="exportJPEG()">JPEG</b-dropdown-item>
             <b-dropdown-item @click="exportSVG()">SVG</b-dropdown-item>
@@ -63,6 +75,7 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="!protein_disabled && protein_ready && show_canon && show_stack && show_protein" @click="exportProteinSVG()">Protein diagram SVG</b-dropdown-item>
             <b-dropdown-item v-if="!protein_disabled && protein_ready && show_canon && show_stack && show_protein && (show_domains || show_motifs)" @click="exportProteinMapSVG()">Protein domain and motif mappings SVG</b-dropdown-item>
             <b-dropdown-item v-if="!canon_disabled && (mainData.canonData && (Object.keys(mainData.canonData).length !== 0)) && show_canon && show_stack" @click="exportCanonTrackSVG()">Canonical isoform SVG</b-dropdown-item>
+            <b-dropdown-item v-if="is_other_isoforms_button_clicked && !other_isoforms_disabled && !other_isoforms_loading && show_all_other_isoforms && show_stack" @click="exportOtherIsoformsSVG()">Other Ensembl isoforms SVG</b-dropdown-item>
             <b-dropdown-item v-if="show_stack" @click="exportStackSVG()">Isoform stack SVG</b-dropdown-item>
             <b-dropdown-item v-if="show_stack" @click="exportStrandSVG()">Gene strand SVG</b-dropdown-item>
             <b-dropdown-item v-if="mainData.heatmapData && show_heatmap" @click="exportHeatmapSVG()">Heatmap SVG</b-dropdown-item>
@@ -152,7 +165,69 @@ Requires mainData object which is used here to update the relevant data other co
 
     </b-row>
 
-    <!-- Row 4: User isoforms label, nothing, and nothing-->
+    <!-- Extra row 1: Other isoforms label, nothing, and nothing -->
+    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack" class="row11">
+
+        <!-- Column 1: Other isoforms label -->
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
+            <span>Other Ensembl isoforms (beta):</span>
+            <b-spinner v-if="other_isoforms_loading" variant="dark" class="ml-1" type="grow" small></b-spinner>
+            <b-icon-sort-alpha-down v-if="!other_isoforms_loading" @click="sortOtherIsoformsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!other_isoforms_loading" @click="sortOtherIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
+        </b-col>
+
+        <!-- Column 2: Nothing -->
+        <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        </b-col>
+
+        <!-- Column 3: Nothing -->
+        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        </b-col>
+
+    </b-row>
+
+    <!-- Extra row 2: Other isoforms label, other isoforms stack, and nothing -->
+    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom row12">
+
+        <!-- Column 1: Other isoforms label -->
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-model="other_isoforms_ids" @start="drag=true" @end="onOtherEnd">
+                <div v-for="other_isoform_id in other_isoforms_ids" :key="other_isoform_id" :id="other_isoform_id" style="display: block; height: 51px; line-height: 51px; background-color: white;">
+                    <!-- Delete button -->
+                    <b-icon-x v-if="(other_isoforms_ids.length > 1)" class="icon float-left" @click="removeOtherIsoform(other_isoform_id);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
+                    <!-- Accession ID -->
+                    <span v-if="transcriptNames[other_isoform_id] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoform_id}`" target="_blank">{{other_isoform_id}}</b-link></span>
+                    <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoform_id}`" target="_blank">{{transcriptNames[other_isoform_id] + " (" + other_isoform_id + ')'}}</b-link></span>
+                    <!-- Reorder icon -->
+                    <b-icon-list v-if="(other_isoforms_ids && (other_isoforms_ids.length > 1))" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-list>
+                </div>
+            </draggable>
+            <b-icon-plus v-if="other_isoform_data && other_isoform_data.allIsoforms && other_isoform_data.allIsoforms.length > 1" @click="addOtherClick" style="cursor: pointer;">+</b-icon-plus>
+            <b-modal v-model="modal.addOtherIsoform.show" size="md" title="Edit Ensembl isoform list">
+                <div class="border-top"></div>
+                <div v-for="isoform in otherIsoformList" :key="isoform" :style="inclusionStyle((other_isoforms_ids.indexOf(isoform) !== -1))" class="text-center border-bottom">
+                    <!-- Delete button -->
+                    <b-icon-x v-if="(other_isoforms_ids.length > 1) && (other_isoforms_ids.indexOf(isoform) !== -1)" @click="removeOtherIsoform(isoform)" class="icon float-left" style="display: block; height: 32px; line-height: 32px; cursor: pointer;"></b-icon-x>
+                    <!-- Add button -->
+                    <b-icon-plus v-if="other_isoforms_ids.indexOf(isoform) === -1" @click="addOtherIsoform(isoform)" class="icon float-left" style="display: block; height: 32px; line-height: 32px; cursor: pointer;"></b-icon-plus>
+                    <!-- Accession ID -->
+                    {{(transcriptNames[isoform] && (transcriptNames[isoform] !== "Novel")) ? `${transcriptNames[isoform]} (${isoform})` : isoform}}
+                </div>
+            </b-modal>
+        </b-col>
+
+        <!-- Column 2: Other isoforms stack -->
+        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+            <OtherIsoformStack :base-axis="baseAxis" :isoform-list="other_isoform_data.isoformList" ref="otherIsoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></OtherIsoformStack>
+        </b-col>
+
+        <!-- Column 3: Nothing -->
+        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        </b-col>
+
+    </b-row>
+
+    <!-- Row 4: User isoforms label, nothing, and nothing -->
     <b-row class="row4">
 
         <!-- Column 4.1: User isoforms label -->
@@ -263,7 +338,7 @@ Requires mainData object which is used here to update the relevant data other co
 
 <script>
 import { createBaseAxis } from '~/assets/base_axis';
-import { CanonData, ProteinData, mergeRanges } from '~/assets/data_parser';
+import { CanonData, OtherIsoformData, ProteinData, mergeRanges } from '~/assets/data_parser';
 import { put_in_svg, put_in_symbol, put_in_hyperlink, use, put_in_protein_symbol, isovis_logo_symbol, line, rect, rounded_rect, text_preserve_whitespace_central_baseline, text_double_centered, text_topped_centered, tspan } from '~/assets/svg_utils';
 import draggable from 'vuedraggable';
 import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconCheck, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
@@ -306,6 +381,10 @@ export default
                 addIsoform:
                 {
                     show: false,
+                },
+                addOtherIsoform:
+                {
+                    show: false,
                 }
             },
 
@@ -323,6 +402,13 @@ export default
             protein_disabled: false,
             canon_disabled: false,
 
+            is_other_isoforms_button_clicked: false,
+            show_all_other_isoforms: false,
+            other_isoforms_loading: false,
+            other_isoforms_disabled: false,
+            other_isoforms_resize: false,
+            other_isoform_data: false,
+
             transcriptIds: [],
             transcriptNames: {},
             species_to_prefix: {},
@@ -338,7 +424,11 @@ export default
             canondata_ranges: [],
             canondata_start: -1,
             canondata_end: -1,
-            canondata_width: -1,
+
+            other_isoforms_ids: [],
+            other_isoforms_ranges: [],
+            other_isoforms_start: -1,
+            other_isoforms_end: -1,
 
             zoom_start: -1,
             zoom_end: -1,
@@ -365,6 +455,17 @@ export default
             if (this.mainData && this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
             {
                 for (let isoform of this.mainData.isoformData.allIsoforms)
+                    data.push(isoform.transcriptID);
+            }
+            return data;
+        },
+
+        otherIsoformList()
+        {
+            let data = [];
+            if (this.other_isoform_data && this.other_isoform_data.allIsoforms)
+            {
+                for (let isoform of this.other_isoform_data.allIsoforms)
                     data.push(isoform.transcriptID);
             }
             return data;
@@ -443,6 +544,29 @@ export default
             this.is_dragging_done = true;
         },
 
+        onOtherEnd(evt)
+        {
+            let orig_isoformlist = JSON.parse(JSON.stringify(this.other_isoform_data.isoformList));
+            let new_isoformlist = [];
+            for (let transcript_id of this.other_isoforms_ids)
+            {
+                for (let i = 0; i < orig_isoformlist.length; ++i)
+                {
+                    let isoform = JSON.parse(JSON.stringify(orig_isoformlist[i]));
+                    if (isoform.transcriptID === transcript_id)
+                    {
+                        new_isoformlist.push(isoform);
+                        break;
+                    }
+                }
+            }
+
+            this.other_isoform_data.transcriptOrder = JSON.parse(JSON.stringify(this.other_isoforms_ids));
+            this.other_isoform_data.isoformList = JSON.parse(JSON.stringify(new_isoformlist));
+
+            this.is_dragging_done = true;
+        },
+
         inclusionStyle(state)
         {
             if (state)
@@ -453,6 +577,11 @@ export default
         addClick()
         {
             this.modal.addIsoform.show = true;
+        },
+
+        addOtherClick()
+        {
+            this.modal.addOtherIsoform.show = true;
         },
 
         exportPNG()
@@ -543,8 +672,8 @@ export default
             // We want all the text on the left hand side fully shown and centered
             // Idea: Calculate the width of the longest component on the left hand side, then center-align the texts accordingly
 
-            let [shown_text_and_links, shown_canonical_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
-            let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line);
+            let [shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
+            let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line);
 
             // Create a temporary canvas for calculating text metrics
             let text_metrics_canvas = document.createElement("canvas");
@@ -609,7 +738,7 @@ export default
                 }
 
                 x = 50 + longest_text_width / 2;
-                y += main_gene_text_height + 10;
+                y += main_gene_text_height + 15;
 
                 // The accession list
 
@@ -679,6 +808,7 @@ export default
             let protein_labels_shown = (!this.protein_disabled && this.show_stack && this.show_protein && this.show_protein_labels);
             let protein_shown = (!this.protein_disabled && this.show_stack && this.show_protein);
             let canon_shown = (!this.canon_disabled && this.show_stack && this.show_canon);
+            let other_isoforms_shown = (this.is_other_isoforms_button_clicked && !this.other_isoforms_disabled && !this.other_isoforms_loading && this.show_all_other_isoforms && this.show_stack);
             let heatmap_shown = (this.mainData.heatmapData && this.show_heatmap);
 
             // All the information for the second column
@@ -686,6 +816,7 @@ export default
             let [protein_width, protein_height, protein_symbol] = (protein_shown) ? this.$refs.proteinComponent.buildProteinSvg(true) : [-1, -1, null];
             let [protein_map_width, protein_map_height, protein_map_symbol] = (protein_shown) ? this.$refs.proteinComponent.buildProteinMapSvg(true) : [-1, -1, null];
             let [canon_track_width, canon_track_height, canon_track_symbol] = (canon_shown) ? this.$refs.canonStackComponent.buildStackSvg(true) : [-1, -1, null];
+            let [other_isoforms_width, other_isoforms_height, other_isoforms_symbol] = (other_isoforms_shown) ? this.$refs.otherIsoformStackComponent.buildStackSvg(true) : [-1, -1, null];
             let [isoform_stack_width, isoform_stack_height, isoform_stack_symbol] = this.$refs.isoformStackComponent.buildStackSvg(true);
             let [gene_strand_width, gene_strand_height, gene_strand_symbol] = this.$refs.geneStrandComponent.buildStrandSvg(true);
 
@@ -772,27 +903,20 @@ export default
 
                 text_metrics = text_metrics_canvas_ctx.measureText(protein_third_line);
                 let protein_third_line_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
-                bottom_y1 = Math.ceil(bottom_y1 + protein_third_line_height + 5);
+                bottom_y1 = Math.ceil(bottom_y1 + protein_third_line_height + 5) + 5;
 
                 // Draw the protein domain and motif diagram
                 y = 20 + main_gene_text_height + 10;
                 if (protein_labels_shown && !((protein_labels_width === -1) || (protein_labels_height === -1) || !protein_labels_symbol))
                     y += protein_labels_height;
 
+                // Add the height of the protein diagram
                 if (!((protein_width === -1) || (protein_height === -1) || !protein_symbol))
-                {
-                    svg += put_in_protein_symbol("protein", protein_width, protein_height, protein_symbol);
-                    svg += use("#protein", 50 + longest_text_width + 50, y);
                     y += protein_height;
-                }
 
-                // Draw the protein mapping diagram
+                // Add the height of the protein mapping diagram
                 if (!((protein_map_width === -1) || (protein_map_height === -1) || !protein_map_symbol))
-                {
-                    svg += put_in_symbol("protein_map", protein_map_width, protein_map_height, protein_map_symbol);
-                    svg += use("#protein_map", 50 + longest_text_width + 50, y);
                     y += protein_map_height;
-                }
 
                 // Draw the grey horizontal line
                 let bottom_y2 = Math.ceil(y);
@@ -800,7 +924,7 @@ export default
                 svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
 
                 // Draw the third line of the protein info
-                let temp_y = y - protein_third_line_height - 5;
+                let temp_y = y - protein_third_line_height - 5 - 5;
                 let protein_third_line_width = text_metrics_canvas_ctx.measureText(protein_third_line).width + 16 * 2;
                 let protein_third_line_elems = "";
 
@@ -825,6 +949,24 @@ export default
                 text_metrics = text_metrics_canvas_ctx.measureText(protein_first_line);
                 svg += text_topped_centered(first_line_tspan_elems, x, temp_y - text_metrics.actualBoundingBoxAscent - text_metrics.actualBoundingBoxDescent - 7, 16, "sans-serif");
 
+                temp_y = y - 1;
+
+                // Draw the protein mapping diagram
+                if (!((protein_map_width === -1) || (protein_map_height === -1) || !protein_map_symbol))
+                {
+                    temp_y -= protein_map_height;
+                    svg += put_in_symbol("protein_map", protein_map_width, protein_map_height, protein_map_symbol);
+                    svg += use("#protein_map", 50 + longest_text_width + 50, temp_y);
+                }
+
+                // Draw the protein diagram
+                if (!((protein_width === -1) || (protein_height === -1) || !protein_symbol))
+                {
+                    temp_y -= protein_height;
+                    svg += put_in_protein_symbol("protein", protein_width, protein_height, protein_symbol);
+                    svg += use("#protein", 50 + longest_text_width + 50, temp_y);
+                }
+
                 // Spacing
                 y += 5;
             }
@@ -833,7 +975,7 @@ export default
             if (canon_shown)
             {
                 // Draw the 'Canonical isoform:' label
-                svg += text_topped_centered("Canonical isoform:", x, y, 16, "sans-serif");
+                svg += text_topped_centered("Canonical isoform:", x, y + 2, 16, "sans-serif");
 
                 // Draw the canonical isoform track
                 let max_y = -1;
@@ -872,9 +1014,55 @@ export default
                 svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
 
                 // Draw the canonical isoform text
-                svg += text_topped_centered(tspan_elems, x, y - text_metrics.actualBoundingBoxAscent - text_metrics.actualBoundingBoxDescent - 2, 16, "sans-serif");
+                svg += text_topped_centered(tspan_elems, x, y - text_metrics.actualBoundingBoxAscent - text_metrics.actualBoundingBoxDescent - 2 - 2, 16, "sans-serif");
 
-                y += 10;
+                y += 15;
+            }
+
+            // Other Ensembl isoforms
+            if (other_isoforms_shown)
+            {
+                // Draw the 'Other Ensembl isoforms (beta):' label
+                svg += text_topped_centered("Other Ensembl isoforms (beta):", x, y, 16, "sans-serif");
+
+                {
+                    let text_metrics = text_metrics_canvas_ctx.measureText("Other Ensembl isoforms (beta):");
+                    y += text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent + 5;
+                }
+
+                // Draw the other Ensembl isoforms stack
+                let line_y = -1;
+                if (!((other_isoforms_width === -1) || (other_isoforms_height === -1) || !other_isoforms_symbol))
+                {
+                    line_y = Math.ceil(y + other_isoforms_height + 10);
+                    svg += put_in_symbol("other_isoforms_stack", other_isoforms_width, other_isoforms_height, other_isoforms_symbol);
+                    svg += use("#other_isoforms_stack", 50 + longest_text_width + 50, y);
+                }
+
+                // Draw all shown isoform texts
+                y += 25;
+                for (let [isoform_text, hyperlink] of shown_other_text_and_links)
+                {
+                    if (isoform_text === "Other Ensembl isoforms (beta):")
+                        continue;
+
+                    let fill = (hyperlink) ? "#007bff" : "";
+                    let text_elem = text_double_centered(isoform_text, x, y, 16, "sans-serif", fill);
+
+                    if (hyperlink)
+                        text_elem = put_in_hyperlink(hyperlink, text_elem);
+
+                    svg += text_elem;
+
+                    y += 1 + 50;
+                }
+
+                if (line_y !== -1)
+                    y = line_y;
+
+                svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                y += 15;
             }
 
             // The accession list
@@ -960,7 +1148,7 @@ export default
             link.click();
         },
 
-        determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line)
+        determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line)
         {
             // Determine the first line of the protein info
             let protein_first_line = "";
@@ -976,6 +1164,9 @@ export default
             // Put all texts shown on the left side of the screen into this array
             let shown_texts = [protein_first_line];
             for (let [line_text, ignored] of shown_text_and_links)
+                shown_texts.push(line_text);
+
+            for (let [line_text, ignored] of shown_other_text_and_links)
                 shown_texts.push(line_text);
 
             // Determine the first line of the canonical isoform info
@@ -1062,6 +1253,27 @@ export default
                 shown_canonical_text_and_links.push(second_line_info);
             }
 
+            let shown_other_text_and_links = [];
+
+            // Other Ensembl isoforms
+            if (this.is_other_isoforms_button_clicked && !this.other_isoforms_disabled && !this.other_isoforms_loading && this.show_all_other_isoforms && this.show_stack)
+            {
+                shown_other_text_and_links.push(["Other Ensembl isoforms (beta):", null]);
+
+                for (let other_isoform_id of this.other_isoforms_ids)
+                {
+                    let shown_text = null;
+                    let link = `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${other_isoform_id}`;
+
+                    if (this.transcriptNames[other_isoform_id] === 'Novel')
+                        shown_text = other_isoform_id;
+                    else
+                        shown_text = this.transcriptNames[other_isoform_id] + " (" + other_isoform_id + ')';
+
+                    shown_other_text_and_links.push([shown_text, link]);
+                }
+            }
+
             // Protein
             let protein_info_first_line = [];
             let protein_info_second_line = "";
@@ -1120,7 +1332,7 @@ export default
                 protein_info_third_line = " Disordered region, " + " Coil";
             }
 
-            return [shown_text_and_links, shown_canonical_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line];
+            return [shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line];
         },
 
         exportProteinLabelsSVG()
@@ -1156,6 +1368,15 @@ export default
             let link = document.createElement('a');
             link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
             link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_canon_track.svg` : 'IsoVis_canon_track.svg';
+            link.click();
+        },
+
+        exportOtherIsoformsSVG()
+        {
+            let svg = this.$refs.otherIsoformStackComponent.buildStackSvg();
+            let link = document.createElement('a');
+            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
+            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_other_isoforms.svg` : 'IsoVis_other_isoforms.svg';
             link.click();
         },
 
@@ -1210,11 +1431,34 @@ export default
             let canonData = JSON.parse(JSON.stringify(this.mainData.canonData));
             this.transcriptIds = isoformData.transcriptOrder.map((item)=>item);
 
+            let is_other_isoforms_loaded = (this.other_isoform_data && this.other_isoform_data.isoformList && (this.other_isoform_data.isoformList.length >= 1));
             let is_canon_loaded = (!(!canonData || Object.keys(canonData).length == 0));
             let is_zoomed = ((this.zoom_start !== -1) && (this.zoom_end !== -1));
 
-            let start = (is_zoomed) ? this.zoom_start : ((is_canon_loaded) ? this.canondata_start : isoformData.start);
-            let end = (is_zoomed) ? this.zoom_end : ((is_canon_loaded) ? this.canondata_end : isoformData.end);
+            // Determine the start and end of the genomic coordinate axis
+            let start = -1;
+            let end = -1;
+
+            if (is_zoomed)
+            {
+                start = this.zoom_start;
+                end = this.zoom_end;
+            }
+            else if (is_other_isoforms_loaded)
+            {
+                start = this.other_isoforms_start;
+                end = this.other_isoforms_end;
+            }
+            else if (is_canon_loaded)
+            {
+                start = this.canondata_start;
+                end = this.canondata_end;
+            }
+            else
+            {
+                start = isoformData.start;
+                end = isoformData.end;
+            }
 
             if (start > end)
             {
@@ -1225,7 +1469,15 @@ export default
 
             let width = end - start;
             let strand = isoformData.strand;
-            let mergedRanges = (is_canon_loaded) ? this.canondata_ranges : isoformData.mergedRanges;
+
+            // Determine the metagene regions
+            let mergedRanges = [];
+            if (is_other_isoforms_loaded)
+                mergedRanges = this.other_isoforms_ranges;
+            else if (is_canon_loaded)
+                mergedRanges = this.canondata_ranges;
+            else
+                mergedRanges = isoformData.mergedRanges;
 
             let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges);
 
@@ -1276,7 +1528,6 @@ export default
                 Math.max(this.mainData.isoformData.start, this.mainData.canonData.start);
             this.canondata_end = this.mainData.isoformData.strand == '+' ? Math.max(this.mainData.isoformData.end, this.mainData.canonData.end) :
                 Math.min(this.mainData.isoformData.end, this.mainData.canonData.end);
-            this.canondata_width = Math.abs(this.canondata_end - this.canondata_start);
 
             this.zoom_start = this.canondata_start;
             this.zoom_end = this.canondata_end;
@@ -1301,6 +1552,7 @@ export default
         {
             this.baseAxis.togglenormalization();
             this.$refs.isoformStackComponent.buildStack();
+            this.$refs.otherIsoformStackComponent.buildStack();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
@@ -1312,6 +1564,7 @@ export default
         {
             this.baseAxis.reverse();
             this.$refs.isoformStackComponent.buildStack();
+            this.$refs.otherIsoformStackComponent.buildStack();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
@@ -1362,6 +1615,12 @@ export default
             this.setBaseAxis();
         },
 
+        setShowAllOtherIsoforms(state)
+        {
+            this.show_all_other_isoforms = state;
+            this.resizePage();
+        },
+
         setShowStack(state)
         {
             this.show_stack = state;
@@ -1384,6 +1643,9 @@ export default
             this.show_orfs = state;
             
             this.$refs.isoformStackComponent.show_orfs = state;
+
+            if (!this.other_isoforms_disabled)
+                this.$refs.otherIsoformStackComponent.show_orfs = state;
 
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.show_orfs = state;
@@ -1492,6 +1754,110 @@ export default
 
             this.showCanonLoading = false;
             return [canon_data, canon_id];
+        },
+
+        /**
+         * Fetch all Ensembl isoforms that are not present in the uploaded stack data.
+         */
+        async getAllOtherIsoforms()
+        {
+            this.is_other_isoforms_button_clicked = true;
+            this.show_all_other_isoforms = true;
+            this.other_isoforms_loading = true;
+
+            let gene_id = this.mainData.selectedGene;
+            let all_stack_isoform_ids = this.isoformList;
+
+            let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms));
+            let is_canon_loaded = (!(!this.mainData.canonData || Object.keys(this.mainData.canonData).length == 0));
+            if (is_canon_loaded)
+            {
+                let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
+                isoform_list = isoform_list.concat(canon_isoform_list);
+            }
+
+            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_id}?species=${this.species}&expand=1&content-type=application/json`;
+            let response = await this.fetchJSON(url);
+            if (response && !response.error && response.Transcript && (response.Transcript.length !== 0))
+            {
+                let transcripts = response.Transcript;
+                let other_isoform_data = new OtherIsoformData(transcripts, all_stack_isoform_ids, isoform_list);
+                if (other_isoform_data.isoformList.length === 0)
+                {
+                    this.show_all_other_isoforms = false;
+                    this.other_isoforms_disabled = true;
+                    this.other_isoforms_loading = false;
+                    return;
+                }
+
+                for (let i = 0; i < other_isoform_data.isoformList.length; ++i)
+                {
+                    let isoform = other_isoform_data.isoformList[i];
+
+                    let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/map/cds/${isoform.transcriptID}/1..${isoform.length}?species=${this.species}&content-type=application/json`;
+                    let response = await this.fetchJSON(url);
+                    if (!response)
+                        continue;
+
+                    let ORFExons = [];
+                    for (let entry of response.mappings)
+                        ORFExons.push([entry.start, entry.end]);
+
+                    other_isoform_data.isoformList[i].orf = ORFExons;
+                    other_isoform_data.allIsoforms[i].orf = ORFExons;
+                }
+
+                for (let transcript_id of Object.keys(other_isoform_data.id_to_symbol))
+                    this.transcriptNames[transcript_id] = other_isoform_data.id_to_symbol[transcript_id];
+
+                this.other_isoforms_ranges = JSON.parse(JSON.stringify(other_isoform_data.mergedRanges));
+                this.other_isoforms_ids = JSON.parse(JSON.stringify(other_isoform_data.transcriptOrder));
+
+                this.other_isoforms_start = other_isoform_data.start;
+                this.other_isoforms_end = other_isoform_data.end;
+
+                if (this.mainData.isoformData.strand === '+')
+                {
+                    if (this.canondata_start !== -1)
+                        this.other_isoforms_start = Math.min(this.canondata_start, this.other_isoforms_start);
+                    else
+                        this.other_isoforms_start = Math.min(this.canondata_start, this.mainData.isoformData.start);
+
+                    if (this.canondata_end !== -1)
+                        this.other_isoforms_end = Math.max(this.canondata_end, this.other_isoforms_end);
+                    else
+                        this.other_isoforms_end = Math.max(this.canondata_end, this.mainData.isoformData.end);
+                }
+                else
+                {
+                    if (this.canondata_start !== -1)
+                        this.other_isoforms_start = Math.max(this.canondata_start, this.other_isoforms_start);
+                    else
+                        this.other_isoforms_start = Math.max(this.canondata_start, this.mainData.isoformData.start);
+
+                    if (this.canondata_end !== -1)
+                        this.other_isoforms_end = Math.min(this.canondata_end, this.other_isoforms_end);
+                    else
+                        this.other_isoforms_end = Math.min(this.canondata_end, this.mainData.isoformData.end);
+                }
+
+                this.other_isoforms_loading = false;
+
+                this.other_isoform_data = JSON.parse(JSON.stringify(other_isoform_data));
+
+                this.zoom_start = this.other_isoforms_start;
+                this.zoom_end = this.other_isoforms_end;
+                this.is_zoom_reset = true;
+                this.setBaseAxis();
+
+                this.other_isoforms_resize = true;
+            }
+            else
+            {
+                this.show_all_other_isoforms = false;
+                this.other_isoforms_disabled = true;
+                this.other_isoforms_loading = false;
+            }
         },
 
         /**
@@ -1723,6 +2089,27 @@ export default
         },
 
         /**
+         * Add an isoform with a particular transcript ID to the Ensembl isoform stack.
+         * @param {string} transcript_id Transcript ID
+         */
+        addOtherIsoform(transcript_id)
+        {
+            for (let isoform of this.other_isoform_data.allIsoforms)
+            {
+                if (isoform.transcriptID === transcript_id)
+                {
+                    this.other_isoform_data.isoformList.push(isoform);
+                    break;
+                }
+            }
+
+            this.other_isoform_data.transcriptOrder.push(transcript_id);
+            this.other_isoforms_ids.push(transcript_id);
+
+            this.resizePage();
+        },
+
+        /**
          * Remove an isoform with a particular transcript ID from the visualized data.
          * @param {string} transcript_id Transcript ID
          */
@@ -1745,6 +2132,26 @@ export default
             }
 
             this.transcriptIds.splice(this.transcriptIds.indexOf(transcript_id), 1);
+
+            this.resizePage();
+        },
+
+        /**
+         * Remove an isoform with a particular transcript ID from the 'Ensembl isoforms' stack.
+         * @param {string} transcript_id Transcript ID
+         */
+        removeOtherIsoform(transcript_id)
+        {
+            for (let i = 0; i < this.other_isoform_data.isoformList.length; ++i)
+            {
+                if (this.other_isoform_data.isoformList[i].transcriptID == transcript_id)
+                {
+                    this.other_isoform_data.isoformList.splice(i, 1);
+                    this.other_isoform_data.transcriptOrder.splice(i, 1);
+                }
+            }
+
+            this.other_isoforms_ids.splice(this.other_isoforms_ids.indexOf(transcript_id), 1);
 
             this.resizePage();
         },
@@ -1787,6 +2194,46 @@ export default
                     if (isoform.transcriptID === transcript_id)
                     {
                         this.mainData.isoformData.isoformList.push(isoform);
+                        break;
+                    }
+                }
+            }
+
+            this.is_sorting_done = true;
+        },
+
+        sortOtherIsoformsByAlpha(ascending = true)
+        {
+            let shown_isoforms = [];
+            for (let i = 0; i < this.other_isoforms_ids.length; ++i)
+            {
+                let transcript_id = this.other_isoforms_ids[i];
+
+                // Sort the currently shown isoforms by their transcript name if they have one, and by their transcript ID if they don't.
+                let transcript_name = this.transcriptNames[transcript_id];
+                if ((!transcript_name) || (transcript_name === "Novel"))
+                    transcript_name = transcript_id;
+
+                shown_isoforms.push([transcript_name, transcript_id]);
+            }
+
+            shown_isoforms.sort((a, b) => a[0].localeCompare(b[0], "en", {numeric: true, sensitivity: "case"}));
+            if (!ascending)
+                shown_isoforms.reverse();
+
+            this.other_isoforms_ids = [];
+            this.other_isoform_data.isoformList = [];
+            this.other_isoform_data.transcriptOrder = [];
+
+            for (let [ignored, transcript_id] of shown_isoforms)
+            {
+                this.other_isoforms_ids.push(transcript_id);
+                this.other_isoform_data.transcriptOrder.push(transcript_id);
+                for (let isoform of this.other_isoform_data.allIsoforms)
+                {
+                    if (isoform.transcriptID === transcript_id)
+                    {
+                        this.other_isoform_data.isoformList.push(isoform);
                         break;
                     }
                 }
@@ -1874,6 +2321,7 @@ export default
             if (this.show_stack)
             {
                 this.$refs.isoformStackComponent.buildStack();
+                this.$refs.otherIsoformStackComponent.buildStack();
                 this.$refs.canonStackComponent.buildStack();
                 this.$refs.geneStrandComponent.buildStrand();
                 this.buildProteinComponent();
@@ -1905,7 +2353,10 @@ export default
             this.is_dragging_done = false;
 
             if (this.show_stack)
+            {
                 this.$refs.isoformStackComponent.buildStack();
+                this.$refs.otherIsoformStackComponent.buildStack();
+            }
 
             if (this.show_heatmap)
                 this.$refs.heatmapComponent.buildHeatmap();
@@ -1920,6 +2371,12 @@ export default
         if (this.is_zoom_changed)
         {
             this.is_zoom_changed = false;
+            this.resizePage();
+        }
+
+        if (this.other_isoforms_resize)
+        {
+            this.other_isoforms_resize = false;
             this.resizePage();
         }
     },
@@ -1941,6 +2398,8 @@ export default
                     this.$root.$emit("single_canon_click");
                 else if (where === "Stack")
                     this.$root.$emit("single_stack_click");
+                else if (where === "OtherStack")
+                    this.$root.$emit("single_otherstack_click");
             }
         });
 
@@ -1966,6 +2425,13 @@ export default
 
             window.addEventListener("resize", this.resizePage);
 
+            this.is_other_isoforms_button_clicked = false;
+            this.show_all_other_isoforms = false;
+            this.other_isoforms_loading = false;
+            this.other_isoforms_disabled = false;
+            this.other_isoforms_resize = false;
+            this.other_isoform_data = false;
+
             this.show_stack = true;
             this.show_heatmap = true;
 
@@ -1989,6 +2455,11 @@ export default
 
             this.protein_disabled = false;
             this.canon_disabled = false;
+
+            this.other_isoforms_ids = [];
+            this.other_isoforms_ranges = [];
+            this.other_isoforms_start = -1;
+            this.other_isoforms_end = -1;
 
             this.controller = new AbortController();
             this.signal = this.controller.signal;
@@ -2017,7 +2488,6 @@ export default
                 let gene_id = this.mainData.selectedGene;
 
                 this.isGeneOnEnsembl(gene_id).then();
-
                 this.getCanonData(gene_id).then(([canon_data, canon_id]) =>
                 {
                     if (Object.keys(canon_data).length != 0)

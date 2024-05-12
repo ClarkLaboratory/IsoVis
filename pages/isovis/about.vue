@@ -30,7 +30,8 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Team</h5>
-                <p>Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark. Publication coming soon.</p>
+                <p>Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark.</p>
+                <p>Publication: <b-link href="https://doi.org/10.1093/nar/gkae343" target="_blank">https://doi.org/10.1093/nar/gkae343</b-link></p>
                 <p>Developed in the <b-link href="https://biomedicalsciences.unimelb.edu.au/sbs-research-groups/anatomy-and-physiology-research/systems-neuroscience/clark-lab" target="_blank">Clark Laboratory</b-link>, University of Melbourne.</p> Hosted by <b-link href="https://www.stemformatics.org/" target="_blank">Stemformatics</b-link>.
             </div>
         </div>

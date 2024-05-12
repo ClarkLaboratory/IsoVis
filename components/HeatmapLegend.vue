@@ -59,7 +59,7 @@ export default {
             };
 
             let height = 0;
-            let font_size = 14.0;
+            let font_size = 16.0;
 
             d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
             let fontSizeCalcCanvas = document.getElementById("fontSizeCalcCanvas");
@@ -190,7 +190,7 @@ export default {
             let mid_label = getLabel(mid);
             let max_label = getLabel(max);
 
-            font_size = 12.0;
+            font_size = 16.0;
             let min_label_end, mid_label_start, mid_label_end, mid_label_width, max_label_start;
 
             while (font_size > 2.0)
@@ -249,7 +249,7 @@ export default {
             };
 
             let height = 0;
-            let font_size = 14.0;
+            let font_size = 16.0;
 
             d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
             let fontSizeCalcCanvas = document.getElementById("fontSizeCalcCanvas");
@@ -307,7 +307,7 @@ export default {
             let mid_label = getLabel(mid);
             let max_label = getLabel(max);
 
-            let text_font_size = 12.0;
+            let text_font_size = 16.0;
             let min_label_end, mid_label_start, mid_label_end, mid_label_width, max_label_start;
 
             let svg_width = Math.ceil(width);
@@ -330,7 +330,7 @@ export default {
                 text_font_size -= 0.1;
             }
 
-            let log_transform_enabled_font_size = 12.0;
+            let log_transform_enabled_font_size = 16.0;
             if (this.logTransform)
             {
                 while (log_transform_enabled_font_size > 2.0)
@@ -361,8 +361,6 @@ export default {
             }
 
             height += 30 + 15 + 25;
-            document.querySelector('#heightCalcCanvas').remove();
-
             let svg_height = Math.ceil(height);
 
             let svg = "";
@@ -395,9 +393,14 @@ export default {
 
             if (this.logTransform)
             {
-                svg_height += 60;
-                svg += text_centered("(Log-transformed)", svg_width / 2, svg_height - 20, log_transform_enabled_font_size, "sans-serif");
+                heightCalcCanvas_ctx.font = `${log_transform_enabled_font_size}px sans-serif`;
+                let log_transformed_text_metrics = heightCalcCanvas_ctx.measureText("(Log-transformed)");
+                let log_transformed_text_height = Math.ceil(log_transformed_text_metrics.actualBoundingBoxAscent + log_transformed_text_metrics.actualBoundingBoxDescent);
+                svg += text_centered("(Log-transformed)", svg_width / 2, svg_height + 40, log_transform_enabled_font_size, "sans-serif");
+                svg_height += log_transformed_text_height + 40;
             }
+
+            document.querySelector('#heightCalcCanvas').remove();
 
             if (symbol)
                 return [svg_width, svg_height, svg];

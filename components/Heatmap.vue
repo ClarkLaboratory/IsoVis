@@ -174,8 +174,8 @@ export default {
                 let sample = samples[col];
                 let value = values[row][col];
 
-                let heatmap_div = document.getElementById("heatmapDiv");
-                let boundary = heatmap_div.getBoundingClientRect();
+                let div = document.getElementById("heatmapDiv");
+                let boundary = div.getBoundingClientRect();
                 let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
                 let topVal = (clientY - boundary.top + padding + 5);
 

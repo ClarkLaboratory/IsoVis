@@ -115,6 +115,7 @@
                 <li>Protein motif mapping: Turn on or off the mapping of InterPro protein motifs to exons.</li>
                 <li>Protein domain labels (beta): Show or hide labels of InterPro protein domains.</li>
                 <li>Known ORFs: Turn on or off the display of the coding sequence. Applicable to annotated isoforms with known ORFs only.</li>
+                <li>Load all other Ensembl isoforms (beta): Loads all Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data.</li>
             </ul>
         </div>
         <div>

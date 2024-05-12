@@ -204,7 +204,7 @@ export default {
                 let dist_from_center = Math.min(left_dist_from_center, right_dist_from_center);
                 let domain_pixel_width = Math.floor(dist_from_center * 2) - 6;
 
-                let font_size = 14.0;
+                let font_size = 16.0;
                 let can_draw_horizontally = false;
                 let label_width = 0;
                 while (font_size >= 10.0)
@@ -235,7 +235,7 @@ export default {
                 }
 
                 // The label must be drawn diagonally
-                font_size = 14.0;
+                font_size = 16.0;
                 let can_draw_diagonally = false;
                 let diagonal_width = max_diagonal_width;
 
@@ -435,7 +435,7 @@ export default {
                 let dist_from_center = Math.min(left_dist_from_center, right_dist_from_center);
                 let domain_pixel_width = Math.floor(dist_from_center * 2) - 6;
 
-                let font_size = 14.0;
+                let font_size = 16.0;
                 let can_draw_horizontally = false;
                 let label_width = 0;
                 while (font_size >= 10.0)
@@ -466,7 +466,7 @@ export default {
                 }
 
                 // The label must be drawn diagonally
-                font_size = 14.0;
+                font_size = 16.0;
                 let can_draw_diagonally = false;
                 let diagonal_width = max_diagonal_width;
 

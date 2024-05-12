@@ -9,8 +9,8 @@ Requires an instance of BaseAxis as input, as well as isoformList object
 which must have 'transcriptID', 'exonRanges' and 'orf' properties.
 
 <template>
-<div id="stackDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
-    <p>Isoform stack</p>
+<div id="otherStackDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
+    <p>Other Ensembl isoforms stack</p>
 </div>
 </template>
 
@@ -45,7 +45,7 @@ export default {
 
         mouse_to_genome(client_x)
         {
-            let crosshair_canvas = document.getElementById("stackCrosshairCanvas");
+            let crosshair_canvas = document.getElementById("otherStackCrosshairCanvas");
             if (!crosshair_canvas)
                 return -1;
 
@@ -74,7 +74,7 @@ export default {
                 return;
 
             this.end_drag = genome_location;
-            this.$root.$emit("set_zoom", [this.start_drag, this.end_drag, true, "Stack"]);
+            this.$root.$emit("set_zoom", [this.start_drag, this.end_drag, true, "OtherStack"]);
             this.start_drag = -1;
         },
 
@@ -97,7 +97,7 @@ export default {
 
         set_tooltip_copied(is_copy_successful)
         {
-            let tooltip = d3.select("#isoformstack_tooltip");
+            let tooltip = d3.select("#otherisoformstack_tooltip");
             if (!tooltip)
                 return;
 
@@ -115,7 +115,7 @@ export default {
                 this.end_drag = -1;
             }
 
-            let crosshair_canvas = document.getElementById("stackCrosshairCanvas");
+            let crosshair_canvas = document.getElementById("otherStackCrosshairCanvas");
             if (!crosshair_canvas)
                 return;
 
@@ -125,7 +125,7 @@ export default {
 
         draw_crosshair(client_x)
         {
-            let crosshair_canvas = document.getElementById("stackCrosshairCanvas");
+            let crosshair_canvas = document.getElementById("otherStackCrosshairCanvas");
             if (!crosshair_canvas)
                 return;
 
@@ -187,17 +187,17 @@ export default {
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
             // Clear the target element of any content
-            d3.select("#stackDiv").selectAll("*").remove();
+            d3.select("#otherStackDiv").selectAll("*").remove();
 
             let canvas_width = Math.ceil(self.width);
             let canvas_height = Math.ceil(svgHeight);
 
-            d3.select("#stackDiv").append("canvas")
+            d3.select("#otherStackDiv").append("canvas")
                 .attr("width", canvas_width)
                 .attr("height", canvas_height)
-                .attr("id", "stackCanvas")
+                .attr("id", "otherStackCanvas")
                 .attr("style", "position: absolute; left: 1rem !important;");
-            let canvas = document.getElementById("stackCanvas");
+            let canvas = document.getElementById("otherStackCanvas");
             let ctx = canvas.getContext("2d");
 
             let transformation = (i) => self.groupScale(i, self.isoformHeight, self.isoformGap);
@@ -413,10 +413,10 @@ export default {
                 exon_info = orf_exon_info.concat(exon_info);
             }
 
-            let tooltip = d3.select("#stackDiv")
+            let tooltip = d3.select("#otherStackDiv")
                             .append("div")
                             .attr("class", "tooltip")
-                            .attr("id", "isoformstack_tooltip")
+                            .attr("id", "otherisoformstack_tooltip")
                             .style("visibility", "hidden")
                             .style("opacity", 1)
                             .style("background-color", "white")
@@ -477,36 +477,38 @@ export default {
 
                 if (!shown_transcript_id)
                 {
-                    d3.select("#stackCrosshairCanvas").style("cursor", "crosshair");
+                    d3.select("#otherStackCrosshairCanvas").style("cursor", "crosshair");
                     hide_tooltip();
-                    let event = new CustomEvent("set_isoformstack_tooltip_text", {detail: ""});
+                    let event = new CustomEvent("set_otherisoformstack_tooltip_text", {detail: ""});
                     document.dispatchEvent(event);
                     return;
                 }
 
-                let div = document.getElementById("stackDiv");
-                let boundary = div.getBoundingClientRect();
-                let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
-                let topVal = (clientY - boundary.top + padding + 5);
+                let stack_div = document.getElementById("stackDiv");
+                let other_stack_div = document.getElementById("otherStackDiv");
+                let stack_boundary = stack_div.getBoundingClientRect();
+                let other_stack_boundary = other_stack_div.getBoundingClientRect();
+                let leftVal = (calculateLeftVal(clientX) - stack_boundary.left + padding + 7);
+                let topVal = (clientY - other_stack_boundary.top + padding + 5);
 
                 let tooltip_text = `Transcript: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
-                let event = new CustomEvent("set_isoformstack_tooltip_text", {detail: tooltip_text});
+                let event = new CustomEvent("set_otherisoformstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
                 tooltip.html(`Transcript: ${shown_transcript_id}<br>Exon #${shown_exon_number} / ${shown_total_exons}<br>Exonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}<br>Exon range: ${shown_exon_start} - ${shown_exon_end}<br>(Click on the exon to copy the text in this tooltip)<br>`)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
 
-                d3.select("#stackCrosshairCanvas").style("cursor", "pointer");
+                d3.select("#otherStackCrosshairCanvas").style("cursor", "pointer");
             }
 
-            d3.select("#stackDiv").append("canvas")
+            d3.select("#otherStackDiv").append("canvas")
                 .attr("width", canvas_width)
                 .attr("height", canvas_height)
-                .attr("id", "stackCrosshairCanvas")
+                .attr("id", "otherStackCrosshairCanvas")
                 .attr("style", "position: absolute; left: 1rem !important;");
 
-            d3.select("#stackCrosshairCanvas")
+            d3.select("#otherStackCrosshairCanvas")
                 .on("mouseover", function (evt) {self.$root.$emit("draw_crosshair", evt.clientX); display_tooltip(evt);})
                 .on("mousemove", function (evt) {self.$root.$emit("draw_crosshair", evt.clientX); display_tooltip(evt);})
                 .on("mouseleave", function() {self.$root.$emit("remove_crosshair"); hide_tooltip();})
@@ -713,7 +715,7 @@ export default {
 
     mounted()
     {
-        document.addEventListener("set_isoformstack_tooltip_text", (e) => {
+        document.addEventListener("set_otherisoformstack_tooltip_text", (e) => {
             let tooltip_text = e.detail;
             this.tooltip_text = tooltip_text;
         });
@@ -728,7 +730,7 @@ export default {
             this.remove_crosshair();
         });
 
-        this.$root.$on("single_stack_click", () =>
+        this.$root.$on("single_otherstack_click", () =>
         {
             this.copy_tooltip_text();
         });

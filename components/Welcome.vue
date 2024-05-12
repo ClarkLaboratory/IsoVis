@@ -34,7 +34,8 @@
     <div class="text-center mt-2">
         <b-button @click="showClarkLabDataModal" class="m-1">Download demo or Clark Lab data</b-button>
         <b-button href="https://github.com/ClarkLaboratory/IsoVis" target="_blank" class="m-1">Source code <b-icon-github aria-hidden="true"></b-icon-github></b-button>
-        <p class="m-2">Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark. Publication coming soon.<br/>
+        <p class="m-2">Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark.<br/>
+            Publication: <b-link href="https://doi.org/10.1093/nar/gkae343" target="_blank">https://doi.org/10.1093/nar/gkae343</b-link><br/>
             Developed in the<b-link href="https://biomedicalsciences.unimelb.edu.au/sbs-research-groups/anatomy-and-physiology-research/systems-neuroscience/clark-lab" target="_blank">
             Clark Laboratory</b-link>, University of Melbourne.
             Hosted by <b-link href="https://www.stemformatics.org/" target="_blank">Stemformatics</b-link>.

@@ -113,7 +113,7 @@ export default {
 
             let genomic_location = chromosome + Math.floor(this.baseAxis.geneToAxisScale.invert(this.baseAxis.axisToScreenScale.invert(x)));
 
-            let font_size = 12.0;
+            let font_size = 16.0;
             let label_x, label_width;
 
             while (font_size > 2.0)
@@ -188,7 +188,7 @@ export default {
             if (this.isStrandUnknown)
                 center_label = "Assumed " + center_label.toLowerCase();
 
-            let font_size = 12.0;
+            let font_size = 16.0;
             let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;
 
             while (font_size > 2.0)
@@ -302,7 +302,7 @@ export default {
             if (this.isStrandUnknown)
                 center_label = "Assumed " + center_label.toLowerCase();
 
-            let font_size = 12.0;
+            let font_size = 16.0;
             let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;
 
             while (font_size >= 2.0)

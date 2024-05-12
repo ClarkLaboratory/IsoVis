@@ -490,8 +490,8 @@ export default {
                     return;
                 }
 
-                let heatmap_div = document.getElementById("canonDiv");
-                let boundary = heatmap_div.getBoundingClientRect();
+                let div = document.getElementById("canonDiv");
+                let boundary = div.getBoundingClientRect();
                 let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
                 let topVal = (clientY - boundary.top + padding + 5);
 

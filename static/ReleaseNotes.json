@@ -1,4 +1,8 @@
 [
+    {"version": "v1.8",
+     "date": "2024-05-12",
+     "notes": ["Beta feature: Can now load other Ensembl isoforms that are not present in the uploaded stack data.", "Minor bug fix for protein feature mappings.", "The default font size of text for the protein labels, gene strand diagram and heatmap legend is increased.", "Reduced visual cluttering in exported images.", "Protein diagram pop-ups should now always float on top of the buttons above the diagram."]},
+
     {"version": "v1.7",
      "date": "2024-03-24",
      "notes": ["Labels for protein domains can now be shown atop the protein diagram (work in progress).", "A colour legend has been added for the protein diagram.", "The RefSeq accession of the canonical isoform is now displayed if it exists. It would link to a GenBank entry on the canonical isoform.", "Added support for BED4 to BED9 stack data files.", "Image export functionality has been completely rewritten. Added support for exporting scalable SVG and PDFs.", "Hovering over an exon in the isoform stack now shows its exon number, exonic region number, genomic coordinate range and which transcript it is from.", "Users can now specify whether their stack data files use the GRCh37 (hg19) genome build instead of GRCh38 (hg38) when uploading data.", "The 'Known ORFs' stack option is now automatically hidden if no known ORFs could be loaded for the isoform stack.", "Updated demo data archives to include a BED6 stack file example, a BED12 stack file example, and a 'readme' text file."]},

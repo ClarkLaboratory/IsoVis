@@ -10,7 +10,7 @@ Transcript structures (GFF, GTF or BED files) are displayed as an isoform stack,
 
 Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark. Developed in the Clark Laboratory at the University of Melbourne.
 
-Publication: Coming soon.
+Publication: https://doi.org/10.1093/nar/gkae343
 
 Hosted by Stemformatics: https://www.stemformatics.org/
 
@@ -43,11 +43,13 @@ To install them, run the following command:
 npm install nuxt@2.* bootstrap-vue d3 domain-gfx svg-to-pdfkit blob-stream vuedraggable
 ```
 
-### Applying an IsoVis-specific modification to `domain-gfx` source code
+### Applying IsoVis-specific modifications to `domain-gfx` source code
 
-IsoVis applies a minor modification to the source code of the `domain-gfx` library: Protein domains in the protein diagram now look flat rather than three-dimensional as in previous IsoVis versions.
+IsoVis applies two minor modifications to the source code of the `domain-gfx` library.
 
-The reasons for this modification are as follows:
+The first modification causes protein domains in the protein diagram to look flat rather than three-dimensional as in previous IsoVis versions.
+
+The reasons for this modification so are as follows:
 
 1. We believe this change helps modernize the protein diagram slightly.
 2. From our testing, when exporting PDFs with three-dimensional protein domains drawn, some PDF readers cannot render those domains fully when zoomed in. However, this issue does not occur with flat protein domains.
@@ -57,6 +59,15 @@ To apply this modification when installing IsoVis, follow these steps:
 1. After installing the dependencies as stated above, open `node_modules/domain-gfx/src/index.js` in a text editor.
 2. Locate the line that contains the text `height: this._computeHeight(),`.
 3. To the right of the comma, enter `spotlight: false`.
+4. Save the file.
+
+The second modification ensures that protein diagram pop-ups always float on top of the buttons above the diagram.
+
+To apply this modification when installing IsoVis:
+
+1. Open `node_modules/domain-gfx/src/tooltip/style.js` in a text editor.
+2. Locate the line that contains the text `font-family: Sans-Serif;`.
+3. Add a new line below that line and enter `z-index: 500;`.
 4. Save the file.
 
 ### Resolving the 'digital envelope routines unsupported' error for OpenSSL

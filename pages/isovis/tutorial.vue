@@ -80,7 +80,7 @@
         </div>
         <br>
         <div>
-            The navigation bar at the top of the page shows two menus. The 'About' menu contains additional information regarding IsoVis, including the changelog for each IsoVis version update and how IsoVis keeps uploaded data private to the user. The 'Help' menu has further information on how to use IsoVis and get help, as well as an extensive FAQ page.
+            The navigation bar at the top of the page shows two menus. The 'About' menu contains additional information regarding IsoVis, including the changelog for each IsoVis version update and how IsoVis keeps uploaded data private to the user. The 'Help' menu has further information on how to use IsoVis and get help, as well as an extensive <b-link href="../faq/" target="_blank">FAQ page</b-link>.
             <br><br>
             Users who have encountered issues or would like to request new features can file a bug report or feature request in the IsoVis GitHub repository. For users who wish to send private feedback on IsoVis or do not wish to use GitHub, they may send emails to the <b-link href="mailto:contact@isomix.org">contact@isomix.org</b-link> address shown on the home page.
         </div>
@@ -145,7 +145,7 @@
         </div>
         <br>
         <div>
-            The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript, the canonical protein, the mapping for protein domains and motifs, labels for the protein domains (beta), and any known ORFs (open reading frames).
+            The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript, the canonical protein, the mapping for protein domains and motifs, labels for the protein domains (beta), any known ORFs (open reading frames), and all other Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data (beta).
             <br><br>
             If the 'Known ORFs' stack option is enabled, then Ensembl isoforms that have known ORFs show grey, thinner rectangles for untranslated regions and thicker rectangles for ORFs.
         </div>
