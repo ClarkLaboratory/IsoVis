@@ -30,7 +30,7 @@ the exact state of that page from the previous state.
                 <b-dropdown text="About" variant="dark" right class="ml-2">
                     <b-dropdown-item href="about/" target="_blank">About IsoVis</b-dropdown-item>
                     <b-dropdown-item @click="modal.changelog.show=true">Release notes</b-dropdown-item>
-                    <b-dropdown-item @click="showCitation">How to cite us</b-dropdown-item>
+                    <b-dropdown-item @click="modal.citation.show=true">How to cite us</b-dropdown-item>
                     <b-dropdown-item href="misc/" target="_blank">Privacy, license and funding</b-dropdown-item>
                 </b-dropdown>
                 <b-dropdown text="Help" variant="dark" right class="ml-2">
@@ -134,6 +134,12 @@ the exact state of that page from the previous state.
             </li>
         </ul>
     </b-modal>
+
+    <!-- Citation modal -->
+    <b-modal v-model="modal.citation.show" size="lg" id='citation' title="How to cite us" ok-only ok-title="Close">
+        <p>If you use IsoVis, please cite:</p>
+        <p>Ching Yin Wan, Jack Davis, Manveer Chauhan, Josie Gleeson, Yair D J Prawer, Ricardo De Paoli-Iseppi, Christine A Wells, Jarny Choi, Michael B Clark, IsoVis – a webserver for visualization and annotation of alternative RNA isoforms, <i>Nucleic Acids Research</i>, 2024;, gkae343, <b-link href="https://doi.org/10.1093/nar/gkae343" target="_blank">https://doi.org/10.1093/nar/gkae343</b-link></p>
+    </b-modal>
 </div>
 </template>
     
@@ -208,6 +214,10 @@ export default
                 changelog:
                 {
                     show: false,
+                },
+                citation:
+                {
+                    show: false,
                 }
             },
 
@@ -247,11 +257,6 @@ export default
     },
 
     methods: {
-        showCitation()
-        {
-            this.$bvModal.msgBoxOk("Coming soon!");
-        },
-
         // When the user requests demo data, this function fetches it from /static/ and populates mainData.
         // Since Main.vue is watching a change in mainData, it should update automatically and show the demo.
         async showDemo()

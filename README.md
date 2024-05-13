@@ -14,6 +14,10 @@ Publication: https://doi.org/10.1093/nar/gkae343
 
 Hosted by Stemformatics: https://www.stemformatics.org/
 
+If you use IsoVis, please cite:
+
+Ching Yin Wan, Jack Davis, Manveer Chauhan, Josie Gleeson, Yair D J Prawer, Ricardo De Paoli-Iseppi, Christine A Wells, Jarny Choi, Michael B Clark, IsoVis – a webserver for visualization and annotation of alternative RNA isoforms, *Nucleic Acids Research*, 2024;, gkae343, https://doi.org/10.1093/nar/gkae343
+
 ## Installing IsoVis locally
 
 ### Setting up a Conda environment for running IsoVis (recommended)
@@ -49,7 +53,7 @@ IsoVis applies two minor modifications to the source code of the `domain-gfx` li
 
 The first modification causes protein domains in the protein diagram to look flat rather than three-dimensional as in previous IsoVis versions.
 
-The reasons for this modification so are as follows:
+The reasons for this modification are as follows:
 
 1. We believe this change helps modernize the protein diagram slightly.
 2. From our testing, when exporting PDFs with three-dimensional protein domains drawn, some PDF readers cannot render those domains fully when zoomed in. However, this issue does not occur with flat protein domains.
