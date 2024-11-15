@@ -17,7 +17,8 @@
     Stack data can be provided in GFF or GTF files.<br>
     GFF3 files must have a file extension of '.gff3'.<br>
     GTF files must have a file extension of '.gtf', '.gff', or '.gff2'.<br><br>
-    The attributes column (column 9) of each line <strong> must contain</strong>:<ol>
+    IsoVis only considers lines where the feature column (column 3) is either '<b>exon</b>' (isoform exons) or '<b>CDS</b>' (user ORFs). All other lines are ignored.<br>
+    The attributes column (column 9) of each line <strong>must contain</strong>:<ol>
         <li>
             A <strong>'gene_id'</strong> attribute storing either<ul>
                 <li>The Ensembl gene ID (preferred)<br>
@@ -35,7 +36,7 @@
             </ul> 
         </li>
     </ol>
-    The exons of each transcript must be ordered by ascending starting genome coordinates.<br>
+    The exons and user ORF of each transcript must be ordered by ascending starting genome coordinates.<br>
     The strand of each transcript isoform (column 7) must be specified.
 
     <hr>
@@ -49,7 +50,9 @@
         <li><strong>ENST00000123456.1_ENSG00000123456.1</strong> or <strong>ENST00000123456.1|ENSG00000123456.1</strong> (for known transcripts)</li>
         <li><strong>novelTranscript1_ENSG00000123456.1</strong> or <strong>novelTranscript1|ENSG00000123456.1</strong> (for novel transcripts)</li>
     </ul>
-    The strand of each transcript isoform (column 6) must be specified.
+    The strand of each transcript isoform (column 6) must be specified.<br>
+    To specify user ORFs, put the start and end coordinates of ORFs in the <b>thickStart</b> and <b>thickEnd</b> columns (columns 7 and 8) respectively. The start coordinate must be lower than the end coordinate.<br>
+    For transcripts without user ORFs, set the <b>thickStart</b> and <b>thickEnd</b> columns to a dash ('-').
 
     <hr>
 
@@ -62,6 +65,7 @@
         <li>The start (column 2) and end (column 3) of the chromosome region in each line represents the start and end of an exon instead of a whole transcript.</li>
         <li>The exons of each transcript must be ordered by ascending starting genome coordinates.</li>
     </ol>
+    As user ORF data are stored in the 7th and 8th columns of a BED file, only BED8 and BED9 files may be used to store such data.
 
     <hr>
 
@@ -86,8 +90,8 @@
 
     These two columns <strong>must</strong> be in the file:
     <ul>
-        <li>gene_id, which stores the gene ID of each row (e.g. ENSG00000116786.13).</li>
-        <li>transcript_id, which stores the transcript ID of each row (e.g. ENST00000375793.2).</li>
+        <li><b>gene_id</b>, which stores the gene ID of each row (e.g. ENSG00000116786.13).</li>
+        <li><b>transcript_id</b>, which stores the transcript ID of each row (e.g. ENST00000375793.2).</li>
     </ul>
     All other columns should:
     <ul>
@@ -143,7 +147,15 @@
     3. To visualize genes found on multiple chromosomes, we suggest ensuring the transcript IDs differ before the dot character ('.').<br>
     For example, if the transcript IDs being used are 'ENSTxxxxx.4' and 'ENSTxxxxx.4_PAR_Y', IsoVis trims them at the '.' during file parsing and turns them into 'ENSTxxxxx'.<br>
     This causes both transcripts to be considered as the same transcript and <b>visualized incorrectly as one transcript</b> instead of two.<br>
-    Transcript IDs that could be used instead are 'ENSTxxxxx.4' and 'ENSTxxxxxY.4'.
+    Transcript IDs that could be used instead are 'ENSTxxxxx.4' and 'ENSTxxxxxY.4'.<br>
+    <br>
+    4. To visualize user ORFs for uploaded transcripts (including novel isoforms), specify:<br>
+    <ul>
+        <li><u>GTF and GFF files</u>: <b>CDS</b> lines</li>
+        <li><u>BED8, BED9 and BED12 files</u>: <b>thickStart</b> and <b>thickEnd</b> information</li>
+    </ul>
+    5. IsoVis can show more than one user ORF for each transcript as long as stack data is uploaded in GTF or GFF files and the user ORFs are non-overlapping.<br>
+    For overlapping user ORFs, there is currently no method to tell them apart as IsoVis will merge them.
 </b-container>
 </template>
 

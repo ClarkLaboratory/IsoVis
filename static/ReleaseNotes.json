@@ -1,4 +1,8 @@
 [
+    {"version": "v1.9",
+     "date": "2024-11-15",
+     "notes": ["Preliminary support for showing splicing differences added: Can display junctions that are not present in all isoforms (work in progress).", "Beta feature: Can now show ORFs from uploaded stack data. Please refer to the updated 'Help on upload data' page for the expected format of ORF information in isoform data files.", "Minor speed improvement in fetching transcript ORFs.", "The demo data visualization and demo data files have been updated to demonstrate user ORFs."]},
+
     {"version": "v1.8",
      "date": "2024-05-12",
      "notes": ["Beta feature: Can now load other Ensembl isoforms that are not present in the uploaded stack data.", "Minor bug fix for protein feature mappings.", "The default font size of text for the protein labels, gene strand diagram and heatmap legend is increased.", "Reduced visual cluttering in exported images.", "Protein diagram pop-ups should now always float on top of the buttons above the diagram."]},

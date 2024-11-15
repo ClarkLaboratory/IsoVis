@@ -86,10 +86,10 @@
         <p></p>
 
         <p style="margin-bottom: 0px">Demo data</p>
-        <b-button variant="primary" @click="downloadFile('demo_data.zip')">.zip (2.3 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.7z')">.7z (1.6 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.tar.gz')">.tar.gz (1.6 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('demo_data.tar.xz')">.tar.xz (1.6 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.zip')">.zip (3.4 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.7z')">.7z (2.3 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.tar.gz')">.tar.gz (2.4 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('demo_data.tar.xz')">.tar.xz (2.3 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
     </b-modal>
 </b-container>
 </template>

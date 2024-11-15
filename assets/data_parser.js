@@ -342,11 +342,11 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new GFF3Line(raw_line);
-            if ((!line.valid) || (line.feature !== "exon"))
+            if (!(line.valid) || (line.feature !== "exon" && line.feature !== "CDS"))
                 continue;
 
             let gene_to_search = this.gene;
-            if (gene_to_search)
+            if (gene_to_search && (line.feature === "exon"))
             {
                 let gene_name = line.attributes.gene_id;
                 if (!gene_name)
@@ -372,16 +372,30 @@ export class PrimaryData {
 
             transcript = transcript.split(".")[0];
 
-            if (!(transcript in this.transcripts))
-                this.transcripts[transcript] = {};
+            if (line.feature === "exon")
+            {
+                if (!(transcript in this.transcripts))
+                {
+                    this.transcripts[transcript] = {};
+                    this.transcripts[transcript].user_orf = [];
+                }
 
-            if (!this.transcripts[transcript].exon_count)
-                this.transcripts[transcript].exon_count = 0;
+                if (!this.transcripts[transcript].exon_count)
+                    this.transcripts[transcript].exon_count = 0;
 
-            let exon = this.transcripts[transcript].exon_count;
-            this.transcripts[transcript][exon] = line.range;
-            this.transcripts[transcript].strand = line.strand;
-            this.transcripts[transcript].exon_count += 1;
+                let exon = this.transcripts[transcript].exon_count;
+                this.transcripts[transcript][exon] = line.range;
+                this.transcripts[transcript].strand = line.strand;
+                this.transcripts[transcript].exon_count += 1;
+            }
+            else
+            {
+                // The transcript must be defined before its CDS
+                if (!(transcript in this.transcripts))
+                    continue;
+
+                this.transcripts[transcript].user_orf.push(line.range);
+            }
         }
     }
 
@@ -390,11 +404,11 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new GTFLine(raw_line);
-            if ((!line.valid) || (line.feature !== "exon"))
+            if (!(line.valid) || (line.feature !== "exon" && line.feature !== "CDS"))
                 continue;
 
             let gene_to_search = this.gene;
-            if (gene_to_search)
+            if (gene_to_search && (line.feature === "exon"))
             {
                 let gene_name = line.attributes.gene_id;
                 if (!gene_name)
@@ -424,16 +438,30 @@ export class PrimaryData {
             if (!line.isStringTie)
                 transcript = transcript.split(".")[0];
 
-            if (!(transcript in this.transcripts))
-                this.transcripts[transcript] = {};
+            if (line.feature === "exon")
+            {
+                if (!(transcript in this.transcripts))
+                {
+                    this.transcripts[transcript] = {};
+                    this.transcripts[transcript].user_orf = [];
+                }
 
-            if (!this.transcripts[transcript].exon_count)
-                this.transcripts[transcript].exon_count = 0;
+                if (!this.transcripts[transcript].exon_count)
+                    this.transcripts[transcript].exon_count = 0;
 
-            let exon = this.transcripts[transcript].exon_count;
-            this.transcripts[transcript][exon] = line.range;
-            this.transcripts[transcript].strand = line.strand;
-            this.transcripts[transcript].exon_count += 1;
+                let exon = this.transcripts[transcript].exon_count;
+                this.transcripts[transcript][exon] = line.range;
+                this.transcripts[transcript].strand = line.strand;
+                this.transcripts[transcript].exon_count += 1;
+            }
+            else
+            {
+                // The transcript must be defined before its CDS
+                if (!(transcript in this.transcripts))
+                    continue;
+
+                this.transcripts[transcript].user_orf.push(line.range);
+            }
         }
     }
 
@@ -473,17 +501,33 @@ export class PrimaryData {
             transcript = transcript.split(".")[0];
 
             if (!(transcript in this.transcripts))
-                this.transcripts[transcript] = {};
-
-            for (let i = 0; i < line.blockCount; ++i)
             {
-                let start = line.start + line.blockStarts[i];
-                let size = line.blockSizes[i];
-                let range = [start, start + size - 1];
-                this.transcripts[transcript][i] = range;
-            }
+                let strand = line.strand;
 
-            this.transcripts[transcript].strand = line.strand;
+                this.transcripts[transcript] = {};
+                this.transcripts[transcript].strand = strand;
+                this.transcripts[transcript].user_orf = [];
+
+                for (let i = 0; i < line.blockCount; ++i)
+                {
+                    let start = line.start + line.blockStarts[i];
+                    let size = line.blockSizes[i];
+                    let range = [start, start + size - 1];
+                    this.transcripts[transcript][i] = range;
+
+                    if ((line.orf_start !== undefined) && (line.orf_end !== undefined))
+                    {
+                        let orf = intersection([line.orf_start, line.orf_end], range);
+                        if (orf.length !== 0)
+                        {
+                            if (strand === '+')
+                                this.transcripts[transcript].user_orf.push(orf);
+                            else
+                                this.transcripts[transcript].user_orf.unshift(orf);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -523,9 +567,17 @@ export class PrimaryData {
             transcript = transcript.split(".")[0];
 
             if (!(transcript in this.transcripts))
+            {
                 this.transcripts[transcript] = {};
+                this.transcripts[transcript].strand = line.strand;
+                this.transcripts[transcript].user_orf = [];
+                this.transcripts[transcript].user_orf_range = [];
+                if ((line.orf_start !== undefined) && (line.orf_end !== undefined))
+                    this.transcripts[transcript].user_orf_range = [line.orf_start, line.orf_end];
+            }
 
             let exon_number = 0;
+            let strand = this.transcripts[transcript].strand;
             while (true)
             {
                 if (!this.transcripts[transcript][exon_number])
@@ -534,12 +586,23 @@ export class PrimaryData {
                     let end = line.end;
                     let range = [start, end];
                     this.transcripts[transcript][exon_number] = range;
+
+                    if (this.transcripts[transcript].user_orf_range.length !== 0)
+                    {
+                        let orf = intersection(this.transcripts[transcript].user_orf_range, range);
+                        if (orf.length !== 0)
+                        {
+                            if (strand === '+')
+                                this.transcripts[transcript].user_orf.push(orf);
+                            else
+                                this.transcripts[transcript].user_orf.unshift(orf);
+                        }
+                    }
+
                     break;
                 }
                 exon_number += 1;
             }
-
-            this.transcripts[transcript].strand = line.strand;
         }
     }
 
@@ -603,7 +666,10 @@ export class PrimaryData {
             transcript = transcript.split(".")[0];
 
             if (!(transcript in this.transcripts))
+            {
                 this.transcripts[transcript] = {};
+                this.transcripts[transcript].strand = gene_strand;
+            }
 
             let exon_number = 0;
             while (true)
@@ -618,8 +684,6 @@ export class PrimaryData {
                 }
                 exon_number += 1;
             }
-
-            this.transcripts[transcript].strand = gene_strand;
         }
     }
 
@@ -1549,6 +1613,8 @@ class BEDLine
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
+        let orf_start = parseInt(line[6]) + 1;
+        let orf_end = parseInt(line[7]);
         let blockCount = parseInt(line[9]);
         let strand = line[5].trim();
         if (isNaN(start) || isNaN(end) || isNaN(blockCount) || ((strand !== '+') && (strand !== '-')))
@@ -1571,6 +1637,13 @@ class BEDLine
         this.chromosome = line[0];
         this.start = start;
         this.end = end;
+
+        if (!isNaN(orf_start) && !isNaN(orf_end) && (orf_start < orf_end))
+        {
+            this.orf_start = orf_start;
+            this.orf_end = orf_end;
+        }
+
         this.gene = split_column[1].split('.')[0].trim();
         this.transcript = split_column[0].split('.')[0].trim();
         this.strand = strand;
@@ -1627,6 +1700,18 @@ class ReducedBEDLine
         {
             this.valid = false;
             return;
+        }
+
+        // If both the thick start and thick end columns are included, check them
+        if (num_columns >= 8)
+        {
+            let orf_start = parseInt(line[6]) + 1;
+            let orf_end = parseInt(line[7]);
+            if (!isNaN(orf_start) && !isNaN(orf_end) && (orf_start < orf_end))
+            {
+                this.orf_start = orf_start;
+                this.orf_end = orf_end;
+            }
         }
 
         // Extract the gene ID and transcript ID
@@ -1726,7 +1811,11 @@ class Isoform {
         this.start = this.strand == '+' ? this.exonRanges[0][0] : this.exonRanges[this.exonRanges.length - 1][1];
         this.end = this.strand == '+' ? this.exonRanges[this.exonRanges.length - 1][1] : this.exonRanges[0][0];
         this.length = Math.abs(this.end - this.start);
-        this.orf = []
+        this.orf = [];
+
+        this.user_orf = [];
+        if (exons.user_orf && (exons.user_orf.length !== 0))
+            this.user_orf = JSON.parse(JSON.stringify(exons.user_orf));
     }
 }
 
@@ -1818,6 +1907,125 @@ export class OtherIsoformData
 }
 
 /**
+ * Calculate the set of spliced regions for an isoform set, including whether they appear in all isoforms
+ *
+ * @param {Array<Isoform>} isoformList List of all isoforms in the set
+ * @returns {Array<Array<number>>} List of coordinates for spliced regions in the isoforms and a boolean indicating whether they appear in all isoforms
+ */
+export function calculateSplicedRegions(isoformList)
+{
+    let spliced_regions_dict = {};
+    let spliced_region_counts = {};
+
+    // Determine all spliced regions and store them in a dictionary in the form of 'string([start1, end1]), string([start2, end2]), ...'
+    for (let isoform of isoformList)
+    {
+        let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
+        exon_ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
+
+        for (let i = 0; i < exon_ranges.length - 1; ++i)
+        {
+            let exon0 = exon_ranges[i];
+            let exon1 = exon_ranges[i + 1];
+
+            let spliced_region_start = exon0[1];
+            let spliced_region_end = exon1[0];
+
+            let spliced_region = JSON.stringify([spliced_region_start, spliced_region_end]);
+            spliced_regions_dict[spliced_region] = [];
+
+            if (spliced_region_counts[spliced_region])
+                spliced_region_counts[spliced_region] += 1;
+            else
+                spliced_region_counts[spliced_region] = 1;
+        }
+    }
+
+    // We want to return an array of splice junctions with their categorical information
+    let spliced_regions_categorized = [];
+
+    // Determine which spliced regions are constitutive (i.e. used in all loaded transcripts)
+    for (let spliced_region of Object.keys(spliced_regions_dict))
+    {
+        let [spliced_region_start, spliced_region_end] = JSON.parse(spliced_region);
+        spliced_regions_categorized.push([spliced_region_start, spliced_region_end, (spliced_region_counts[spliced_region] === isoformList.length)]);
+    }
+
+    return spliced_regions_categorized;
+}
+
+/**
+ * Calculate the relative height of each spliced region in the set of spliced regions for an isoform set (excludes constitutive junctions)
+ *
+ * @param {Array<Isoform>} spliced_regions The set of spliced regions
+ * @returns {Array<Array<number>>} A list of decimals, where each is the relative height of the corresponding spliced region 
+ */
+export function calculateRelativeHeights(spliced_regions)
+{
+    let relative_heights = [];
+
+    // Strategy to drawing easily distinguishable arcs (taken from JunctionSeq):
+    // For each spliced region, consider the number of spliced regions contained within it ('num_under') and the number outside of it ('num_over')
+    // The lowest arc would be for a spliced region that is contained within all other spliced regions
+    // The highest arc would be for a spliced region that contains all other spliced regions
+
+    for (let [spliced_region_start, spliced_region_end, is_constitutive] of spliced_regions)
+    {
+        if (is_constitutive)
+        {
+            relative_heights.push(-1);
+            continue;
+        }
+
+        let num_under = -1; // -1 is used because we don't count the spliced region itself, we only consider all other spliced regions
+        let num_over = -1;
+
+        for (let [other_spliced_region_start, other_spliced_region_end, other_is_constitutive] of spliced_regions)
+        {
+            if (other_is_constitutive)
+                continue;
+            if ((spliced_region_start <= other_spliced_region_start) && (spliced_region_end >= other_spliced_region_end))
+                num_under += 1;
+            if ((spliced_region_start >= other_spliced_region_start) && (spliced_region_end <= other_spliced_region_end))
+                num_over += 1;
+        }
+
+        relative_heights.push((num_under + 1) / (num_over + num_under + 1));
+    }
+
+    return relative_heights;
+}
+
+/**
+ * Calculate the relative height of each spliced region in the set of spliced regions for an isoform set, INCLUDING constitutive junctions
+ *
+ * @param {Array<Isoform>} spliced_regions The set of spliced regions
+ * @returns {Array<Array<number>>} A list of decimals, where each is the relative height of the corresponding spliced region 
+ */
+export function calculateRelativeHeightsAll(spliced_regions)
+{
+    let relative_heights = [];
+
+    for (let [spliced_region_start, spliced_region_end] of spliced_regions)
+    {
+        let num_under = -1; // -1 is used because we don't count the spliced region itself, we only consider all other spliced regions
+        let num_over = -1;
+
+        for (let [other_spliced_region_start, other_spliced_region_end] of spliced_regions)
+        {
+            if ((spliced_region_start <= other_spliced_region_start) && (spliced_region_end >= other_spliced_region_end))
+                num_under += 1;
+            if ((spliced_region_start >= other_spliced_region_start) && (spliced_region_end <= other_spliced_region_end))
+                num_over += 1;
+        }
+
+        relative_heights.push((num_under + 1) / (num_over + num_under + 1));
+    }
+
+    return relative_heights;
+}
+
+/**
  * Calculate metagene for an isoform set
  * 
  * @param {Array<Isoform>} isoformList List of all isoforms in the set
@@ -1862,13 +2070,14 @@ export function mergeRanges(isoformList) {
 }
 
 /**
- * Calculate the overlap between two exons
+ * Calculate the union of two overlapping exons
  * 
  * @param {Array<number>} exon1 The start and end coordinates of the first exon
  * @param {Array<number>} exon2 The start and end coordinates of the second exon
- * @returns {Array<number>} Coordinates of the overlap (empty if no overlap found)
+ * @returns {Array<number>} Coordinates of the union (empty if no overlap found)
  */
-function union(exon1, exon2) {
+function union(exon1, exon2)
+{
     let start1 = exon1[0], 
     start2 = exon2[0],
     end1 = exon1[1],
@@ -1878,6 +2087,31 @@ function union(exon1, exon2) {
     if (start1 < end2 && start2 < end1) {
         output = [Math.min(start1, start2), Math.max(end1, end2)];
     }
+    return output;
+}
+
+/**
+ * Calculate the intersection of between the ORF of a transcript and one of its exons
+ * 
+ * @param {Array<number>} orf The start and end coordinates of the ORF
+ * @param {Array<number>} exon The start and end coordinates of the exon
+ * @returns {Array<number>} Coordinates of the intersection (empty if none found)
+ */
+function intersection(orf, exon)
+{
+    let orf_start = orf[0], 
+    exon_start = exon[0],
+    orf_end = orf[1],
+    exon_end = exon[1],
+    output = [];
+
+    if ((exon_end < orf_start) || (exon_start > orf_end))
+        return output;
+
+    output = [Math.max(orf_start, exon_start), Math.min(orf_end, exon_end)];
+    if (output[0] === output[1])
+        return [];
+
     return output;
 }
 

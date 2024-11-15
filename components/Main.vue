@@ -43,6 +43,9 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="orfs_ready && !no_orfs && show_stack" @click="setShowOrfs(!show_orfs)" v-b-tooltip.hover.right="'Display known ORFs for known transcripts (externally sourced)'">
                 Known ORFs<b-icon-check v-if="show_orfs" variant="success"></b-icon-check>
             </b-dropdown-item>
+            <b-dropdown-item v-if="orfs_ready && !no_user_orfs && show_stack" @click="setShowUserOrfs(!show_user_orfs)" v-b-tooltip.hover.right="'Display ORFs from the uploaded isoform stack data'">
+                User ORFs<b-icon-check v-if="show_user_orfs" variant="success"></b-icon-check>
+            </b-dropdown-item>
             <b-dropdown-item v-if="(canon_disabled || protein_disabled || protein_ready) && !is_other_isoforms_button_clicked" @click="getAllOtherIsoforms()" v-b-tooltip.hover.right="'Load all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
                 Load all other Ensembl isoforms (beta)
             </b-dropdown-item>
@@ -54,6 +57,12 @@ Requires mainData object which is used here to update the relevant data other co
             </b-dropdown-item>
             <b-dropdown-item v-if="is_other_isoforms_button_clicked && !other_isoforms_disabled && !other_isoforms_loading" @click="setShowAllOtherIsoforms(!show_all_other_isoforms)" v-b-tooltip.hover.right="'Display all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
                 All other Ensembl isoforms<b-icon-check v-if="show_all_other_isoforms" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
+                Show splice differences graph (ALPHA)<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item @click="setShowConstitutiveJunctions(!show_constitutive_junctions)" v-b-tooltip.hover.right="'Display splice junctions that are present in all transcripts (hidden by default)'">
+                Show constitutive junctions (ALPHA)<b-icon-check v-if="show_constitutive_junctions" variant="success"></b-icon-check>
             </b-dropdown-item>
         </b-dropdown>
         <b-button v-show="mainData.heatmapData && show_heatmap" variant="primary" size="sm" @click="setShowStack(!show_stack)">
@@ -165,10 +174,29 @@ Requires mainData object which is used here to update the relevant data other co
 
     </b-row>
 
-    <!-- Extra row 1: Other isoforms label, nothing, and nothing -->
+    <!-- Extra row: Splice differences graph label, splice differences graph, and nothing -->
+    <b-row v-show="show_splices && show_stack" class="border-bottom row10">
+
+        <!-- Column X.1: Splice differences graph label -->
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <span>Splice differences graph (ALPHA):</span>
+        </b-col>
+
+        <!-- Column X.2: Splice differences graph -->
+        <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+            <SpliceGraph :base-axis="baseAxis" ref="spliceGraphComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></SpliceGraph>
+        </b-col>
+
+        <!-- Column X.3: Nothing -->
+        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        </b-col>
+
+    </b-row>
+
+    <!-- Extra row 2A: Other isoforms label, nothing, and nothing -->
     <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack" class="row11">
 
-        <!-- Column 1: Other isoforms label -->
+        <!-- Column YA.1: Other isoforms label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
             <span>Other Ensembl isoforms (beta):</span>
             <b-spinner v-if="other_isoforms_loading" variant="dark" class="ml-1" type="grow" small></b-spinner>
@@ -176,20 +204,20 @@ Requires mainData object which is used here to update the relevant data other co
             <b-icon-sort-alpha-down-alt v-if="!other_isoforms_loading" @click="sortOtherIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
         </b-col>
 
-        <!-- Column 2: Nothing -->
+        <!-- Column 4.2: Nothing -->
         <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
         </b-col>
 
-        <!-- Column 3: Nothing -->
+        <!-- Column 4.3: Nothing -->
         <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row 2: Other isoforms label, other isoforms stack, and nothing -->
+    <!-- Extra row 2B: Other isoforms label, other isoforms stack, and nothing -->
     <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom row12">
 
-        <!-- Column 1: Other isoforms label -->
+        <!-- Column YB.1: Other isoforms label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
             <draggable v-model="other_isoforms_ids" @start="drag=true" @end="onOtherEnd">
                 <div v-for="other_isoform_id in other_isoforms_ids" :key="other_isoform_id" :id="other_isoform_id" style="display: block; height: 51px; line-height: 51px; background-color: white;">
@@ -216,12 +244,12 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column 2: Other isoforms stack -->
+        <!-- Column YB.2: Other isoforms stack -->
         <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
             <OtherIsoformStack :base-axis="baseAxis" :isoform-list="other_isoform_data.isoformList" ref="otherIsoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></OtherIsoformStack>
         </b-col>
 
-        <!-- Column 3: Nothing -->
+        <!-- Column YB.3: Nothing -->
         <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
@@ -338,7 +366,7 @@ Requires mainData object which is used here to update the relevant data other co
 
 <script>
 import { createBaseAxis } from '~/assets/base_axis';
-import { CanonData, OtherIsoformData, ProteinData, mergeRanges } from '~/assets/data_parser';
+import { CanonData, OtherIsoformData, ProteinData, mergeRanges, calculateSplicedRegions, calculateRelativeHeights, calculateRelativeHeightsAll } from '~/assets/data_parser';
 import { put_in_svg, put_in_symbol, put_in_hyperlink, use, put_in_protein_symbol, isovis_logo_symbol, line, rect, rounded_rect, text_preserve_whitespace_central_baseline, text_double_centered, text_topped_centered, tspan } from '~/assets/svg_utils';
 import draggable from 'vuedraggable';
 import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconCheck, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
@@ -393,6 +421,10 @@ export default
             show_motifs: true,
             show_protein_labels: false,
             show_orfs: false,
+            show_user_orfs: false,
+
+            show_splices: false,
+            show_constitutive_junctions: false,
 
             show_canon: true,
             show_stack: true,
@@ -416,6 +448,7 @@ export default
             transcript_names_ready: false,
             orfs_ready: false,
             no_orfs: true,
+            no_user_orfs: true,
             protein_ready: false,
             labels_ready: false,
             labels: {"ensembl": "", "uniprot": "", "uniparc": "", "interpro_source_database": ""},
@@ -1467,6 +1500,22 @@ export default
                 end = temp;
             }
 
+            // Calculate the splcing regions
+            let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms)); // isoformList?
+            if (is_other_isoforms_loaded)
+            {
+                let other_isoforms_list = JSON.parse(JSON.stringify(this.other_isoform_data.isoformList));
+                isoform_list = isoform_list.concat(other_isoforms_list);
+            }
+            if (is_canon_loaded)
+            {
+                let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
+                isoform_list = isoform_list.concat(canon_isoform_list);
+            }
+            let spliced_regions = calculateSplicedRegions(isoform_list);
+            let relative_heights = calculateRelativeHeights(spliced_regions);
+            let relative_heights_all = calculateRelativeHeightsAll(spliced_regions);
+
             let width = end - start;
             let strand = isoformData.strand;
 
@@ -1479,7 +1528,8 @@ export default
             else
                 mergedRanges = isoformData.mergedRanges;
 
-            let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges);
+            // let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges);
+            let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all);
 
             // Do not use the newly calculated genomic coordinate axis if nothing would be shown in the zoomed range 
             if ((new_baseaxis.shrunkRange.length === 0) || (new_baseaxis.shrunkDomain.length === 0))
@@ -1514,6 +1564,25 @@ export default
             }
 
             this.setBaseAxis();
+        },
+
+        // If the canonical transcript is present in the uploaded isoform stack data AND it has been annotated with a user ORF, set the user ORF of the canonical transcript accordingly.
+        set_canon_user_orf()
+        {
+            if (this.mainData.isoformData && this.mainData.isoformData.isoformList)
+            {
+                for (var isoform of this.mainData.isoformData.isoformList)
+                {
+                    if (!isoform || !isoform.transcriptID)
+                        continue;
+
+                    if ((isoform.transcriptID === this.mainData.canonData.isoformList[0].transcriptID) && (isoform.user_orf) && (isoform.user_orf.length !== 0))
+                    {
+                        this.mainData.canonData.isoformList[0].user_orf = JSON.parse(JSON.stringify(isoform.user_orf));
+                        break;
+                    }
+                }
+            }
         },
 
         // Calculate the metagene ranges from both the uploaded isoform stack data and the downloaded canonical transcript data, and set the base axis accordingly.
@@ -1553,6 +1622,7 @@ export default
             this.baseAxis.togglenormalization();
             this.$refs.isoformStackComponent.buildStack();
             this.$refs.otherIsoformStackComponent.buildStack();
+            this.$refs.spliceGraphComponent.buildGraph();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
@@ -1565,6 +1635,7 @@ export default
             this.baseAxis.reverse();
             this.$refs.isoformStackComponent.buildStack();
             this.$refs.otherIsoformStackComponent.buildStack();
+            this.$refs.spliceGraphComponent.buildGraph();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
@@ -1621,6 +1692,24 @@ export default
             this.resizePage();
         },
 
+        setShowSplices(state)
+        {
+            this.show_splices = state;
+            if (!this.show_splices)
+            {
+                this.setShowConstitutiveJunctions(false);
+            }
+            this.resizePage();
+        },
+
+        setShowConstitutiveJunctions(state)
+        {
+            this.show_constitutive_junctions = state;
+            this.$refs.spliceGraphComponent.is_draw_constitutive = state;
+            if (this.show_constitutive_junctions)
+                this.setShowSplices(true);
+        },
+
         setShowStack(state)
         {
             this.show_stack = state;
@@ -1641,7 +1730,17 @@ export default
         setShowOrfs(state)
         {
             this.show_orfs = state;
-            
+
+            if (this.show_orfs && this.show_user_orfs)
+            {
+                this.show_user_orfs = false;
+
+                this.$refs.isoformStackComponent.show_user_orfs = false;
+
+                if (!this.canon_disabled)
+                    this.$refs.canonStackComponent.show_user_orfs = false;
+            }
+
             this.$refs.isoformStackComponent.show_orfs = state;
 
             if (!this.other_isoforms_disabled)
@@ -1649,6 +1748,31 @@ export default
 
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.show_orfs = state;
+
+            this.resizePage();
+        },
+
+        setShowUserOrfs(state)
+        {
+            this.show_user_orfs = state;
+
+            if (this.show_user_orfs && this.show_orfs)
+            {
+                this.show_orfs = false;
+
+                this.$refs.isoformStackComponent.show_orfs = false;
+
+                if (!this.other_isoforms_disabled)
+                    this.$refs.otherIsoformStackComponent.show_orfs = false;
+
+                if (!this.canon_disabled)
+                    this.$refs.canonStackComponent.show_orfs = false;
+            }
+
+            this.$refs.isoformStackComponent.show_user_orfs = state;
+
+            if (!this.canon_disabled)
+                this.$refs.canonStackComponent.show_user_orfs = state;
 
             this.resizePage();
         },
@@ -1881,6 +2005,10 @@ export default
 
                 let transcript_id = isoform.transcriptID;
 
+                // If the ORF of a transcript has already been fetched (e.g. when the uploaded isoform stack data contains the canonical transcript), do not fetch it again.
+                if (ORFs[transcript_id])
+                    continue;
+
                 // For species that do have a stable ID prefix, only fetch ORFs for transcripts that have a matching prefix.
                 // For species that don't have a stable ID prefix, fetch the ORFs of all transcripts being visualized.
                 if (prefix && (transcript_id.toUpperCase().indexOf(prefix) !== 0))
@@ -1908,6 +2036,8 @@ export default
          */
         updateORFs(ORFs)
         {
+            let are_user_orfs_present = false;
+
             if (this.mainData.isoformData && this.mainData.isoformData.isoformList)
             {
                 for (var isoform of this.mainData.isoformData.isoformList)
@@ -1919,6 +2049,8 @@ export default
                     {
                         isoform.orf = ORFs[isoform.transcriptID];
                     }
+
+                    are_user_orfs_present ||= (isoform.user_orf && isoform.user_orf.length !== 0);
                 }
             }
 
@@ -1950,6 +2082,7 @@ export default
 
             this.orfs_ready = true;
             this.no_orfs = (Object.keys(ORFs).length === 0);
+            this.no_user_orfs = !are_user_orfs_present;
         },
 
         /**
@@ -2325,6 +2458,9 @@ export default
                 this.$refs.canonStackComponent.buildStack();
                 this.$refs.geneStrandComponent.buildStrand();
                 this.buildProteinComponent();
+
+                if (this.show_splices)
+                    this.$refs.spliceGraphComponent.buildGraph();
             }
 
             if (this.mainData.heatmapData && this.show_heatmap)
@@ -2356,6 +2492,7 @@ export default
             {
                 this.$refs.isoformStackComponent.buildStack();
                 this.$refs.otherIsoformStackComponent.buildStack();
+                this.$refs.spliceGraphComponent.buildGraph();
             }
 
             if (this.show_heatmap)
@@ -2432,6 +2569,9 @@ export default
             this.other_isoforms_resize = false;
             this.other_isoform_data = false;
 
+            this.show_splices = false;
+            this.show_constitutive_junctions = false;
+
             this.show_stack = true;
             this.show_heatmap = true;
 
@@ -2449,6 +2589,7 @@ export default
             this.labels_ready = false;
             this.orfs_ready = false;
             this.no_orfs = true;
+            this.no_user_orfs = true;
             this.protein_ready = false;
             this.logTransformChecked = false;
             this.labels = {"ensembl": "", "refseq": "", "uniprot": "", "uniparc": "", "interpro_source_database": ""};
@@ -2477,9 +2618,11 @@ export default
             this.buildHeatmapComponent();
 
             this.setShowOrfs(false);
+            this.setShowUserOrfs(false);
             this.setShowDomains(true);
             this.setShowMotifs(true);
             this.setShowDomainLabels(false);
+            this.setShowConstitutiveJunctions(false);
 
             this.resizePage();
 
@@ -2494,6 +2637,7 @@ export default
                     {
                         this.mainData.canonData = canon_data;
                         this.calculate_canon_mergedranges();
+                        this.set_canon_user_orf();
 
                         // Ensures that both the displayed canonical isoform width and the protein diagram width match the stack's
                         this.resizePage();
@@ -2546,6 +2690,7 @@ export default
                 this.calculate_canon_mergedranges();
                 this.orfs_ready = true;
                 this.no_orfs = false;
+                this.no_user_orfs = false;
                 this.protein_ready = true;
                 this.transcriptNames = {"ENST00000375793": "PLEKHM2-201", "ENST00000375799": "PLEKHM2-202"};
                 this.transcript_names_ready = true;

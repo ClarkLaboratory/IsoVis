@@ -17,8 +17,11 @@ export class BaseAxis {
      * @param {number} end the end coordinate of the gene
      * @param {char} strand the direction of the RNA strand
      * @param {Array<Array<number>>} mergedRanges Union of exon ranges across all isoforms (i.e., the metagene)
+     * @param {Array<Array<number, number, boolean>>} spliced_regions Set of spliced regions and whether they appear for all shown isoforms
+     * @param {Array<number>} relative_heights List of relative heights for each spliced region (excluding constitutive ones)
+     * @param {Array<number>} relative_heights_all List of relative heights for each spliced region
      */
-    constructor(width, start, end, strand, mergedRanges) {
+    constructor(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all) {
         this.width = width; // genomic width
         this.plotWidth = 700; // screen resolution width
         this.start = start; 
@@ -26,6 +29,9 @@ export class BaseAxis {
         this.fixedIntronLength = 50;
         this.shrink = false; // specifies if intron areas are shrunk, to highlight exonic features - set to true when introns are normalized
         this.mergedRanges = mergedRanges; // metagene coordinates
+        this.spliced_regions = spliced_regions;
+        this.relative_heights = relative_heights;
+        this.relative_heights_all = relative_heights_all;
         this.baseDomain = this.start < this.end ? [this.start, this.end] : [this.end, this.start]; // initial domain for genomic scaling function (ordered for genome orientation)
         this.domain = [0, this.width]; // domain in use (switch between base and shrunk)
         this.baseRange = [0, this.width]; // initial range for genomic scaling function
@@ -272,10 +278,9 @@ export class BaseAxis {
         }
         return ranges;
     }
-    
 }
 
-export function createBaseAxis(width, start, end, strand, mergedRanges, plotWidth=400) {
+export function createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all, plotWidth=400) {
     /**
      * Creates and returns a BaseAxis object
      * 
@@ -284,9 +289,12 @@ export function createBaseAxis(width, start, end, strand, mergedRanges, plotWidt
      * @param {int} end the end coordinate of the axis
      * @param {char} strand the direction of the RNA strand
      * @param {Array<Array<number>>} mergedRanges union of exon ranges across all isoforms
+     * @param {Array<Array<number, number, boolean>>} spliced_regions Set of spliced regions and whether they appear for all shown isoforms
+     * @param {Array<number>} relative_heights List of relative heights for each spliced region
+     * @param {Array<number>} relative_heights_all List of relative heights for each spliced region
      * @returns {BaseAxis} the axis
      */
-    const axis = new BaseAxis(width, start, end, strand, mergedRanges);
+    const axis = new BaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all);
     axis.calculateShrinkage();
     axis.normalizeIntrons(true); // normalize introns as default
     axis.setPlotWidth(plotWidth);

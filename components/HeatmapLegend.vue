@@ -14,7 +14,7 @@ See 'secondaryData' key in demo_data.json for example data.
     </div>
 </div>
 </template>
-        
+
 <script>
 import * as d3 from 'd3';
 import {put_in_svg, rect, line, heatmap_legend_text, linear_gradient, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
@@ -361,6 +361,8 @@ export default {
             }
 
             height += 30 + 15 + 25;
+            document.querySelector('#heightCalcCanvas').remove();
+
             let svg_height = Math.ceil(height);
 
             let svg = "";
@@ -393,14 +395,9 @@ export default {
 
             if (this.logTransform)
             {
-                heightCalcCanvas_ctx.font = `${log_transform_enabled_font_size}px sans-serif`;
-                let log_transformed_text_metrics = heightCalcCanvas_ctx.measureText("(Log-transformed)");
-                let log_transformed_text_height = Math.ceil(log_transformed_text_metrics.actualBoundingBoxAscent + log_transformed_text_metrics.actualBoundingBoxDescent);
-                svg += text_centered("(Log-transformed)", svg_width / 2, svg_height + 40, log_transform_enabled_font_size, "sans-serif");
-                svg_height += log_transformed_text_height + 40;
+                svg_height += 60;
+                svg += text_centered("(Log-transformed)", svg_width / 2, svg_height - 20, log_transform_enabled_font_size, "sans-serif");
             }
-
-            document.querySelector('#heightCalcCanvas').remove();
 
             if (symbol)
                 return [svg_width, svg_height, svg];
