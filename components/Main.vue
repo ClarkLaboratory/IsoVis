@@ -61,7 +61,7 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
                 Show splice differences graph (ALPHA)<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
             </b-dropdown-item>
-            <b-dropdown-item @click="setShowConstitutiveJunctions(!show_constitutive_junctions)" v-b-tooltip.hover.right="'Display splice junctions that are present in all transcripts (hidden by default)'">
+            <b-dropdown-item v-if="constitutive_junctions_exist" @click="setShowConstitutiveJunctions(!show_constitutive_junctions)" v-b-tooltip.hover.right="'Display splice junctions present in all transcripts that fully cover them by their transcription start and end sites (hidden by default)'">
                 Show constitutive junctions (ALPHA)<b-icon-check v-if="show_constitutive_junctions" variant="success"></b-icon-check>
             </b-dropdown-item>
         </b-dropdown>
@@ -332,7 +332,7 @@ Requires mainData object which is used here to update the relevant data other co
 
         <!-- Column 6.2: Gene strand -->
         <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
-            <GeneStrand :base-axis="baseAxis" :chromosome="mainData.isoformData.chromosome" :is-strand-unknown="mainData.isoformData.is_strand_unknown" ref="geneStrandComponent" class="grid-item p-3 mx-0 my-1 g-0"/>
+            <GeneStrand :base-axis="baseAxis" :chromosome="mainData.isoformData.chromosome" :is-strand-unknown="mainData.isoformData.is_strand_unknown" :is-strandedness-mismatched="is_strandedness_mismatched" ref="geneStrandComponent" class="grid-item p-3 mx-0 my-1 g-0"/>
         </b-col>
 
         <!-- Column 6.3: Sample labels + heatmap legend -->
@@ -439,6 +439,7 @@ export default
             other_isoforms_loading: false,
             other_isoforms_disabled: false,
             other_isoforms_resize: false,
+            other_isoforms_toggled: false,
             other_isoform_data: false,
 
             transcriptIds: [],
@@ -462,6 +463,15 @@ export default
             other_isoforms_ranges: [],
             other_isoforms_start: -1,
             other_isoforms_end: -1,
+
+            spliced_regions: null,
+            relative_heights: null,
+            relative_heights_all: null,
+            is_spliced_regions_outdated: false,
+
+            constitutive_junctions_exist: false,
+
+            is_strandedness_mismatched: false,
 
             zoom_start: -1,
             zoom_end: -1,
@@ -1477,7 +1487,7 @@ export default
                 start = this.zoom_start;
                 end = this.zoom_end;
             }
-            else if (is_other_isoforms_loaded)
+            else if (is_other_isoforms_loaded && this.show_all_other_isoforms)
             {
                 start = this.other_isoforms_start;
                 end = this.other_isoforms_end;
@@ -1500,34 +1510,51 @@ export default
                 end = temp;
             }
 
-            // Calculate the splcing regions
-            let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms)); // isoformList?
-            if (is_other_isoforms_loaded)
-            {
-                let other_isoforms_list = JSON.parse(JSON.stringify(this.other_isoform_data.isoformList));
-                isoform_list = isoform_list.concat(other_isoforms_list);
-            }
-            if (is_canon_loaded)
-            {
-                let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
-                isoform_list = isoform_list.concat(canon_isoform_list);
-            }
-            let spliced_regions = calculateSplicedRegions(isoform_list);
-            let relative_heights = calculateRelativeHeights(spliced_regions);
-            let relative_heights_all = calculateRelativeHeightsAll(spliced_regions);
-
             let width = end - start;
             let strand = isoformData.strand;
 
             // Determine the metagene regions
             let mergedRanges = [];
-            if (is_other_isoforms_loaded)
+            if (is_other_isoforms_loaded && this.show_all_other_isoforms)
                 mergedRanges = this.other_isoforms_ranges;
             else if (is_canon_loaded)
                 mergedRanges = this.canondata_ranges;
             else
                 mergedRanges = isoformData.mergedRanges;
 
+            // Calculate or update the splcing regions
+            let spliced_regions = this.spliced_regions;
+            let relative_heights = this.relative_heights;
+            let relative_heights_all = this.relative_heights_all;
+            if (this.is_spliced_regions_outdated || !spliced_regions || !relative_heights || !relative_heights_all)
+            {
+                let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms)); // isoformList?
+                if (is_other_isoforms_loaded && this.show_all_other_isoforms)
+                {
+                    let other_isoforms_list = JSON.parse(JSON.stringify(this.other_isoform_data.isoformList));
+                    isoform_list = isoform_list.concat(other_isoforms_list);
+                }
+                if (is_canon_loaded && this.show_canon)
+                {
+                    let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
+                    isoform_list = isoform_list.concat(canon_isoform_list);
+                }
+
+                let constitutive_junctions_exist = false;
+
+                [spliced_regions, constitutive_junctions_exist] = calculateSplicedRegions(isoform_list);
+                relative_heights = calculateRelativeHeights(spliced_regions);
+                relative_heights_all = calculateRelativeHeightsAll(spliced_regions);
+
+                this.spliced_regions = spliced_regions;
+                this.relative_heights = relative_heights;
+                this.relative_heights_all = relative_heights_all;
+                this.is_spliced_regions_outdated = false;
+
+                this.constitutive_junctions_exist = constitutive_junctions_exist;
+            }
+
+            
             // let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges);
             let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all);
 
@@ -1589,7 +1616,7 @@ export default
         calculate_canon_mergedranges()
         {
             let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
-            let stack_isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.isoformList));
+            let stack_isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms));
             let isoform_list = canon_isoform_list.concat(stack_isoform_list);
             
             this.canondata_ranges = mergeRanges(isoform_list);
@@ -1601,6 +1628,9 @@ export default
             this.zoom_start = this.canondata_start;
             this.zoom_end = this.canondata_end;
             this.is_zoom_reset = true;
+
+            this.is_spliced_regions_outdated = true;
+
             this.setBaseAxis();
         },
 
@@ -1679,17 +1709,27 @@ export default
 
         setShowCanon(state)
         {
+            if (this.show_canon !== state)
+                this.is_spliced_regions_outdated = true;
+
             this.show_canon = state;
             if (state == false)
                 this.setShowProtein(false);
+
             this.is_zoom_changed = true;
             this.setBaseAxis();
         },
 
         setShowAllOtherIsoforms(state)
         {
+            if (this.show_all_other_isoforms !== state)
+                this.is_spliced_regions_outdated = true;
+
             this.show_all_other_isoforms = state;
-            this.resizePage();
+            this.other_isoforms_toggled = true;
+            //this.resizePage();
+            this.is_zoom_reset = true;
+            this.resetZoom();
         },
 
         setShowSplices(state)
@@ -1873,6 +1913,7 @@ export default
                 if (transcript && transcript.Exon)
                 {
                     canon_data = new CanonData(transcript);
+                    this.is_strandedness_mismatched = (canon_data.strand !== this.mainData.isoformData.strand);
                 }
             }
 
@@ -1972,6 +2013,8 @@ export default
                 this.zoom_start = this.other_isoforms_start;
                 this.zoom_end = this.other_isoforms_end;
                 this.is_zoom_reset = true;
+
+                this.is_spliced_regions_outdated = true;
                 this.setBaseAxis();
 
                 this.other_isoforms_resize = true;
@@ -2516,6 +2559,14 @@ export default
             this.other_isoforms_resize = false;
             this.resizePage();
         }
+
+        // FIXME: This shouldn't be necessary, but there's an edge case where the protein mappings do not resize
+        // if they're visible and the visibility of other isoforms is toggled
+        if (this.other_isoforms_toggled)
+        {
+            this.other_isoforms_toggled = false;
+            this.resizePage();
+        }
     },
 
     mounted()
@@ -2567,6 +2618,7 @@ export default
             this.other_isoforms_loading = false;
             this.other_isoforms_disabled = false;
             this.other_isoforms_resize = false;
+            this.other_isoforms_toggled = false;
             this.other_isoform_data = false;
 
             this.show_splices = false;
@@ -2602,6 +2654,15 @@ export default
             this.other_isoforms_start = -1;
             this.other_isoforms_end = -1;
 
+            this.spliced_regions = null;
+            this.relative_heights = null;
+            this.relative_heights_all = null;
+            this.is_spliced_regions_outdated = false;
+
+            this.constitutive_junctions_exist = false;
+
+            this.is_strandedness_mismatched = false;
+
             this.controller = new AbortController();
             this.signal = this.controller.signal;
 
@@ -2629,7 +2690,6 @@ export default
             if (!this.mainData.demoData)
             {
                 let gene_id = this.mainData.selectedGene;
-
                 this.isGeneOnEnsembl(gene_id).then();
                 this.getCanonData(gene_id).then(([canon_data, canon_id]) =>
                 {

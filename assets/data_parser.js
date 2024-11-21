@@ -1592,11 +1592,14 @@ class GTFLine
     }
 }
 
+/**
+ * Class to represent a line of a BED12 file used to store isoform stack data
+ */
 class BEDLine
 {
     /**
      * Create a BEDLine instance
-     * 
+     *
      * @param {string} dataString line of a BED file in string format
      */
     constructor(dataString)
@@ -1652,7 +1655,7 @@ class BEDLine
         this.blockSizes = this.buildList(line[10]);
         this.blockStarts = this.buildList(line[11]);
 
-        // The number of exon lengths and number of exon starting positions must be equal to the number of exons
+        // The number of block lengths and number of block starting positions must be equal to the number of blocks
         if ((blockCount !== this.blockSizes.length) || (blockCount !== this.blockStarts.length))
             this.valid = false;
     }
@@ -1671,6 +1674,9 @@ class BEDLine
     }
 }
 
+/**
+ * Class to represent a line of a BED6, BED7, BED8 or BED9 file used to store isoform stack data
+ */
 class ReducedBEDLine
 {
     /**
@@ -1734,6 +1740,9 @@ class ReducedBEDLine
     }
 }
 
+/**
+ * Class to represent a line of a BED4 or BED5 file used to store isoform stack data
+ */
 class MinimalBEDLine
 {
     /**
@@ -1853,6 +1862,21 @@ export class OtherIsoformData
 
             let transcript_start = transcript.start;
             let transcript_end = transcript.end;
+
+            // The genomic start and end coordinates of the other isoform data are based on the assumption that:
+            // 1. For forward strands, the start is smaller than the end
+            // 2. For reverse strands, the start is bigger than the end
+            // However, the Ensembl API returns transcript data where the start coordinate is always smaller than the end coordinate regardless
+            // of its strandedness, which can be unintuitive
+            // So, swap the transcript start and end coordinates if it's encoded on the reverse strand to make the following calculations work
+            // as intended
+            if ((this.strand === '-') && (transcript_start < transcript_end))
+            {
+                let temp = transcript_start;
+                transcript_start = transcript_end;
+                transcript_end = temp;
+            }
+
             if (this.strand === '+')
             {
                 if (this.start === -1)
@@ -1914,8 +1938,10 @@ export class OtherIsoformData
  */
 export function calculateSplicedRegions(isoformList)
 {
-    let spliced_regions_dict = {};
-    let spliced_region_counts = {};
+    let spliced_regions_dict = {};          // The set of all spliced regions
+    let spliced_region_counts = {};         // The counts of each spliced region
+
+    let constitutive_junctions_exist = false;
 
     // Determine all spliced regions and store them in a dictionary in the form of 'string([start1, end1]), string([start2, end2]), ...'
     for (let isoform of isoformList)
@@ -1944,14 +1970,63 @@ export function calculateSplicedRegions(isoformList)
     // We want to return an array of splice junctions with their categorical information
     let spliced_regions_categorized = [];
 
-    // Determine which spliced regions are constitutive (i.e. used in all loaded transcripts)
+    // Determine which spliced regions are constitutive
     for (let spliced_region of Object.keys(spliced_regions_dict))
     {
         let [spliced_region_start, spliced_region_end] = JSON.parse(spliced_region);
-        spliced_regions_categorized.push([spliced_region_start, spliced_region_end, (spliced_region_counts[spliced_region] === isoformList.length)]);
+
+        let is_constitutive = true;
+
+        // If a spliced region is present in all transcripts, it is constitutive 
+        if (spliced_region_counts[spliced_region] === isoformList.length)
+        {
+            constitutive_junctions_exist = true;
+            spliced_regions_categorized.push([spliced_region_start, spliced_region_end, is_constitutive]);
+        }
+        else
+        {
+            // Otherwise, check whether the spliced junction is present in all transcripts that fully overlap with the region it covers
+            for (let isoform of isoformList)
+            {
+                let isoform_range = [Math.min(isoform.start, isoform.end), Math.max(isoform.start, isoform.end)];
+
+                // If the spliced region does fully overlap with the transcript, is it one of the transcript's spliced regions?
+                let overlap = intersection(isoform_range, [spliced_region_start, spliced_region_end]);
+                if ((overlap.length !== 0) && (overlap[0] === spliced_region_start) && (overlap[1] === spliced_region_end))
+                {
+                    let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
+                    exon_ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
+
+                    let is_spliced_region_in_transcript = false;
+                    for (let i = 0; i < exon_ranges.length - 1; ++i)
+                    {
+                        let exon0 = exon_ranges[i];
+                        let exon1 = exon_ranges[i + 1];
+
+                        if ((exon0[1] === spliced_region_start) && (exon1[0] === spliced_region_end))
+                        {
+                            is_spliced_region_in_transcript = true;
+                            break;
+                        }
+                    }
+
+                    if (!is_spliced_region_in_transcript)
+                    {
+                        is_constitutive = false;
+                        break;
+                    }
+                }
+
+                if (!is_constitutive)
+                    break;
+            }
+            if (is_constitutive)
+                constitutive_junctions_exist = true;
+            spliced_regions_categorized.push([spliced_region_start, spliced_region_end, is_constitutive]);
+        }
     }
 
-    return spliced_regions_categorized;
+    return [spliced_regions_categorized, constitutive_junctions_exist];
 }
 
 /**

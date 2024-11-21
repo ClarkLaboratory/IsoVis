@@ -1,4 +1,8 @@
 [
+    {"version": "v1.9.1",
+     "date": "2024-11-21",
+     "notes": ["The definition of constitutive junctions is changed to be those that are present in all transcripts that fully cover them by their transcription start and end sites.", "Bug fix for the genomic range of the isoform stack not always expanding to fully show the genomic range covered by all other Ensembl isoforms when they are loaded by the user.", "The splice differences graph, the genomic range covered by the isoform stack, and the exonic regions will now be recalculated according to the visibility of all other Ensembl isoforms.", "The gene strand diagram will now show a warning if there is a mismatch between the gene strandedness from user stack data and from Ensembl.", "Minor bug fix for occasionally missing gene strand ticks."]},
+
     {"version": "v1.9",
      "date": "2024-11-15",
      "notes": ["Preliminary support for showing splicing differences added: Can display junctions that are not present in all isoforms (work in progress).", "Beta feature: Can now show ORFs from uploaded stack data. Please refer to the updated 'Help on upload data' page for the expected format of ORF information in isoform data files.", "Minor speed improvement in fetching transcript ORFs.", "The demo data visualization and demo data files have been updated to demonstrate user ORFs."]},

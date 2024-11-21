@@ -142,7 +142,7 @@ the exact state of that page from the previous state.
     </b-modal>
 </div>
 </template>
-    
+
 <script>
 import { PrimaryData, SecondaryData } from '~/assets/data_parser';
 import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';

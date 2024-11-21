@@ -19,7 +19,7 @@ import * as d3 from 'd3';
 import {put_in_svg, dashed_line, polygon, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
 
 export default {
-    props: ["baseAxis", "chromosome", "isStrandUnknown"],
+    props: ["baseAxis", "chromosome", "isStrandUnknown", "isStrandednessMismatched"],
     
     data: () => {
         return {
@@ -187,6 +187,8 @@ export default {
 
             if (this.isStrandUnknown)
                 center_label = "Assumed " + center_label.toLowerCase();
+            else if (this.isStrandednessMismatched)
+                center_label += " (mismatch with Ensembl?)";
 
             let font_size = 16.0;
             let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;
@@ -222,12 +224,8 @@ export default {
             {
                 let pt1 = [self.baseAxis.scale(tickScale(d)), svgHeight / 3];
                 let pt2 = [self.baseAxis.scale(tickScale(d)), svgHeight * 2 / 3];
-                if (d !== 100)
-                {
-                    let pt3 = [self.baseAxis.scale(tickScale(d) + step), svgHeight / 2];
-                    return [pt1, pt2, pt3];
-                }
-                return [pt1, pt2];
+                let pt3 = [self.baseAxis.scale(tickScale(d) + step), svgHeight / 2];
+                return [pt1, pt2, pt3];
             }
 
             // Add axis ticks
@@ -301,6 +299,8 @@ export default {
 
             if (this.isStrandUnknown)
                 center_label = "Assumed " + center_label.toLowerCase();
+            else if (this.isStrandednessMismatched)
+                center_label += " (mismatch with Ensembl?)";
 
             let font_size = 16.0;
             let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;
@@ -359,69 +359,24 @@ export default {
             let coords = (d) =>
             {
                 let x0 = self.baseAxis.scale(tickScale(d));
+                let x1 = self.baseAxis.scale(tickScale(d) + step);
+                if (((x0 <= 0) && (x1 <= 0)) || ((x0 >= width) && (x1 >= width)))
+                    return "";
 
-                if (d !== 100)
+                let y0 = svgHeight / 3 + this.margin.top;
+                let y1 = svgHeight * 2 / 3 + this.margin.top;
+                let y2 = svgHeight / 2 + this.margin.top;
+
+                if (step >= 0)
                 {
-                    let x1 = self.baseAxis.scale(tickScale(d) + step);
-                    if (((x0 <= 0) && (x1 <= 0)) || ((x0 >= width) && (x1 >= width)))
-                        return "";
-
-                    let y0 = svgHeight / 3 + this.margin.top;
-                    let y1 = svgHeight * 2 / 3 + this.margin.top;
-                    let y2 = svgHeight / 2 + this.margin.top;
-
-                    if (step >= 0)
+                    if ((x0 <= 0) && (x1 >= width)) // 4 points
                     {
-                        if ((x0 <= 0) && (x1 >= width)) // 4 points
-                        {
-                            let y0_x0_cut = y0 + ((y2 - y0) / (x1 - x0)) * (-x0);
-                            let y1_x0_cut = y1 - ((y1 - y2) / (x1 - x0)) * (-x0);
-                            let y0_x1_cut = y2 - ((y2 - y0) / (x1 - x0)) * (x1 - width);
-                            let y1_x1_cut = y2 + ((y1 - y2) / (x1 - x0)) * (x1 - width);
-                            x0 = 0;
-                            x1 = width;
-
-                            let pt1 = `${x0},${y0_x0_cut}`;
-                            let pt2 = `${x0},${y1_x0_cut}`;
-                            let pt3 = `${x1},${y1_x1_cut}`;
-                            let pt4 = `${x1},${y0_x1_cut}`;
-
-                            return `${pt1} ${pt2} ${pt3} ${pt4}`;
-                        }
-                        else if (x0 < 0) // 3 points
-                        {
-                            y0 = y2 - ((y2 - y0) / (x1 - x0)) * x1;
-                            y1 = y2 + ((y1 - y2) / (x1 - x0)) * x1;
-                            x0 = 0;
-                        }
-                        else if (x1 > width) // 4 points
-                        {
-                            let y0_cut = y0 + ((y2 - y0) / (x1 - x0)) * (width - x0);
-                            let y1_cut = y1 - ((y1 - y2) / (x1 - x0)) * (width - x0);
-                            x1 = width;
-
-                            let pt1 = `${x0},${y0}`;
-                            let pt2 = `${x0},${y1}`;
-                            let pt3 = `${x1},${y1_cut}`;
-                            let pt4 = `${x1},${y0_cut}`;
-
-                            return `${pt1} ${pt2} ${pt3} ${pt4}`;
-                        }
-
-                        let pt1 = `${x0},${y0}`;
-                        let pt2 = `${x0},${y1}`;
-                        let pt3 = `${x1},${y2}`;
-                        return `${pt1} ${pt2} ${pt3}`;
-                    }
-
-                    if ((x1 <= 0) && (x0 >= width)) // 4 points
-                    {
-                        let y0_x1_cut = y2 - ((y2 - y0) / (x0 - x1)) * (-x1);
-                        let y1_x1_cut = y2 + ((y1 - y2) / (x0 - x1)) * (-x1);
-                        let y0_x0_cut = y0 + ((y2 - y0) / (x0 - x1)) * (x0 - width);
-                        let y1_x0_cut = y1 - ((y1 - y2) / (x0 - x1)) * (x0 - width);
-                        x1 = 0;
-                        x0 = width;
+                        let y0_x0_cut = y0 + ((y2 - y0) / (x1 - x0)) * (-x0);
+                        let y1_x0_cut = y1 - ((y1 - y2) / (x1 - x0)) * (-x0);
+                        let y0_x1_cut = y2 - ((y2 - y0) / (x1 - x0)) * (x1 - width);
+                        let y1_x1_cut = y2 + ((y1 - y2) / (x1 - x0)) * (x1 - width);
+                        x0 = 0;
+                        x1 = width;
 
                         let pt1 = `${x0},${y0_x0_cut}`;
                         let pt2 = `${x0},${y1_x0_cut}`;
@@ -430,17 +385,17 @@ export default {
 
                         return `${pt1} ${pt2} ${pt3} ${pt4}`;
                     }
-                    else if (x0 > width) // 3 points
+                    else if (x0 < 0) // 3 points
                     {
-                        y0 = y2 - ((y2 - y0) / (x0 - x1)) * (width - x1);
-                        y1 = y2 + ((y1 - y2) / (x0 - x1)) * (width - x1);
-                        x0 = width;
+                        y0 = y2 - ((y2 - y0) / (x1 - x0)) * x1;
+                        y1 = y2 + ((y1 - y2) / (x1 - x0)) * x1;
+                        x0 = 0;
                     }
-                    else if (x1 < 0) // 4 points
+                    else if (x1 > width) // 4 points
                     {
-                        let y0_cut = y0 + ((y2 - y0) / (x0 - x1)) * x0;
-                        let y1_cut = y1 - ((y1 - y2) / (x0 - x1)) * x0;
-                        x1 = 0;
+                        let y0_cut = y0 + ((y2 - y0) / (x1 - x0)) * (width - x0);
+                        let y1_cut = y1 - ((y1 - y2) / (x1 - x0)) * (width - x0);
+                        x1 = width;
 
                         let pt1 = `${x0},${y0}`;
                         let pt2 = `${x0},${y1}`;
@@ -450,18 +405,72 @@ export default {
                         return `${pt1} ${pt2} ${pt3} ${pt4}`;
                     }
 
+                    if (x0 < 0)
+                        x0 = 0;
+                    else if (x0 > width)
+                        x0 = width;
+
+                    if (x1 < 0)
+                        x1 = 0;
+                    else if (x1 > width)
+                        x1 = width;
+
                     let pt1 = `${x0},${y0}`;
                     let pt2 = `${x0},${y1}`;
                     let pt3 = `${x1},${y2}`;
                     return `${pt1} ${pt2} ${pt3}`;
                 }
 
-                if ((x0 < 0) || (x0 > width))
-                    return "";
+                if ((x1 <= 0) && (x0 >= width)) // 4 points
+                {
+                    let y0_x1_cut = y2 - ((y2 - y0) / (x0 - x1)) * (-x1);
+                    let y1_x1_cut = y2 + ((y1 - y2) / (x0 - x1)) * (-x1);
+                    let y0_x0_cut = y0 + ((y2 - y0) / (x0 - x1)) * (x0 - width);
+                    let y1_x0_cut = y1 - ((y1 - y2) / (x0 - x1)) * (x0 - width);
+                    x1 = 0;
+                    x0 = width;
 
-                let pt1 = `${x0},${svgHeight / 3 + this.margin.top}`;
-                let pt2 = `${x0},${svgHeight * 2 / 3 + this.margin.top}`;
-                return `${pt1} ${pt2}`;
+                    let pt1 = `${x0},${y0_x0_cut}`;
+                    let pt2 = `${x0},${y1_x0_cut}`;
+                    let pt3 = `${x1},${y1_x1_cut}`;
+                    let pt4 = `${x1},${y0_x1_cut}`;
+
+                    return `${pt1} ${pt2} ${pt3} ${pt4}`;
+                }
+                else if (x0 > width) // 3 points
+                {
+                    y0 = y2 - ((y2 - y0) / (x0 - x1)) * (width - x1);
+                    y1 = y2 + ((y1 - y2) / (x0 - x1)) * (width - x1);
+                    x0 = width;
+                }
+                else if (x1 < 0) // 4 points
+                {
+                    let y0_cut = y0 + ((y2 - y0) / (x0 - x1)) * x0;
+                    let y1_cut = y1 - ((y1 - y2) / (x0 - x1)) * x0;
+                    x1 = 0;
+
+                    let pt1 = `${x0},${y0}`;
+                    let pt2 = `${x0},${y1}`;
+                    let pt3 = `${x1},${y1_cut}`;
+                    let pt4 = `${x1},${y0_cut}`;
+
+                    return `${pt1} ${pt2} ${pt3} ${pt4}`;
+                }
+
+                if (x0 < 0)
+                    x0 = 0;
+                else if (x0 > width)
+                    x0 = width;
+
+                if (x1 < 0)
+                    x1 = 0;
+                else if (x1 > width)
+                    x1 = width;
+
+                let pt1 = `${x0},${y0}`;
+                let pt2 = `${x0},${y1}`;
+                let pt3 = `${x1},${y2}`;
+                return `${pt1} ${pt2} ${pt3}`;
             }
 
             // Add axis ticks
