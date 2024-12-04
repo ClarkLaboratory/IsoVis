@@ -86,10 +86,10 @@
         <p></p>
 
         <b-link href="https://www.biorxiv.org/content/10.1101/2024.01.31.578088v1" target="_blank"><p style="margin-bottom: 0px">Gleeson J <i>et al.</i> <i>Isoform-level profiling of m6A epitranscriptomic signatures in human brain.</i> bioRxiv. 2024.01.31.578088. Pre-print available at: https://www.biorxiv.org/content/10.1101/2024.01.31.578088v1 </p></b-link>
-        <b-button variant="primary" @click="downloadFile('m6A_data.zip')">.zip (7.85 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('m6A_data.7z')">.7z (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('m6A_data.tar.gz')">.tar.gz (7.84 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('m6A_data.tar.xz')">.tar.xz (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.zip')">.zip (7.85 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.7z')">.7z (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.tar.gz')">.tar.gz (7.84 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.tar.xz')">.tar.xz (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
