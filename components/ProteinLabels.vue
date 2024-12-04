@@ -95,6 +95,8 @@ export default {
         },
 
         buildProteinLabels() {
+            if (!this.baseAxis) return;
+
             let padding = 16;
             let height = 85;
             let width = 300;
@@ -327,6 +329,13 @@ export default {
         },
 
         buildProteinLabelsSvg(symbol = false) {
+            if (!this.baseAxis)
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
+
             let padding = 16;
             let height = 85;
             let svg_width = 300;

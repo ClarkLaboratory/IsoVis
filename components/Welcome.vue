@@ -54,34 +54,42 @@
     <!-- Modal for downloading demo data or Clark Lab data -->
     <b-modal v-model="modal.clarkLabData.show" size="xl" title="Download demo or Clark Lab data" hide-footer>
         <b-link href="https://doi.org/10.1093/nar/gkab1129" target="_blank"><p style="margin-bottom: 0px">Gleeson J <i>et al.</i> Accurate expression quantification from nanopore direct RNA sequencing with NanoCount. <i>Nucleic Acids Res</i> 2022;<b>50</b>:e19.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.zip')">.zip (3.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.7z')">.7z (2.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.gz')">.tar.gz (3.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.xz')">.tar.xz (2.91 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.zip')">.zip (3.76 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.7z')">.7z (2.81 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.gz')">.tar.gz (3.75 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_NAR_2022.tar.xz')">.tar.xz (2.81 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
         <b-link href="https://doi.org/10.1093/nargab/lqad060" target="_blank"><p style="margin-bottom: 0px">Prawer YDJ <i>et al.</i> Pervasive effects of RNA degradation on Nanopore direct RNA sequencing. <i>NAR Genom Bioinform</i> 2023;<b>5</b>:lqad060.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.zip')">.zip (1.41 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.7z')">.7z (1.07 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.gz')">.tar.gz (1.41 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.xz')">.tar.xz (1.07 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.zip')">.zip (1.36 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.7z')">.7z (1.03 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.gz')">.tar.gz (1.35 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Prawer_et_al_NARGB_2023.tar.xz')">.tar.xz (1.04 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
         <b-link href="https://doi.org/10.1186/s13059-023-02907-y" target="_blank"><p style="margin-bottom: 0px">You Y <i>et al.</i> Identification of cell barcodes from long-read single-cell RNA-seq with BLAZE. <i>Genome Biol</i> 2023;<b>24</b>:66.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.zip')">.zip (4.08 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.7z')">.7z (3.47 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.tar.gz')">.tar.gz (4.02 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.tar.xz')">.tar.xz (3.47 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.zip')">.zip (3.51 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.7z')">.7z (3.01 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.tar.gz')">.tar.gz (3.47 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('You_et_al_GenomeBiol_2023.tar.xz')">.tar.xz (3.01 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
         <p style="margin-bottom: 0px"><b-link href="https://www.gtexportal.org/home/downloads/adult-gtex/long_read_data" target="_blank">GTEx V9 long read RNA-seq data</b-link> (obtained from the GTEx Portal on 01/23/24 and adapted for IsoVis)</p>
-        <b-button variant="primary" @click="downloadFile('GTEx_V9.zip')">.zip (33.3 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('GTEx_V9.7z')">.7z (16.0 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('GTEx_V9.tar.gz')">.tar.gz (33.3 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('GTEx_V9.tar.xz')">.tar.xz (16.0 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('GTEx_V9.zip')">.zip (32.5 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('GTEx_V9.7z')">.7z (15.7 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('GTEx_V9.tar.gz')">.tar.gz (32.5 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('GTEx_V9.tar.xz')">.tar.xz (15.7 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+
+        <p></p>
+
+        <b-link href="https://www.biorxiv.org/content/10.1101/2024.01.31.578088v1" target="_blank"><p style="margin-bottom: 0px">Gleeson J <i>et al.</i> <i>Isoform-level profiling of m6A epitranscriptomic signatures in human brain.</i> bioRxiv. 2024.01.31.578088. Pre-print available at: https://www.biorxiv.org/content/10.1101/2024.01.31.578088v1 </p></b-link>
+        <b-button variant="primary" @click="downloadFile('m6A_data.zip')">.zip (7.85 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('m6A_data.7z')">.7z (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('m6A_data.tar.gz')">.tar.gz (7.84 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('m6A_data.tar.xz')">.tar.xz (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 

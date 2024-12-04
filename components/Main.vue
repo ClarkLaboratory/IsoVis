@@ -58,6 +58,12 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="is_other_isoforms_button_clicked && !other_isoforms_disabled && !other_isoforms_loading" @click="setShowAllOtherIsoforms(!show_all_other_isoforms)" v-b-tooltip.hover.right="'Display all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
                 All other Ensembl isoforms<b-icon-check v-if="show_all_other_isoforms" variant="success"></b-icon-check>
             </b-dropdown-item>
+            <b-dropdown-item v-if="!m6a_disabled" @click="setShowm6A(!show_m6a)" v-b-tooltip.hover.right="'Display m6A modification sites identified in the currently visualized gene'">
+                m6A sites (ALPHA)<b-icon-check v-if="show_m6a" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="!m6a_disabled && allSites && (allSites.length > 1)" @click="setm6ACompact(!m6a_compact_mode)" v-b-tooltip.hover.right="'Show m6A modification sites in only one row (hides the m6A modification levels heatmap and legend)'">
+                Show m6A sites in compact mode (ALPHA)<b-icon-check v-if="m6a_compact_mode" variant="success"></b-icon-check>
+            </b-dropdown-item>
             <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
                 Show splice differences graph (ALPHA)<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
             </b-dropdown-item>
@@ -65,14 +71,14 @@ Requires mainData object which is used here to update the relevant data other co
                 Show constitutive junctions (ALPHA)<b-icon-check v-if="show_constitutive_junctions" variant="success"></b-icon-check>
             </b-dropdown-item>
         </b-dropdown>
-        <b-button v-show="mainData.heatmapData && show_heatmap" variant="primary" size="sm" @click="setShowStack(!show_stack)">
+        <b-button v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" variant="primary" size="sm" @click="setShowStack(!show_stack)">
             {{show_stack ? "Hide stack" : "Show stack"}}
         </b-button>
         <b-button v-show="!mainData.heatmapData" variant="warning" size="sm" class="ml-2" @click="requestHeatmapDataUpload()">
-            Add a heatmap
+            Add isoform heatmap
         </b-button>
-        <b-button v-show="mainData.heatmapData && show_stack" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
-            {{show_heatmap ? "Hide heatmap" : "Show heatmap"}}
+        <b-button v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_stack" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
+            {{show_heatmap ? "Hide heatmaps" : "Show heatmaps"}}
         </b-button>
         <b-dropdown v-if="canon_disabled || protein_disabled || protein_ready" text="Export page as..." size="sm" variant="dark" class="ml-3">
             <b-dropdown-item @click="exportPNG()">PNG</b-dropdown-item>
@@ -100,12 +106,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 1.2: Protein domain labels -->
-        <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <ProteinLabels :proteinData="mainData.proteinData" :base-axis="baseAxis" ref="proteinLabelsComponent"></ProteinLabels>
         </b-col>
 
         <!-- Column 1.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -134,13 +140,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 2.2: Protein & protein mapping -->
-        <!-- <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9" style="z-index: 2;"> -->
-        <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <Protein :proteinData="mainData.proteinData" :base-axis="baseAxis" ref="proteinComponent"></Protein>
         </b-col>
 
         <!-- Column 2.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -164,39 +169,39 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 3.2: Canonical transcript track -->
-        <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <CanonTrack :base-axis="baseAxis" :canon-data="mainData.canonData" ref="canonStackComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></CanonTrack>
         </b-col>
 
         <!-- Column 3.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: Splice differences graph label, splice differences graph, and nothing -->
-    <b-row v-show="show_splices && show_stack" class="border-bottom row10">
+    <!-- Row 4: Splice differences graph label, splice differences graph, and nothing -->
+    <b-row v-show="show_splices && show_stack" class="border-bottom row4">
 
-        <!-- Column X.1: Splice differences graph label -->
+        <!-- Column 4.1: Splice differences graph label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
             <span>Splice differences graph (ALPHA):</span>
         </b-col>
 
-        <!-- Column X.2: Splice differences graph -->
-        <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <!-- Column 4.2: Splice differences graph -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <SpliceGraph :base-axis="baseAxis" ref="spliceGraphComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></SpliceGraph>
         </b-col>
 
-        <!-- Column X.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Column 4.3: Nothing -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row 2A: Other isoforms label, nothing, and nothing -->
-    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack" class="row11">
+    <!-- Row 5: Other isoforms label, nothing, and nothing -->
+    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack" class="row5">
 
-        <!-- Column YA.1: Other isoforms label -->
+        <!-- Column 5.1: Other isoforms label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
             <span>Other Ensembl isoforms (beta):</span>
             <b-spinner v-if="other_isoforms_loading" variant="dark" class="ml-1" type="grow" small></b-spinner>
@@ -204,20 +209,20 @@ Requires mainData object which is used here to update the relevant data other co
             <b-icon-sort-alpha-down-alt v-if="!other_isoforms_loading" @click="sortOtherIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
         </b-col>
 
-        <!-- Column 4.2: Nothing -->
-        <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <!-- Column 5.2: Nothing -->
+        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
         </b-col>
 
-        <!-- Column 4.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Column 5.3: Nothing -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row 2B: Other isoforms label, other isoforms stack, and nothing -->
-    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom row12">
+    <!-- Row 6: Other isoforms label, other isoforms stack, and nothing -->
+    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom row6">
 
-        <!-- Column YB.1: Other isoforms label -->
+        <!-- Column 6.1: Other isoforms accession list -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
             <draggable v-model="other_isoforms_ids" @start="drag=true" @end="onOtherEnd">
                 <div v-for="other_isoform_id in other_isoforms_ids" :key="other_isoform_id" :id="other_isoform_id" style="display: block; height: 51px; line-height: 51px; background-color: white;">
@@ -244,21 +249,106 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column YB.2: Other isoforms stack -->
-        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <!-- Column 6.2: Other isoforms stack -->
+        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <OtherIsoformStack :base-axis="baseAxis" :isoform-list="other_isoform_data.isoformList" ref="otherIsoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></OtherIsoformStack>
         </b-col>
 
-        <!-- Column YB.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Column 6.3: Nothing -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Row 4: User isoforms label, nothing, and nothing -->
-    <b-row class="row4">
+    <!-- Row 7: m6A sites label, nothing, and nothing -->
+    <b-row v-show="!m6a_disabled && show_m6a" class="row7">
 
-        <!-- Column 4.1: User isoforms label -->
+        <!-- Column 7.1: m6A sites label -->
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
+            <span>m6A sites (ALPHA):</span>
+            <b-icon-sort-alpha-down v-if="!m6a_compact_mode" @click="sortSitesByCoords()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort m6A sites by ascending genomic coordinates'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!m6a_compact_mode" @click="sortSitesByCoords(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort m6A sites by descending genomic coordinates'"></b-icon-sort-alpha-down-alt>
+            <b-img v-if="mainData.m6aLevelData" @click="sortSitesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort m6A sites by ascending mean modification levels'"></b-img>
+            <b-img v-if="mainData.m6aLevelData" @click="sortSitesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort m6A sites by descending mean modification levels'"></b-img>
+        </b-col>
+
+        <!-- Column 7.2: Nothing -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        </b-col>
+
+        <!-- Column 7.3: Nothing -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        </b-col>
+
+    </b-row>
+
+    <!-- Row 8: m6A sites list, m6A stack, and m6A modification levels -->
+    <b-row v-show="!m6a_disabled && show_m6a" class="border-bottom row8">
+
+        <!-- Column 8.1: m6A site list -->
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-if="!m6a_compact_mode" v-model="siteOrder" @start="drag=true" @end="onSiteEnd">
+                <div v-for="site in siteOrder" :key="site" :id="site" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                    <!-- Delete button -->
+                    <b-icon-x v-if="(siteOrder.length > 1)" class="icon float-left" @click="removeSite(site);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
+                    <!-- Site -->
+                    <span>{{site}}</span>
+                    <!-- Reorder icon -->
+                    <b-icon-list v-if="(siteOrder && (siteOrder.length > 1))" class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-list>
+                </div>
+            </draggable>
+            <div v-if="m6a_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                <!-- Compact mode label -->
+                <span>(Compact mode enabled)</span>
+            </div>
+            <b-icon-plus v-if="(!m6a_compact_mode) && allSites && allSites.length > 1" @click="addSiteClick" style="cursor: pointer;">+</b-icon-plus>
+            <b-modal v-model="modal.addSite.show" size="md" title="Edit m6A site list">
+                <div class="border-top"></div>
+                <div v-for="site in allSites" :key="site" :style="inclusionStyle((siteOrder.indexOf(site) !== -1))" class="text-center border-bottom">
+                    <!-- Delete button -->
+                    <b-icon-x v-if="(siteOrder.length > 1) && (siteOrder.indexOf(site) !== -1)" @click="removeSite(site)" class="icon float-left" style="display: block; height: 30px; line-height: 30px; cursor: pointer;"></b-icon-x>
+                    <!-- Add button -->
+                    <b-icon-plus v-if="siteOrder.indexOf(site) === -1" @click="addSite(site)" class="icon float-left" style="display: block; height: 30px; line-height: 30px; cursor: pointer;"></b-icon-plus>
+                    <!-- Site -->
+                    {{site}}
+                </div>
+            </b-modal>
+        </b-col>
+
+        <!-- Column 8.2: m6A site stack -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+            <m6ASiteStack :base-axis="baseAxis" :site-order="site_data.siteOrder" ref="m6AStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></m6ASiteStack>
+        </b-col>
+
+        <!-- Column 8.3: m6A modification levels -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+            <m6ALevels :m6aLevelData="mainData.m6aLevelData" :site-order="site_data.siteOrder" ref="m6ALevelsComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></m6ALevels>
+        </b-col>
+
+    </b-row>
+
+    <!-- Row 9: Nothing, nothing, and m6A modification levels legend -->
+    <b-row v-show="!m6a_disabled && show_m6a && mainData.m6aLevelData && show_heatmap && !m6a_compact_mode" class="border-bottom row9">
+
+        <!-- Column 9.1: Nothing -->
+        <b-col cols="3">
+        </b-col>
+
+        <!-- Column 9.2: Nothing -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        </b-col>
+
+        <!-- Column 9.3: m6A modification levels legend -->
+        <b-col v-show="mainData.m6aLevelData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+            <m6ALevelsLegend :m6aLevelData="mainData.m6aLevelData" ref="m6ALevelsLegendComponent" class="grid-item p-3 mx-0 my-1 g-0 text-center"></m6ALevelsLegend>
+        </b-col>
+
+    </b-row>
+
+    <!-- Row 10: User isoforms label, nothing, and nothing -->
+    <b-row class="row10">
+
+        <!-- Column 10.1: User isoforms label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
             <span>User isoforms:</span>
             <b-icon-sort-alpha-down v-if="orfs_ready" @click="sortIsoformsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
@@ -267,20 +357,20 @@ Requires mainData object which is used here to update the relevant data other co
             <b-img v-if="orfs_ready && mainData.heatmapData" @click="sortIsoformsByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fc7d0b, #fff8e6, #1170aa); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by descending mean heatmap values'"></b-img>
         </b-col>
 
-        <!-- Column 4.2: Nothing -->
-        <b-col class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <!-- Column 10.2: Nothing -->
+        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
         </b-col>
 
-        <!-- Column 4.3: Nothing -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Column 10.3: Nothing -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Row 5: Accession list, isoform stack, and heatmap -->
-    <b-row class="border-bottom row5">
+    <!-- Row 11: Accession list, isoform stack, and heatmap -->
+    <b-row class="border-bottom row11">
 
-        <!-- Column 5.1: Accession list -->
+        <!-- Column 11.1: Accession list -->
         <b-col class="col1 grid-item mx-0 g-0" cols="3" style="text-align: center; white-space: nowrap; overflow: auto;">
             <draggable v-model="transcriptIds" @start="drag=true" @end="onEnd">
                 <div v-for="transcriptId in transcriptIds" :key="transcriptId" :id="transcriptId" style="display: block; height: 51px; line-height: 51px; background-color: white;">
@@ -310,53 +400,53 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column 5.2: Isoform stack -->
-        <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <!-- Column 11.2: Isoform stack -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <IsoformStack :base-axis="baseAxis" :isoform-list="mainData.isoformData.isoformList" ref="isoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></IsoformStack>
         </b-col>
 
-        <!-- Column 5.3: Heatmap -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Column 11.3: Heatmap -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
             <Heatmap :heatmapData="mainData.heatmapData" ref="heatmapComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></Heatmap>
         </b-col>
 
     </b-row>
 
-    <!-- Row 6: Logo, gene strand, and sample labels + heatmap legend -->
-    <b-row class="row6">
+    <!-- Row 12: Logo, gene strand, and sample labels + heatmap legend -->
+    <b-row class="row12">
 
-        <!-- Column 6.1: Logo -->
+        <!-- Column 12.1: Logo -->
         <b-col class="col1 grid-item p-3 mx-0 my-1 g-0" style="display: flex; align-items: center; justify-content: center;" cols="3">
             <b-img src="~/assets/logos/IsovisLogo.svg" height="120px"></b-img>
         </b-col>
 
-        <!-- Column 6.2: Gene strand -->
-        <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9">
+        <!-- Column 12.2: Gene strand -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
             <GeneStrand :base-axis="baseAxis" :chromosome="mainData.isoformData.chromosome" :is-strand-unknown="mainData.isoformData.is_strand_unknown" :is-strandedness-mismatched="is_strandedness_mismatched" ref="geneStrandComponent" class="grid-item p-3 mx-0 my-1 g-0"/>
         </b-col>
 
-        <!-- Column 6.3: Sample labels + heatmap legend -->
-        <b-col v-show="mainData.heatmapData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Column 12.3: Sample labels + heatmap legend -->
+        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
             <HeatmapLegend :heatmapData="mainData.heatmapData" ref="heatmapLegendComponent" class="grid-item p-3 mx-0 my-1 g-0 text-center"></HeatmapLegend>
         </b-col>
 
     </b-row>
 
-    <!-- Row 7: Nothing, gene strand explanation, and log-transform button -->
-    <b-row class="row7">
+    <!-- Row 13: Nothing, gene strand explanation, and log-transform button -->
+    <b-row class="row13">
 
-        <!-- Column 7.1: Nothing -->
+        <!-- Column 13.1: Nothing -->
         <b-col class="col1" cols="3">
         </b-col>
 
-        <!-- Column 7.2: Gene strand explanation -->
-        <b-col v-show="show_stack" class="col2" :cols="(mainData.heatmapData && show_heatmap) ? 6 : 9" style="text-align: center">
+        <!-- Column 13.2: Gene strand explanation -->
+        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9" style="text-align: center">
             <b-link href="help_gene_strand/" target="_blank">What is this diagram?</b-link>
         </b-col>
 
-        <!-- Column 7.3: Log-transform button -->
+        <!-- Column 13.3: Log-transform button -->
         <b-col v-if="mainData.heatmapData && show_heatmap" class="col3" style="display: flex; justify-content: center;" :cols="show_stack ? 3 : 9">
-            <b-form-checkbox button size="sm" button-variant="outline-secondary" v-model="logTransformChecked" name="check-button">Transform: log<sub>10</sub>(x+1)</b-form-checkbox>
+            <b-form-checkbox button size="sm" button-variant="outline-secondary" v-model="logTransformChecked" name="check-button" v-b-tooltip.hover.top="'Toggle log transform for the isoform heatmap data'">Transform: log<sub>10</sub>(x+1)</b-form-checkbox>
         </b-col>
 
     </b-row>
@@ -413,6 +503,10 @@ export default
                 addOtherIsoform:
                 {
                     show: false,
+                },
+                addSite:
+                {
+                    show: false,
                 }
             },
 
@@ -426,6 +520,9 @@ export default
             show_splices: false,
             show_constitutive_junctions: false,
 
+            show_m6a: false,
+            m6a_compact_mode: false,
+
             show_canon: true,
             show_stack: true,
             show_heatmap: true,
@@ -433,6 +530,7 @@ export default
 
             protein_disabled: false,
             canon_disabled: false,
+            m6a_disabled: false,
 
             is_other_isoforms_button_clicked: false,
             show_all_other_isoforms: false,
@@ -458,6 +556,10 @@ export default
             canondata_ranges: [],
             canondata_start: -1,
             canondata_end: -1,
+
+            siteOrder: [],
+            allSites: [],
+            site_data: false,
 
             other_isoforms_ids: [],
             other_isoforms_ranges: [],
@@ -610,6 +712,12 @@ export default
             this.is_dragging_done = true;
         },
 
+        onSiteEnd(evt)
+        {
+            this.site_data.siteOrder = JSON.parse(JSON.stringify(this.siteOrder));
+            this.is_dragging_done = true;
+        },
+
         inclusionStyle(state)
         {
             if (state)
@@ -625,6 +733,11 @@ export default
         addOtherClick()
         {
             this.modal.addOtherIsoform.show = true;
+        },
+
+        addSiteClick()
+        {
+            this.modal.addSite.show = true;
         },
 
         exportPNG()
@@ -1645,6 +1758,11 @@ export default
         {
             this.$refs.heatmapComponent.buildHeatmap();
             this.$refs.heatmapLegendComponent.buildHeatmapLegend();
+            if (this.mainData.m6aLevelData)
+            {
+                this.$refs.m6ALevelsComponent.buildHeatmap();
+                this.$refs.m6ALevelsLegendComponent.buildHeatmapLegend();
+            }
         },
 
         togglenormalization()
@@ -1655,6 +1773,8 @@ export default
             this.$refs.spliceGraphComponent.buildGraph();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
+            if (!this.m6a_disabled)
+                this.$refs.m6AStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
             if (!this.protein_disabled)
                 this.buildProteinComponent();
@@ -1668,6 +1788,8 @@ export default
             this.$refs.spliceGraphComponent.buildGraph();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
+            if (!this.m6a_disabled)
+                this.$refs.m6AStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
             if (!this.protein_disabled)
             {
@@ -1704,6 +1826,28 @@ export default
             this.show_protein = state;
             if (state == true && this.show_canon == false)
                 this.setShowCanon(true);
+            this.resizePage();
+        },
+
+        setShowm6A(state)
+        {
+            this.show_m6a = state;
+            if (this.show_m6a === false)
+            {
+                this.m6a_compact_mode = false;
+                this.$refs.m6AStackComponent.is_compact = false;
+                this.$refs.m6ALevelsComponent.is_compact = false;
+            }
+            this.resizePage();
+        },
+
+        setm6ACompact(state)
+        {
+            this.m6a_compact_mode = state;
+            this.$refs.m6AStackComponent.is_compact = state;
+            this.$refs.m6ALevelsComponent.is_compact = state;
+            if (this.m6a_compact_mode === true)
+                this.show_m6a = true;
             this.resizePage();
         },
 
@@ -1777,6 +1921,9 @@ export default
 
                 this.$refs.isoformStackComponent.show_user_orfs = false;
 
+                if (!this.other_isoforms_disabled)
+                    this.$refs.otherIsoformStackComponent.show_user_orfs = false;
+
                 if (!this.canon_disabled)
                     this.$refs.canonStackComponent.show_user_orfs = false;
             }
@@ -1810,6 +1957,9 @@ export default
             }
 
             this.$refs.isoformStackComponent.show_user_orfs = state;
+
+            if (!this.other_isoforms_disabled)
+                this.$refs.otherIsoformStackComponent.show_user_orfs = state;
 
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.show_user_orfs = state;
@@ -2286,6 +2436,18 @@ export default
         },
 
         /**
+         * Add an m6A site to the m6A site stack and modification levels heatmap.
+         * @param {Number} site Coordinate of the m6A site
+         */
+        addSite(site)
+        {
+            this.siteOrder.push(site);
+            this.site_data.siteOrder.push(site);
+
+            this.resizePage();
+        },
+
+        /**
          * Remove an isoform with a particular transcript ID from the visualized data.
          * @param {string} transcript_id Transcript ID
          */
@@ -2328,6 +2490,18 @@ export default
             }
 
             this.other_isoforms_ids.splice(this.other_isoforms_ids.indexOf(transcript_id), 1);
+
+            this.resizePage();
+        },
+
+        /**
+         * Remove an m6A site from the m6A site stack and modification levels heatmap.
+         * @param {Number} site Coordinate of the m6A site
+         */
+        removeSite(site)
+        {
+            this.siteOrder.splice(this.siteOrder.indexOf(site), 1);
+            this.site_data.siteOrder.splice(this.site_data.siteOrder.indexOf(site), 1);
 
             this.resizePage();
         },
@@ -2418,6 +2592,17 @@ export default
             this.is_sorting_done = true;
         },
 
+        sortSitesByCoords(ascending = true)
+        {
+            this.siteOrder.sort((a, b) => a - b);
+            if (!ascending)
+                this.siteOrder.reverse();
+
+            this.site_data.siteOrder = JSON.parse(JSON.stringify(this.siteOrder));
+
+            this.is_sorting_done = true;
+        },
+
         sortIsoformsByMeanHeatmap(ascending = true)
         {
             let isoform_means = {};
@@ -2492,6 +2677,69 @@ export default
             this.is_sorting_done = true;
         },
 
+        sortSitesByMeanHeatmap(ascending = true)
+        {
+            let site_level_means = {};
+            for (let site of this.siteOrder)
+                site_level_means[site] = [];
+
+            let all_values = this.mainData.m6aLevelData.export;
+            for (let site of this.siteOrder)
+            {
+                let sample_values = all_values[site];
+                for (let sample of Object.keys(sample_values))
+                {
+                    let value = sample_values[sample];
+                    if ((value === null) || (value === undefined) || (isNaN(value)))
+                        continue;
+
+                    site_level_means[site].push(value);
+                }
+            }
+
+            let shown_sites = [];
+            let no_mean_sites = []; // For sites that have all-NaN heatmap values
+            for (let site of Object.keys(site_level_means))
+            {
+                let values = site_level_means[site];
+                let num_samples = values.length;
+
+                if (num_samples === 0)
+                {
+                    no_mean_sites.push([-1, site]);
+                    continue;
+                }
+
+                let mean = 0;
+                for (let value of values)
+                    mean += value;
+
+                mean /= num_samples;
+
+                shown_sites.push([mean, site]);
+            }
+
+            shown_sites.sort(function(a, b)
+            {
+                return a[0] - b[0];
+            });
+            if (!ascending)
+                shown_sites.reverse();
+
+            shown_sites.concat(no_mean_sites);
+
+            this.siteOrder = [];
+            this.site_data.siteOrder = [];
+
+            for (let [ignored, site] of shown_sites)
+            {
+                this.siteOrder.push(parseInt(site));
+                this.site_data.siteOrder.push(parseInt(site));
+            }
+
+            this.is_sorting_done = true;
+        },
+
         resizePage()
         {
             if (this.show_stack)
@@ -2499,6 +2747,8 @@ export default
                 this.$refs.isoformStackComponent.buildStack();
                 this.$refs.otherIsoformStackComponent.buildStack();
                 this.$refs.canonStackComponent.buildStack();
+                if (!this.m6a_disabled)
+                    this.$refs.m6AStackComponent.buildStack();
                 this.$refs.geneStrandComponent.buildStrand();
                 this.buildProteinComponent();
 
@@ -2506,7 +2756,7 @@ export default
                     this.$refs.spliceGraphComponent.buildGraph();
             }
 
-            if (this.mainData.heatmapData && this.show_heatmap)
+            if ((this.mainData.heatmapData || this.mainData.m6aLevelData) && this.show_heatmap)
                 this.buildHeatmapComponent();
         }
     },
@@ -2535,11 +2785,16 @@ export default
             {
                 this.$refs.isoformStackComponent.buildStack();
                 this.$refs.otherIsoformStackComponent.buildStack();
+                this.$refs.m6AStackComponent.buildStack();
                 this.$refs.spliceGraphComponent.buildGraph();
             }
 
             if (this.show_heatmap)
+            {
                 this.$refs.heatmapComponent.buildHeatmap();
+                if (this.mainData.m6aLevelData)
+                    this.$refs.m6ALevelsComponent.buildHeatmap();
+            }
         }
 
         if (this.is_sorting_done)
@@ -2588,6 +2843,8 @@ export default
                     this.$root.$emit("single_stack_click");
                 else if (where === "OtherStack")
                     this.$root.$emit("single_otherstack_click");
+                else if (where === "m6AStack")
+                    this.$root.$emit("single_m6astack_click");
             }
         });
 
@@ -2648,6 +2905,11 @@ export default
 
             this.protein_disabled = false;
             this.canon_disabled = false;
+            this.m6a_disabled = false;
+
+            this.siteOrder = [];
+            this.allSites = [];
+            this.site_data = false;
 
             this.other_isoforms_ids = [];
             this.other_isoforms_ranges = [];
@@ -2684,12 +2946,24 @@ export default
             this.setShowMotifs(true);
             this.setShowDomainLabels(false);
             this.setShowConstitutiveJunctions(false);
+            this.setShowm6A(false);
+            this.setm6ACompact(false);
 
             this.resizePage();
 
             if (!this.mainData.demoData)
             {
+                if (!this.mainData.m6aData)
+                    this.m6a_disabled = true;
+                else
+                {
+                    this.siteOrder = JSON.parse(JSON.stringify(this.mainData.m6aData.siteOrder));
+                    this.allSites = JSON.parse(JSON.stringify(this.mainData.m6aData.allSites));
+                    this.site_data = {siteOrder: JSON.parse(JSON.stringify(this.mainData.m6aData.siteOrder))};
+                }
+
                 let gene_id = this.mainData.selectedGene;
+
                 this.isGeneOnEnsembl(gene_id).then();
                 this.getCanonData(gene_id).then(([canon_data, canon_id]) =>
                 {
@@ -2745,6 +3019,7 @@ export default
             }
             else
             {
+                this.m6a_disabled = true;
                 this.is_gene_on_ensembl = true;
                 this.showCanonLoading = false;
                 this.calculate_canon_mergedranges();

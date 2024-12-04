@@ -76,11 +76,16 @@ the exact state of that page from the previous state.
             <b-form-file v-model="modal.uploadData.stackFile" no-drop accept=".gtf, .gff, .gff2, .gff3, .bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
             <em class="mt-3"><b>Heatmap data</b> file (.csv/.txt) (optional, max. 2 GB)</em>
             <b-form-file v-model="modal.uploadData.heatmapFile" no-drop accept=".csv, .txt"></b-form-file>
+            <em class="mt-3" v-show="is_show_m6a_upload_options"><b>m6A sites data</b> file (.bed) (optional, max. 500 MB)</em>
+            <b-form-file v-show="is_show_m6a_upload_options" v-model="modal.uploadData.m6aFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
+            <em class="mt-3" v-show="is_show_m6a_upload_options"><b>m6A modification level data</b> file (.csv/.txt) (optional but requires m6A sites data file, max. 500 MB)</em>
+            <b-form-file v-show="is_show_m6a_upload_options" v-model="modal.uploadData.m6aLevelFile" no-drop accept=".csv, .txt"></b-form-file>
             <em class="mt-3"><b>Species</b> (default: Homo_sapiens)</em>
             <b-form-input v-model="enteredSpecies" list="acceptedSpecies" class="mb-3" style="width: 100%"></b-form-input>
             <b-form-datalist id="acceptedSpecies">
                 <option v-for="ensemblSpecies in ensemblSpeciesList" :key="ensemblSpecies">{{ ensemblSpecies }}</option>
             </b-form-datalist>
+            <b-form-checkbox v-model="is_show_m6a_upload_options">Show m6A sites data upload options (ALPHA)</b-form-checkbox>
             <b-form-checkbox v-model="is_use_grch37">Use GRCh37 (hg19) instead of GRCh38 (hg38)</b-form-checkbox>
         </b-form>
         <b-form inline class="float-right mt-3">
@@ -144,7 +149,7 @@ the exact state of that page from the previous state.
 </template>
 
 <script>
-import { PrimaryData, SecondaryData } from '~/assets/data_parser';
+import { PrimaryData, SecondaryData, m6aSitesData, m6aSitesLevelData } from '~/assets/data_parser';
 import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';
 
 export default
@@ -191,6 +196,8 @@ export default
                     show: false,
                     stackFile: null,
                     heatmapFile: null,
+                    m6aFile: null,
+                    m6aLevelFile: null,
                 },
                 selectGene:
                 {
@@ -230,6 +237,7 @@ export default
             enteredZoom: null,
             enteredSpecies: null,
             is_use_grch37: false,
+            is_show_m6a_upload_options: false,
 
             controller: null,
             options: {},
@@ -325,9 +333,12 @@ export default
             this.enteredZoom = null;
             this.enteredSpecies = null;
             this.is_use_grch37 = false;
+            this.is_show_m6a_upload_options = false;
             this.taxon_id = -1;
             this.modal.uploadData.stackFile = null;
             this.modal.uploadData.heatmapFile = null;
+            this.modal.uploadData.m6aFile = null;
+            this.modal.uploadData.m6aLevelFile = null;
             this.modal.heatmapUploadData.heatmapFile = null;
 
             this.$refs.componentMain.abortFetches();
@@ -524,6 +535,8 @@ export default
             // Read the stack file
             let file = this.modal.uploadData.stackFile;
             let hfile = (this.modal.heatmapUploadData.heatmapFile) ? this.modal.heatmapUploadData.heatmapFile : this.modal.uploadData.heatmapFile;
+            let m6afile = this.modal.uploadData.m6aFile;
+            let m6alevelfile = this.modal.uploadData.m6aLevelFile;
 
             let isoformData = new PrimaryData(file, this.selectedGene, species, (this.is_use_grch37 && (species === "Homo_sapiens")));
 
@@ -562,21 +575,10 @@ export default
                 return;
             }
 
-            let heatmapData = (hfile) ? new SecondaryData(hfile, this.selectedGene) : null;
-            if (!heatmapData)
-            {
-                this.reset_loading_popup();
-                if (this.is_changing_gene)
-                {
-                    this.is_changing_gene = false;
-                    this.$refs.componentMain.abortFetches();
-                }
+            let transcript_ids_of_gene = Object.keys(isoformData.transcripts);
 
-                this.mainData = {isoformData:isoformData, heatmapData:heatmapData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
-                this.modal.uploadData.show = false;
-                this.selectedView = 'Main';
-            }
-            else
+            let heatmapData = (hfile) ? new SecondaryData(hfile, this.selectedGene, transcript_ids_of_gene) : null;
+            if (heatmapData)
             {
                 await heatmapData.parseFile();
                 this.reset_loading_popup();
@@ -592,29 +594,67 @@ export default
                     return;
                 }
                 else if (heatmapData.warning)
-                {
                     this.$bvModal.msgBoxOk(heatmapData.warning);
-                }
 
                 // Add transcript ids to heatmap data
                 heatmapData.transcriptOrder = JSON.parse(JSON.stringify(isoformData.transcriptOrder));
-
-                if (this.is_changing_gene)
-                {
-                    this.is_changing_gene = false;
-                    this.$refs.componentMain.abortFetches();
-                }
-
-                this.mainData = {isoformData:isoformData, heatmapData:heatmapData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
-                this.modal.uploadData.show = false;
-                this.selectedView = 'Main';
             }
+
+            this.reset_loading_popup();
+            let m6aData = m6afile ? new m6aSitesData(m6afile, this.selectedGene) : null;
+            if (m6aData)
+            {
+                await m6aData.parseFile();
+
+                if (!m6aData.valid)
+                {
+                    this.$bvModal.msgBoxOk(m6aData.error);
+                    this.modal.uploadData.m6aFile = null;
+                    return;
+                }
+                else if (m6aData.warning)
+                    this.$bvModal.msgBoxOk(m6aData.warning);
+
+                if (m6aData.no_sites)
+                    m6aData = null;
+            }
+
+            this.reset_loading_popup();
+            let m6a_sites = (m6aData && m6aData.allSites) ? m6aData.allSites : null;
+            let m6aLevelData = (m6alevelfile && m6a_sites && (m6a_sites.length !== 0)) ? new m6aSitesLevelData(m6alevelfile, this.selectedGene, m6a_sites) : null;
+            if (m6aLevelData)
+            {
+                await m6aLevelData.parseFile();
+
+                if (!m6aLevelData.valid)
+                {
+                    this.$bvModal.msgBoxOk(m6aLevelData.error);
+                    this.modal.uploadData.m6aLevelFile = null;
+                    return;
+                }
+                else if (m6aLevelData.warning)
+                    this.$bvModal.msgBoxOk(m6aLevelData.warning);
+
+                if (m6aLevelData.no_sites)
+                    m6aLevelData = null;
+            }
+
+            if (this.is_changing_gene)
+            {
+                this.is_changing_gene = false;
+                this.$refs.componentMain.abortFetches();
+            }
+
+            this.mainData = {isoformData:isoformData, heatmapData:heatmapData, m6aData:m6aData, m6aLevelData:m6aLevelData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
+            this.modal.uploadData.show = false;
+            this.selectedView = 'Main';
         },
 
         async handleHeatmapFileUpload()
         {
             let hfile = this.modal.heatmapUploadData.heatmapFile;
-            let heatmapData = new SecondaryData(hfile, this.selectedGene);
+            let transcript_ids_of_gene = Object.keys(this.mainData.isoformData.transcripts);
+            let heatmapData = new SecondaryData(hfile, this.selectedGene, transcript_ids_of_gene);
 
             this.modal.loading.show = true;
             await heatmapData.parseFile();

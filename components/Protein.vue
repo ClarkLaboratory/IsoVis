@@ -184,6 +184,8 @@ export default {
         },
 
         buildProteinMap() {
+            if (!this.baseAxis) return;
+
             let padding = 16;
             let height = 30;
             let width = 300;
@@ -346,6 +348,13 @@ export default {
         },
 
         buildProteinMapSvg(symbol = false) {
+            if (!this.baseAxis)
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
+
             let protein_map_div = document.getElementById("proteinDomainMapDiv");
             if (!protein_map_div)
             {

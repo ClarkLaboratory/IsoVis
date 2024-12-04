@@ -24,6 +24,495 @@ export function prioritiseKnownTranscripts(transcripts)
     return orderedList;
 }
 
+export class m6aSitesData {
+    /**
+     * Create an m6A sites data instance
+     * 
+     * @param {string} file the input file
+     * @param {string} gene the ID of the gene to be visualized
+     */
+    constructor(file, gene)
+    {
+        this.valid = false; // set to true at the end
+        this.error = "";
+        this.warning = "";
+        this.file = file;
+        this.gene = gene;
+    }
+
+    async parseFile()
+    {
+        let file = this.file;
+
+        if (!file || file.size < 10)
+        {
+            this.error = "Please upload an m6A sites data file.";
+            return;
+        }
+
+        if (file.size > 536870912)
+        {
+            this.error = "m6A sites data file size should be less than 500 MB.";
+            return;
+        }
+
+        let filename = file.name;
+        if (!filename)
+        {
+            this.error = "Filename for m6A sites data is empty.";
+            return;
+        }
+
+        if (filename.indexOf('.') === -1)
+        {
+            this.error = "m6A sites data file does not contain a file extension. Please specify the correct file extension in its filename.";
+            return;
+        }
+
+        this.is_bed_type_unknown = false;
+        this.num_bed_columns = -1;
+
+        if (filename.endsWith(".bed"))
+        {
+            this.filetype = "BED";
+            this.is_bed_type_unknown = true;
+        }
+        else
+        {
+            let last_dot_index = filename.lastIndexOf('.');
+            let file_extension = filename.substring(last_dot_index + 1);
+
+            let valid_column_numbers = [4, 5, 6, 7, 8, 9, 12];
+            for (let valid_column_number of valid_column_numbers)
+            {
+                if (file_extension === `bed${valid_column_number}`)
+                {
+                    this.filetype = "BED";
+                    this.num_bed_columns = valid_column_number;
+                    break;
+                }
+            }
+
+            if (this.num_bed_columns === -1)
+            {
+                this.error = "Invalid m6A sites data file extension.";
+                return;
+            }
+        }
+
+        // The user has uploaded a .bed file, so determine the number of columns it should have
+        if (this.is_bed_type_unknown)
+        {
+            let slice_index = 0;
+            while (slice_index !== -1)
+            {
+                let arr = await this.filteredLines(slice_index);
+                let filtered_lines = arr[0];
+                slice_index = arr[1];
+
+                if (filtered_lines.length === 0)
+                    continue;
+
+                let num_columns = filtered_lines[0].split('\t').length;
+                if ((num_columns <= 3) || (num_columns === 10) || (num_columns === 11) || (num_columns >= 13))
+                {
+                    this.error = "Incorrect number of columns found in the uploaded m6A sites BED file. Please upload a BED4 to BED9 file or a BED12 file.";
+                    break;
+                }
+
+                this.num_bed_columns = num_columns;
+                this.is_bed_type_unknown = false;
+                break;
+            }
+
+            if (this.is_bed_type_unknown)
+            {
+                if (!this.error)
+                    this.error = "The uploaded m6A sites BED file does not contain any valid BED line. Please upload a BED4 to BED9 file or a BED12 file.";
+                return;
+            }
+        }
+
+        this.allSites = [];
+
+        let parser_type = this.filetype;
+        let loading_msg = `Getting m6A sites from ${this.filetype} file...`;
+
+        this.update_loading_msg(loading_msg);
+
+        let slice_index = 0;
+        while (slice_index !== -1)
+        {
+            let arr = await this.filteredLines(slice_index);
+            let filtered_lines = arr[0];
+            slice_index = arr[1];
+
+            let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+
+            if (parser_type === "BED")
+                this.sitesFromBED(filtered_lines);
+
+            this.update_loading_percentage(loading_percentage);
+        }
+
+        this.valid = true;
+        this.allSites.sort((a, b) => a - b);
+        this.siteOrder = JSON.parse(JSON.stringify(this.allSites));
+
+        this.no_sites = (Object.keys(this.allSites).length === 0);
+        if (this.no_sites)
+            this.warning = "No m6A sites found for the selected gene. m6A site visualization disabled for this gene.";
+    }
+
+    update_loading_msg(loading_msg)
+    {
+        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
+        document.dispatchEvent(event);
+    }
+
+    update_loading_percentage(loading_percentage)
+    {
+        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
+        document.dispatchEvent(event);
+    }
+
+    sitesFromBED(lines)
+    {
+        for (let raw_line of lines)
+        {
+            let line = new m6aSitesBEDLine(raw_line, this.num_bed_columns);
+            if (!(line.valid))
+                continue;
+
+            let gene = line.gene;
+            if (gene !== this.gene)
+                continue;
+
+            let start = line.start;
+            if (this.allSites.indexOf(start) === -1)
+                this.allSites.push(start);
+        }
+    }
+
+    async filteredLines(slice_index)
+    {
+        let chunk_size = 5242880; // 5 MB
+
+        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
+        let next_slice_index = -1;
+
+        if (text.length === chunk_size)
+        {
+            // FIXME: Make this code chunk size independent: A newline must exist for it to work
+            let last_newline_index = text.lastIndexOf('\n');
+            next_slice_index = slice_index + last_newline_index + 1;
+            text = text.substring(0, last_newline_index);
+        }
+
+        text = text.replace(/\r/g, '');
+        let raw_lines = text.split('\n');
+        let filtered_lines = [];
+
+        for (let i = 0; i < raw_lines.length; ++i)
+        {
+            let line = raw_lines[i];
+
+            // Ignore empty lines and comments
+            if ((line === "") || (line[0] === '#'))
+                continue;
+
+            if (line.indexOf(this.gene) !== -1)
+                filtered_lines.push(line);
+        }
+
+        return [filtered_lines, next_slice_index];
+    }
+
+    async getFileChunk(start, end)
+    {
+        let file = this.file;
+        let slice = file.slice(start, end);
+        let text = await slice.text().then(
+            res => res
+        ).catch(err =>
+        {
+            console.log("Error parsing file!");
+            console.log(err);
+        });
+        return text;
+    }
+}
+
+export class m6aSitesLevelData {
+    /**
+     * Create an m6A modification level data instance
+     *
+     * @param {string} file the input file
+     * @param {string} gene the ID of the gene to be visualized
+     * @param {Array<Number>} sites coordinates of the m6A sites for the gene to be visualized
+     */
+    constructor(file, gene, sites)
+    {
+        this.valid = false; // set to true at the end
+        this.error = "";
+        this.warning = "";
+        this.file = file;
+        this.gene = gene;
+        this.sites = sites;
+    }
+
+    async parseFile()
+    {
+        let file = this.file;
+
+        if (!file || file.size < 10)
+        {
+            this.error = "Please upload an m6A modification level file.";
+            return;
+        }
+
+        if (file.size > 536870912)
+        {
+            this.error = "m6A modification level file size should be less than 500 MB.";
+            return;
+        }
+
+        let filename = file.name;
+        if (!filename)
+        {
+            this.error = "Filename for m6A modification level data is empty.";
+            return;
+        }
+
+        if (filename.indexOf('.') === -1)
+        {
+            this.error = "m6A modification level file does not contain a file extension. Please specify the correct file extension in its filename.";
+            return;
+        }
+
+        // Determine delimiter
+        if (filename.endsWith(".csv"))
+            this.delim = ',';
+        else if (filename.endsWith(".txt"))
+            this.delim = '\t';
+        else
+        {
+            this.error = "Invalid m6A modification level file extension.";
+            return;
+        }
+
+        let slice_index = 0;
+        let filtered_lines = [];
+        let arr = await this.filteredLines(slice_index, true);
+
+        filtered_lines = arr[0];
+        slice_index = arr[1];
+
+        let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+        let loading_msg = "Getting m6A modification levels...";
+        this.update_loading_msg(loading_msg);
+        this.update_loading_percentage(loading_percentage);
+
+        if (filtered_lines.length === 0)
+        {
+            this.error = "No relevant data lines found in m6A modification level file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
+            return;
+        }
+
+        let first_line = filtered_lines[0];
+        this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+        if (this.samples.length < 3)
+        {
+            this.error = "First line of m6A modification level file has less than 3 data columns. The file must have at least 3 data columns.";
+            return;
+        }
+
+        this.location_colnum = -1;
+        this.gene_id_colnum = -1;
+
+        for (let i = 0; i < this.samples.length; ++i)
+        {
+            let sample = this.samples[i].toLowerCase();
+            if (sample === "location")
+                this.location_colnum = i;
+            else if (sample === "gene_id")
+                this.gene_id_colnum = i;
+        }
+
+        if (this.location_colnum === -1)
+        {
+            this.error = "No location column found in the m6A modification level file.";
+            return;
+        }
+
+        if (this.gene_id_colnum === -1)
+        {
+            this.error = "No gene_id column found in the m6A modification level file.";
+            return;
+        }
+
+        // Prepare attributes
+        this.maxValue = NaN; // min/max/avg values for colour scheme & legend
+        this.minValue = NaN;
+
+        this.sum = 0;
+        this.num_nonzerovals = 0;
+
+        this.export = {};
+
+        filtered_lines.splice(0, 1);
+        this.processFilteredLines(filtered_lines);
+
+        while (slice_index !== -1)
+        {
+            let arr = await this.filteredLines(slice_index);
+            filtered_lines = arr[0];
+            slice_index = arr[1];
+            this.processFilteredLines(filtered_lines);
+
+            loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+            this.update_loading_percentage(loading_percentage);
+        }
+
+        this.valid = true;
+
+        this.no_sites = (Object.keys(this.export).length === 0);
+        if (this.no_sites)
+            this.warning = "The m6A modification level file does not contain any information on the m6A sites of the selected gene. m6A modification level visualization disabled.";
+        else
+        {
+            if (this.num_nonzerovals === 0)
+                this.num_nonzerovals = 1;
+
+            this.average = this.sum / this.num_nonzerovals;                 // calculate averages
+        }
+    }
+
+    update_loading_msg(loading_msg)
+    {
+        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
+        document.dispatchEvent(event);
+    }
+
+    update_loading_percentage(loading_percentage)
+    {
+        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
+        document.dispatchEvent(event);
+    }
+
+    async filteredLines(slice_index, get_samples = false)
+    {
+        let chunk_size = 5242880; // 5 MB
+
+        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
+        let next_slice_index = -1;
+
+        if (text.length === chunk_size)
+        {
+            // FIXME: Make this code chunk size independent: A newline must exist for it to work
+            let last_newline_index = text.lastIndexOf('\n');
+            next_slice_index = slice_index + last_newline_index + 1;
+            text = text.substring(0, last_newline_index);
+        }
+
+        text = text.replace(/\r/g, '');
+        let raw_lines = text.split('\n');
+        let filtered_lines = [];
+
+        let first_line_found = !get_samples;
+        for (let i = 0; i < raw_lines.length; ++i)
+        {
+            let line = raw_lines[i];
+
+            // Ignore empty lines
+            if (line === "")
+                continue;
+
+            if (!first_line_found)
+            {
+                filtered_lines.push(line);
+                first_line_found = true;
+                continue;
+            }
+
+            // Find all lines that contain the gene being searched for
+            if (line.indexOf(this.gene) === -1)
+                continue;
+
+            // Only consider sites identified from the m6A sites data file
+            for (let site of this.sites)
+            {
+                if (line.indexOf((site - 1).toString()) !== -1) // Deal with BED file coordinates being 0-based instead of 1-based
+                {
+                    filtered_lines.push(line);
+                    break;
+                }
+            }
+        }
+
+        return [filtered_lines, next_slice_index];
+    }
+
+    processFilteredLines(filtered_lines)
+    {
+        for (let i = 0; i < filtered_lines.length; ++i)
+        {
+            // Clean up text and separate values
+            let entries = filtered_lines[i].replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+            if (entries.length !== this.samples.length)
+                continue;
+
+            let gene = entries[this.gene_id_colnum].split('.')[0].trim();
+            if (gene !== this.gene)
+                continue;
+
+            let site = parseInt(entries[this.location_colnum]) + 1; // Deal with BED coordinates being 0-based instead of 1-based
+            if (isNaN(site) || (site < 0) || (this.sites.indexOf(site) === -1))
+                continue;
+
+            for (let j = 0; j < this.samples.length; ++j)
+            {
+                if ((j === this.location_colnum) || (j === this.gene_id_colnum))
+                    continue;
+
+                let sample = this.samples[j];
+                let value = parseFloat(entries[j]);
+
+                if (value)
+                {
+                    this.sum += value;
+                    this.num_nonzerovals += 1;
+                }
+
+                if (isNaN(this.maxValue) || value > this.maxValue) this.maxValue = value;
+                if (isNaN(this.minValue) || value < this.minValue) this.minValue = value;
+
+                if (!this.export[site])
+                {
+                    this.export[site] = {};
+                    this.export[site][sample] = value;
+                }
+                else if (this.export[site][sample] === undefined)
+                    this.export[site][sample] = value;
+            }
+        }
+    }
+
+    async getFileChunk(start, end)
+    {
+        let file = this.file;
+        let slice = file.slice(start, end);
+        let text = await slice.text().then(
+            res => res
+        ).catch(err =>
+        {
+            console.log("Error parsing file!");
+            console.log(err);
+        });
+        return text;
+    }
+}
+
 export class PrimaryData {
     /**
      * Create a primary data instance
@@ -144,7 +633,7 @@ export class PrimaryData {
                 let num_columns = filtered_lines[0].split('\t').length;
                 if ((num_columns <= 3) || (num_columns === 10) || (num_columns === 11) || (num_columns >= 13))
                 {
-                    this.error = "Incorrect number of columns found in the uploaded BED stack file. Please upload a BED4 to BED9 file or a BED12 file.";
+                    this.error = "Incorrect number of columns found in the uploaded stack BED file. Please upload a BED4 to BED9 file or a BED12 file.";
                     break;
                 }
 
@@ -174,7 +663,7 @@ export class PrimaryData {
             if (this.is_bed_type_unknown)
             {
                 if (!this.error)
-                    this.error = "The uploaded BED stack file does not contain any valid BED line. Please upload a BED4 to BED9 file or a BED12 file.";
+                    this.error = "The uploaded stack BED file does not contain any valid BED line. Please upload a BED4 to BED9 file or a BED12 file.";
                 return;
             }
         }
@@ -905,13 +1394,15 @@ export class SecondaryData {
      * 
      * @param {string} file the input file
      * @param {string} gene ID for the gene of interest
+     * @param {string} transcript_ids transcript IDs for the gene of interest
      */
-    constructor(file, gene) {
+    constructor(file, gene, transcript_ids) {
         this.valid = false;
         this.error = "";
         this.warning = "";
         this.file = file;
         this.gene = gene;
+        this.transcript_ids = transcript_ids;
     }
 
     async parseFile()
@@ -967,9 +1458,9 @@ export class SecondaryData {
 
         let first_line = filtered_lines[0];
         this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
-        if (this.samples.length < 3)
+        if (this.samples.length < 2)
         {
-            this.error = "First line of heatmap file has less than 3 data columns. The file must have at least 3 data columns.";
+            this.error = "First line of heatmap file has less than 2 data columns. The file must have at least 2 data columns.";
             return;
         }
 
@@ -981,14 +1472,8 @@ export class SecondaryData {
             let sample = this.samples[i].toLowerCase();
             if (sample === "gene_id")
                 this.gene_id_colnum = i;
-            else if (sample == "transcript_id")
+            else if (sample === "transcript_id")
                 this.transcript_id_colnum = i;
-        }
-
-        if (this.gene_id_colnum === -1)
-        {
-            this.error = "No gene_id column found in the heatmap file.";
-            return;
         }
 
         if (this.transcript_id_colnum === -1)
@@ -1027,7 +1512,7 @@ export class SecondaryData {
 
         if (this.transcripts.length === 0)
         {
-            this.warning = "The heatmap file does not contain any information on the gene to be visualized.";
+            this.warning = "The heatmap file does not contain any information on the transcripts of the gene to be visualized.";
             this.average = NaN;
             this.logAverage = NaN;
         }
@@ -1038,7 +1523,7 @@ export class SecondaryData {
 
             // calculate averages
             this.average = this.sum / this.num_nonzerovals;
-            this.logAverage = Math.log10(this.average);
+            this.logAverage = Math.log10(this.average + 1);
         }
 
         this.allIsoforms = JSON.parse(JSON.stringify(this.transcripts)); // store copy of transcripts to allow for manually adding/removing rows
@@ -1075,7 +1560,6 @@ export class SecondaryData {
         text = text.replace(/\r/g, '');
         let raw_lines = text.split('\n');
         let filtered_lines = [];
-        let uppercase_gene_to_search = this.gene.toUpperCase();
 
         let first_line_found = !get_samples;
         for (let i = 0; i < raw_lines.length; ++i)
@@ -1093,9 +1577,15 @@ export class SecondaryData {
                 continue;
             }
 
-            // Find all lines that contain the gene being searched for
-            if (line.toUpperCase().indexOf(uppercase_gene_to_search) !== -1)
-                filtered_lines.push(line);
+            // Find all lines that contain the transcript IDs being searched for
+            for (let transcript_id of this.transcript_ids)
+            {
+                if (line.indexOf(transcript_id) !== -1)
+                {
+                    filtered_lines.push(line);
+                    break;
+                }
+            }
         }
 
         return [filtered_lines, next_slice_index];
@@ -1103,8 +1593,6 @@ export class SecondaryData {
 
     processFilteredLines(filtered_lines)
     {
-        let uppercase_gene_to_search = this.gene.toUpperCase();
-
         for (let i = 0; i < filtered_lines.length; ++i)
         {
             // Clean up text and separate values
@@ -1112,13 +1600,13 @@ export class SecondaryData {
             if (entries.length !== this.samples.length)
                 continue;
 
-            let gene = entries[this.gene_id_colnum].split('.')[0];
-            if (gene.toUpperCase() !== uppercase_gene_to_search)
-                continue;
-
             let transcript_id = entries[this.transcript_id_colnum].split('.')[0];
-            if (transcript_id && (this.transcripts.indexOf(transcript_id) === -1))
+
+            // Only record expression levels if the transcript is encoded by the gene of interest and the transcript's info has not been recorded before
+            if (transcript_id && (this.transcript_ids.indexOf(transcript_id) !== -1) && (this.transcripts.indexOf(transcript_id) === -1))
                 this.transcripts.push(transcript_id);
+            else
+                continue;
 
             for (let j = 0; j < this.samples.length; ++j)
             {
@@ -1608,7 +2096,7 @@ class BEDLine
 
         // extract data from input
         let line = dataString.split('\t');
-        if (line.length < 12)
+        if (line.length !== 12)
         {
             this.valid = false;
             return;
@@ -1620,7 +2108,7 @@ class BEDLine
         let orf_end = parseInt(line[7]);
         let blockCount = parseInt(line[9]);
         let strand = line[5].trim();
-        if (isNaN(start) || isNaN(end) || isNaN(blockCount) || ((strand !== '+') && (strand !== '-')))
+        if (isNaN(start) || isNaN(end) || isNaN(blockCount) || (blockCount === 0) || ((strand !== '+') && (strand !== '-')))
         {
             this.valid = false;
             return;
@@ -1789,6 +2277,50 @@ class MinimalBEDLine
         this.end = end;             // The exon end
         this.gene = split_column[1].split('.')[0].trim();
         this.transcript = split_column[0].split('.')[0].trim();
+    }
+}
+
+/**
+ * Class to represent a line of a BED file used to store m6A sites data
+ */
+class m6aSitesBEDLine
+{
+    /**
+     * Create a m6aSitesBEDLine instance
+     * 
+     * @param {string} dataString line of an m6A sites BED file in string format
+     * @param {Number} num_columns number of columns in the BED file
+     */
+    constructor(dataString, num_columns)
+    {
+        this.valid = true;
+
+        // extract data from input
+        let line = dataString.split('\t');
+        if (line.length !== num_columns)
+        {
+            this.valid = false;
+            return;
+        }
+
+        let start = parseInt(line[1]) + 1;
+        let end = parseInt(line[2]);
+        if (isNaN(start) || isNaN(end) || (start !== end))
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.start = start;
+        this.end = end;
+        this.gene = line[3].split('.')[0].trim();
+
+        // Reject lines containing empty genes
+        if (this.gene.length === 0)
+        {
+            this.valid = false;
+            return;
+        }
     }
 }
 
@@ -1970,7 +2502,7 @@ export function calculateSplicedRegions(isoformList)
     // We want to return an array of splice junctions with their categorical information
     let spliced_regions_categorized = [];
 
-    // Determine which spliced regions are constitutive
+    // Determine which spliced regions are constitutive (i.e. used in all loaded transcripts)
     for (let spliced_region of Object.keys(spliced_regions_dict))
     {
         let [spliced_region_start, spliced_region_end] = JSON.parse(spliced_region);

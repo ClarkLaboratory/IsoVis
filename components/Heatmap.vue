@@ -50,12 +50,12 @@ export default {
 
             // Labels of row and columns
             let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            samples.splice(this.heatmapData.gene_id_colnum, 1);
+            samples.splice(this.heatmapData.transcript_id_colnum, 1);
 
             for (let i = 0; i < samples.length; ++i)
             {
                 let sample = samples[i].toLowerCase();
-                if (sample === "transcript_id")
+                if (sample === "gene_id")
                 {
                     samples.splice(i, 1);
                     break;
@@ -217,12 +217,12 @@ export default {
 
             // Labels of row and columns
             let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            samples.splice(this.heatmapData.gene_id_colnum, 1);
+            samples.splice(this.heatmapData.transcript_id_colnum, 1);
 
             for (let i = 0; i < samples.length; ++i)
             {
                 let sample = samples[i].toLowerCase();
-                if (sample === "transcript_id")
+                if (sample === "gene_id")
                 {
                     samples.splice(i, 1);
                     break;

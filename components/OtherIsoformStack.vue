@@ -30,6 +30,7 @@ export default {
             isoformGap: 1,
 
             show_orfs: false,
+            show_user_orfs: false,
             start_drag: -1,
             end_drag: -1,
 
@@ -181,7 +182,7 @@ export default {
 
             // var data = (state.showCanon) ? state.canonData : state.primaryData;
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
-            let exonHeight = this.show_orfs ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
             // let exonTranslation = `translate(0, ${(this.isoformHeight - exonHeight) / 2})`;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
@@ -253,7 +254,7 @@ export default {
             let exon_info = [];
 
             // Add exons to each isoform
-            ctx.fillStyle = self.show_orfs ? "rgb(112,112,112)" : "rgb(83,83,83)";
+            ctx.fillStyle = (self.show_orfs || self.show_user_orfs) ? "rgb(112,112,112)" : "rgb(83,83,83)";
             for (let i = 0; i < self.isoformList.length; ++i)
             {
                 let isoform = self.isoformList[i];
@@ -321,7 +322,7 @@ export default {
                 }
             }
 
-            if (self.show_orfs)
+            if (self.show_orfs || self.show_user_orfs)
             {
                 let orf_exon_info = [];
 
@@ -331,7 +332,7 @@ export default {
                 for (let i = 0; i < self.isoformList.length; ++i)
                 {
                     let isoform = self.isoformList[i];
-                    let orf_ranges = isoform.orf;
+                    let orf_ranges = isoform.orf;       // always show known ORFs as user ORFs won't be present
                     let y = transformation(i) + orfHeight / 2;
 
                     let ordered_exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
@@ -531,7 +532,7 @@ export default {
 
             // var data = (state.showCanon) ? state.canonData : state.primaryData;
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
-            let exonHeight = this.show_orfs ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
             // let exonTranslation = `translate(0, ${(this.isoformHeight - exonHeight) / 2})`;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
@@ -607,7 +608,7 @@ export default {
             }
 
             // Add exons to each isoform
-            let exon_colour = self.show_orfs ? "#707070" : "#535353";
+            let exon_colour = (self.show_orfs || self.show_user_orfs) ? "#707070" : "#535353";
             for (let i = 0; i < self.isoformList.length; ++i)
             {
                 let isoform = self.isoformList[i];
@@ -650,15 +651,14 @@ export default {
                 }
             }
 
-            if (self.show_orfs)
+            if (self.show_orfs || self.show_user_orfs)
             {
                 // Add ORFs to each isoform
                 let orfHeight = self.isoformHeight / 2;
                 for (let i = 0; i < self.isoformList.length; ++i)
                 {
                     let isoform = self.isoformList[i];
-                    let orf_ranges = isoform.orf;
-
+                    let orf_ranges = isoform.orf;       // always show known ORFs as user ORFs won't be present
                     let y = transformation(i) + orfHeight / 2;
 
                     for (let [x0, x1] of orf_ranges)

@@ -88,21 +88,19 @@
 
     The first row of the file should contain column names.<br><br>
 
-    These two columns <strong>must</strong> be in the file:
-    <ul>
-        <li><b>gene_id</b>, which stores the gene ID of each row (e.g. ENSG00000116786.13).</li>
-        <li><b>transcript_id</b>, which stores the transcript ID of each row (e.g. ENST00000375793.2).</li>
-    </ul>
+    The <b>transcript_id</b> column <strong>must</strong> be in the file. It stores the transcript ID of each row (e.g. ENST00000375793.2).<br>
     All other columns should:
     <ul>
         <li>Be named by unique sample IDs.</li>
         <li>Contain numeric data corresponding to the transcript/sample of the corresponding row/column.</li>
     </ul>
+    <b>Note</b>: Older IsoVis versions used to require a gene_id column in heatmap data files. For backwards compatibility, the current version of IsoVis ignores the gene_id column if it is present.<br><br>
+
     There is no requirement on the positions of the columns.<br><br>
+
     Example heatmap data:<table class="table b-table table-sm">
         <thead>
             <tr>
-                <th>gene_id</th>
                 <th>transcript_id</th>
                 <th>sample_1</th>
                 <th>sample_2</th>
@@ -111,25 +109,89 @@
         </thead>
         <tbody>
             <tr>
-                <td>ENSG00000123456.1</td>
                 <td>ENST00000123456.1</td>
                 <td>11.2554</td>
                 <td>12.9126</td>
                 <td>12.1272</td>
             </tr>
             <tr>
-                <td>ENSG00000123456.1</td>
                 <td>novelTranscript1</td>
                 <td>19.3096</td>
                 <td>33.6227</td>
                 <td>33.6221</td>
             </tr>
             <tr>
-                <td>novelGene1</td>
                 <td>novelTranscript2</td>
                 <td>17.7803</td>
                 <td>4.2698</td>
                 <td>10.0318</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <strong><em>m6A sites data:</em></strong><br>
+    m6A sites data can be provided either as a BED4 to BED9 or BED12 file.<br>
+    m6A sites data files must have a file extension of either '.bed' or '.bedx', where 'x' is 4, 5, 6, 7, 8, 9 or 12.<br><br>
+
+    The name column (column 4) of each line <strong>must</strong> be a gene ID.<br>
+    The genomic start and end coordinates of each site <strong>must</strong> be specified in columns 2 and 3 respectively.<br>
+    Since each m6A site is only one nucleotide long, the end coordinate of a site <strong>must</strong> be 1 more than its start coordinate.<br>
+    All other columns of the BED file will be ignored.
+
+    <hr>
+
+    <strong><em>m6A modification level data:</em></strong><br>
+    m6A modification levels can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
+    m6A modification level files must have a file extension of either '.csv' or '.txt'.<br><br>
+
+    The first row of the file should contain column names.<br><br>
+
+    The file <strong>must</strong> contain the two following columns:
+    <ul>
+        <li><b>location</b>: The start coordinate of the m6A site.</li>
+        <li><b>gene_id</b>: The ID of the gene the m6A site is found in.</li>
+    </ul>
+
+    All other columns should:
+    <ul>
+        <li>Be named by unique sample IDs.</li>
+        <li>Contain numeric data corresponding to the m6A site/sample of the corresponding row/column.</li>
+    </ul>
+    There is no requirement on the positions of the columns.<br><br>
+
+    Example m6A modification level data:<table class="table b-table table-sm">
+        <thead>
+            <tr>
+                <th>gene_id</th>
+                <th>location</th>
+                <th>sample_1</th>
+                <th>sample_2</th>
+                <th>sample_3</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>ENSG00000123456</td>
+                <td>123</td>
+                <td>0.1</td>
+                <td>0.2</td>
+                <td>0.3</td>
+            </tr>
+            <tr>
+                <td>ENSG00000234567</td>
+                <td>456</td>
+                <td>0.4</td>
+                <td>0.5</td>
+                <td>0.6</td>
+            </tr>
+            <tr>
+                <td>ENSG00000345678</td>
+                <td>789</td>
+                <td>0.7</td>
+                <td>0.8</td>
+                <td>0.9</td>
             </tr>
         </tbody>
     </table>
