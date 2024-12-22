@@ -91,7 +91,7 @@ export default {
             }
             catch (error)
             {
-                console.log("Error copying isoform stack exon text!", error);
+                console.log("Error copying other isoform stack exon text!", error);
                 this.set_tooltip_copied(false);
             }
         },

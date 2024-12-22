@@ -4,6 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+export function arc(x_start, y_start, x_end, y_end, x_radius, y_radius, stroke_colour, stroke_dasharray = null)
+{
+    return `<path d="M ${x_start} ${y_start} A ${x_radius} ${y_radius} 0 0 1 ${x_end} ${y_end}" stroke-width="1" stroke="${stroke_colour}" fill-opacity="0"${stroke_dasharray ? ' stroke-dasharray="' + stroke_dasharray + '"' : ""}/>`;
+}
+
 export function put_in_svg(width, height, elem)
 {
     return `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${elem}</svg>`;

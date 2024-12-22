@@ -14,6 +14,7 @@ Component to render the splice junctions graph.
 
 <script>
 import * as d3 from 'd3';
+import {arc, put_in_svg, rect} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis"],
@@ -192,7 +193,6 @@ export default {
                     if (is_constitutive && !self.is_draw_constitutive)
                         continue;
 
-                    // TODO: Figure out how to draw junctions that represent an event
                     let relative_height = relative_heights[i];
 
                     let x0 = Math.round(self.baseAxis.scale(spliced_region_start));
@@ -226,6 +226,127 @@ export default {
                 .on("contextmenu", function (evt) {evt.preventDefault();})
                 .on("mousedown", function (evt) {if ((evt.buttons & 0b10) !== 0) {self.$root.$emit("reset_zoom"); return;} self.$root.$emit("set_start_drag", self.mouse_to_genome(evt.clientX));})
                 .on("mouseup", function (evt) {self.set_end_drag(self.mouse_to_genome(evt.clientX)); self.$root.$emit("remove_crosshair");});
+        },
+
+        buildGraphSvg(symbol = false)
+        {
+            let el = document.getElementById('stackDiv');
+            if (!this.baseAxis || (Object.keys(this.baseAxis).length == 0) || !el)
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
+
+            this.width = el.getBoundingClientRect().width - 2 * this.padding;
+            this.baseAxis.setPlotWidth(this.width);
+
+            let max_arc_height = this.isoformHeight * 5;
+            let canvas_width = Math.ceil(this.width);
+            let canvas_height = this.padding_top + this.isoformHeight * 6;
+
+            let screen_ranges = this.baseAxis.screenRanges();
+
+            let svg = "";
+
+            // Draw the metagene
+            for (let [x0, x1] of screen_ranges)
+            {
+                let width = Math.abs(x1 - x0);
+                let actual_x0 = Math.round(x0);
+                let actual_x1 = Math.round(width + x0);
+                let actual_width = actual_x1 - actual_x0;
+                
+                // Don't draw the metagene background if it's outside of the canvas
+                if (((actual_x0 < 0) && (actual_x1 < 0)) || ((actual_x0 >= canvas_width) && (actual_x1 >= canvas_width)))
+                    continue;
+
+                if ((actual_x0 < 0) && (actual_x1 >= canvas_width))
+                {
+                    actual_x0 = 0;
+                    actual_width = canvas_width;
+                }
+                else if (actual_x0 < 0)
+                {
+                    actual_width += actual_x0;
+                    actual_x0 = 0;
+                }
+                else if (actual_x1 >= canvas_width)
+                {
+                    actual_width -= (actual_x1 - canvas_width);
+                }
+
+                svg += rect(actual_x0, this.padding_top + max_arc_height, actual_width, this.isoformHeight, "#d5ebe8");
+            }
+
+            let spliced_regions = this.baseAxis.spliced_regions;
+            let relative_heights = (this.is_draw_constitutive) ? this.baseAxis.relative_heights_all : this.baseAxis.relative_heights;
+            if (spliced_regions && relative_heights)
+            {
+                // Draw the junction arcs
+                let arc_colour = "#000000";
+                for (let i = 0; i < spliced_regions.length; ++i)
+                {
+                    let [spliced_region_start, spliced_region_end, is_constitutive] = spliced_regions[i];
+                    if (is_constitutive && !this.is_draw_constitutive)
+                        continue;
+
+                    let relative_height = relative_heights[i];
+
+                    let x0 = Math.round(this.baseAxis.scale(spliced_region_start));
+                    let x2 = Math.round(this.baseAxis.scale(spliced_region_end));
+                    let x1 = (x0 + x2) / 2;
+
+                    if (x0 > x2)
+                    {
+                        let temp = x0;
+                        x0 = x2;
+                        x2 = temp;
+                    }
+
+                    // Don't draw any arcs that are completely outside the canvas
+                    if ((x0 <= 0 && x2 <= 0) || (x0 >= canvas_width && x2 >= canvas_width))
+                        continue;
+
+                    let x_start = x0;
+                    let y_start = this.padding_top + max_arc_height;
+                    let x_end = x2;
+                    let y_end = y_start;
+                    let x_radius = (x2 - x0) / 2;
+                    let y_radius = (max_arc_height - 1) * relative_height;
+
+                    let dasharray = null;
+                    if (is_constitutive)
+                        dasharray = "2 2";
+
+                    // If the start / end of the arc is outside the canvas, correct the start / end coordinate of the arc
+
+                    // Equation for ellipse of x_radius = a and y_radius = b centered at (X1, Y1): (x - X1)^2/a^2 + (y - Y1)^2/b^2 = 1
+                    // (y - Y1)^2 = b^2 * (1 - (x - X1)^2 / a^2)
+                    // y = Y1 +/- sqrt(b^2 * (1 - (x - X1)^2 / a^2))
+                    // Since y cannot be below Y1, y = Y1 - sqrt(b^2 * (1 - (x - X1)^2 / a^2))
+
+                    if (x_start < 0)
+                    {
+                        x_start = 0;
+                        y_start = (this.padding_top + max_arc_height) - Math.sqrt((y_radius * y_radius) * (1 - (x1 * x1) / (x_radius * x_radius)));
+                    }
+
+                    if (x_end > canvas_width)
+                    {
+                        x_end = canvas_width;
+                        y_end = (this.padding_top + max_arc_height) - Math.sqrt((y_radius * y_radius) * (1 - ((x_end - x1) * (x_end - x1)) / (x_radius * x_radius)));
+                    }
+
+                    svg += arc(x_start, y_start, x_end, y_end, x_radius, y_radius, arc_colour, dasharray);
+                }
+            }
+
+            if (symbol)
+                return [canvas_width, canvas_height, svg];
+
+            svg = put_in_svg(canvas_width, canvas_height, svg);
+            return svg;
         }
     },
 

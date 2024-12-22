@@ -76,16 +76,16 @@ the exact state of that page from the previous state.
             <b-form-file v-model="modal.uploadData.stackFile" no-drop accept=".gtf, .gff, .gff2, .gff3, .bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
             <em class="mt-3"><b>Heatmap data</b> file (.csv/.txt) (optional, max. 2 GB)</em>
             <b-form-file v-model="modal.uploadData.heatmapFile" no-drop accept=".csv, .txt"></b-form-file>
-            <em class="mt-3" v-show="is_show_m6a_upload_options"><b>m6A sites data</b> file (.bed) (optional, max. 500 MB)</em>
-            <b-form-file v-show="is_show_m6a_upload_options" v-model="modal.uploadData.m6aFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
-            <em class="mt-3" v-show="is_show_m6a_upload_options"><b>m6A modification level data</b> file (.csv/.txt) (optional but requires m6A sites data file, max. 500 MB)</em>
-            <b-form-file v-show="is_show_m6a_upload_options" v-model="modal.uploadData.m6aLevelFile" no-drop accept=".csv, .txt"></b-form-file>
+            <em class="mt-3" v-show="is_show_rna_modif_upload_options"><b>RNA modifications data</b> file (.bed) (optional, max. 500 MB)</em>
+            <b-form-file v-show="is_show_rna_modif_upload_options" v-model="modal.uploadData.rnaModifFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
+            <em class="mt-3" v-show="is_show_rna_modif_upload_options"><b>RNA modification level data</b> file (.csv/.txt) (optional but requires RNA modifications data file, max. 500 MB)</em>
+            <b-form-file v-show="is_show_rna_modif_upload_options" v-model="modal.uploadData.rnaModifLevelFile" no-drop accept=".csv, .txt"></b-form-file>
             <em class="mt-3"><b>Species</b> (default: Homo_sapiens)</em>
             <b-form-input v-model="enteredSpecies" list="acceptedSpecies" class="mb-3" style="width: 100%"></b-form-input>
             <b-form-datalist id="acceptedSpecies">
                 <option v-for="ensemblSpecies in ensemblSpeciesList" :key="ensemblSpecies">{{ ensemblSpecies }}</option>
             </b-form-datalist>
-            <b-form-checkbox v-model="is_show_m6a_upload_options">Show m6A sites data upload options (ALPHA)</b-form-checkbox>
+            <b-form-checkbox v-model="is_show_rna_modif_upload_options">Show RNA modifications data upload options (ALPHA)</b-form-checkbox>
             <b-form-checkbox v-model="is_use_grch37">Use GRCh37 (hg19) instead of GRCh38 (hg38)</b-form-checkbox>
         </b-form>
         <b-form inline class="float-right mt-3">
@@ -143,13 +143,13 @@ the exact state of that page from the previous state.
     <!-- Citation modal -->
     <b-modal v-model="modal.citation.show" size="lg" id='citation' title="How to cite us" ok-only ok-title="Close">
         <p>If you use IsoVis, please cite:</p>
-        <p>Ching Yin Wan, Jack Davis, Manveer Chauhan, Josie Gleeson, Yair D J Prawer, Ricardo De Paoli-Iseppi, Christine A Wells, Jarny Choi, Michael B Clark, IsoVis – a webserver for visualization and annotation of alternative RNA isoforms, <i>Nucleic Acids Research</i>, 2024;, gkae343, <b-link href="https://doi.org/10.1093/nar/gkae343" target="_blank">https://doi.org/10.1093/nar/gkae343</b-link></p>
+        <p>Ching Yin Wan, Jack Davis, Manveer Chauhan, Josie Gleeson, Yair D J Prawer, Ricardo De Paoli-Iseppi, Christine A Wells, Jarny Choi, Michael B Clark, IsoVis – a webserver for visualization and annotation of alternative RNA isoforms, <i>Nucleic Acids Research</i>, Volume 52, Issue W1, 5 July 2024, Pages W341–W347, <b-link href="https://doi.org/10.1093/nar/gkae343" target="_blank">https://doi.org/10.1093/nar/gkae343</b-link></p>
     </b-modal>
 </div>
 </template>
 
 <script>
-import { PrimaryData, SecondaryData, m6aSitesData, m6aSitesLevelData } from '~/assets/data_parser';
+import { PrimaryData, SecondaryData, RNAModifSitesData, RNAModifSitesLevelData } from '~/assets/data_parser';
 import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';
 
 export default
@@ -196,8 +196,8 @@ export default
                     show: false,
                     stackFile: null,
                     heatmapFile: null,
-                    m6aFile: null,
-                    m6aLevelFile: null,
+                    rnaModifFile: null,
+                    rnaModifLevelFile: null,
                 },
                 selectGene:
                 {
@@ -237,7 +237,7 @@ export default
             enteredZoom: null,
             enteredSpecies: null,
             is_use_grch37: false,
-            is_show_m6a_upload_options: false,
+            is_show_rna_modif_upload_options: false,
 
             controller: null,
             options: {},
@@ -333,12 +333,12 @@ export default
             this.enteredZoom = null;
             this.enteredSpecies = null;
             this.is_use_grch37 = false;
-            this.is_show_m6a_upload_options = false;
+            this.is_show_rna_modif_upload_options = false;
             this.taxon_id = -1;
             this.modal.uploadData.stackFile = null;
             this.modal.uploadData.heatmapFile = null;
-            this.modal.uploadData.m6aFile = null;
-            this.modal.uploadData.m6aLevelFile = null;
+            this.modal.uploadData.rnaModifFile = null;
+            this.modal.uploadData.rnaModifLevelFile = null;
             this.modal.heatmapUploadData.heatmapFile = null;
 
             this.$refs.componentMain.abortFetches();
@@ -535,8 +535,8 @@ export default
             // Read the stack file
             let file = this.modal.uploadData.stackFile;
             let hfile = (this.modal.heatmapUploadData.heatmapFile) ? this.modal.heatmapUploadData.heatmapFile : this.modal.uploadData.heatmapFile;
-            let m6afile = this.modal.uploadData.m6aFile;
-            let m6alevelfile = this.modal.uploadData.m6aLevelFile;
+            let rna_modif_file = this.modal.uploadData.rnaModifFile;
+            let rna_modif_level_file = this.modal.uploadData.rnaModifLevelFile;
 
             let isoformData = new PrimaryData(file, this.selectedGene, species, (this.is_use_grch37 && (species === "Homo_sapiens")));
 
@@ -601,42 +601,42 @@ export default
             }
 
             this.reset_loading_popup();
-            let m6aData = m6afile ? new m6aSitesData(m6afile, this.selectedGene) : null;
-            if (m6aData)
+            let rnaModifData = rna_modif_file ? new RNAModifSitesData(rna_modif_file, this.selectedGene) : null;
+            if (rnaModifData)
             {
-                await m6aData.parseFile();
+                await rnaModifData.parseFile();
 
-                if (!m6aData.valid)
+                if (!rnaModifData.valid)
                 {
-                    this.$bvModal.msgBoxOk(m6aData.error);
-                    this.modal.uploadData.m6aFile = null;
+                    this.$bvModal.msgBoxOk(rnaModifData.error);
+                    this.modal.uploadData.rnaModifFile = null;
                     return;
                 }
-                else if (m6aData.warning)
-                    this.$bvModal.msgBoxOk(m6aData.warning);
+                else if (rnaModifData.warning)
+                    this.$bvModal.msgBoxOk(rnaModifData.warning);
 
-                if (m6aData.no_sites)
-                    m6aData = null;
+                if (rnaModifData.no_sites)
+                    rnaModifData = null;
             }
 
             this.reset_loading_popup();
-            let m6a_sites = (m6aData && m6aData.allSites) ? m6aData.allSites : null;
-            let m6aLevelData = (m6alevelfile && m6a_sites && (m6a_sites.length !== 0)) ? new m6aSitesLevelData(m6alevelfile, this.selectedGene, m6a_sites) : null;
-            if (m6aLevelData)
+            let rna_modif_sites = (rnaModifData && rnaModifData.allSites) ? rnaModifData.allSites : null;
+            let rnaModifLevelData = (rna_modif_level_file && rna_modif_sites && (rna_modif_sites.length !== 0)) ? new RNAModifSitesLevelData(rna_modif_level_file, this.selectedGene, rna_modif_sites) : null;
+            if (rnaModifLevelData)
             {
-                await m6aLevelData.parseFile();
+                await rnaModifLevelData.parseFile();
 
-                if (!m6aLevelData.valid)
+                if (!rnaModifLevelData.valid)
                 {
-                    this.$bvModal.msgBoxOk(m6aLevelData.error);
-                    this.modal.uploadData.m6aLevelFile = null;
+                    this.$bvModal.msgBoxOk(rnaModifLevelData.error);
+                    this.modal.uploadData.rnaModifLevelFile = null;
                     return;
                 }
-                else if (m6aLevelData.warning)
-                    this.$bvModal.msgBoxOk(m6aLevelData.warning);
+                else if (rnaModifLevelData.warning)
+                    this.$bvModal.msgBoxOk(rnaModifLevelData.warning);
 
-                if (m6aLevelData.no_sites)
-                    m6aLevelData = null;
+                if (rnaModifLevelData.no_sites)
+                    rnaModifLevelData = null;
             }
 
             if (this.is_changing_gene)
@@ -645,7 +645,7 @@ export default
                 this.$refs.componentMain.abortFetches();
             }
 
-            this.mainData = {isoformData:isoformData, heatmapData:heatmapData, m6aData:m6aData, m6aLevelData:m6aLevelData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
+            this.mainData = {isoformData:isoformData, heatmapData:heatmapData, rnaModifData:rnaModifData, rnaModifLevelData:rnaModifLevelData, canonData:{}, demoData:false, selectedGene:this.selectedGene, species:species, is_use_grch37: (this.is_use_grch37 && (species === "Homo_sapiens"))};
             this.modal.uploadData.show = false;
             this.selectedView = 'Main';
         },

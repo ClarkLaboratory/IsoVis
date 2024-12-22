@@ -58,11 +58,8 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="is_other_isoforms_button_clicked && !other_isoforms_disabled && !other_isoforms_loading" @click="setShowAllOtherIsoforms(!show_all_other_isoforms)" v-b-tooltip.hover.right="'Display all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
                 All other Ensembl isoforms<b-icon-check v-if="show_all_other_isoforms" variant="success"></b-icon-check>
             </b-dropdown-item>
-            <b-dropdown-item v-if="!m6a_disabled" @click="setShowm6A(!show_m6a)" v-b-tooltip.hover.right="'Display m6A modification sites identified in the currently visualized gene'">
-                m6A sites (ALPHA)<b-icon-check v-if="show_m6a" variant="success"></b-icon-check>
-            </b-dropdown-item>
-            <b-dropdown-item v-if="!m6a_disabled && allSites && (allSites.length > 1)" @click="setm6ACompact(!m6a_compact_mode)" v-b-tooltip.hover.right="'Show m6A modification sites in only one row (hides the m6A modification levels heatmap and legend)'">
-                Show m6A sites in compact mode (ALPHA)<b-icon-check v-if="m6a_compact_mode" variant="success"></b-icon-check>
+            <b-dropdown-item v-if="!rna_modif_disabled" @click="setShowRNAModif(!show_rna_modif)" v-b-tooltip.hover.right="'Display RNA modification sites identified in the currently visualized gene'">
+                RNA modifications (ALPHA)<b-icon-check v-if="show_rna_modif" variant="success"></b-icon-check>
             </b-dropdown-item>
             <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
                 Show splice differences graph (ALPHA)<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
@@ -71,30 +68,51 @@ Requires mainData object which is used here to update the relevant data other co
                 Show constitutive junctions (ALPHA)<b-icon-check v-if="show_constitutive_junctions" variant="success"></b-icon-check>
             </b-dropdown-item>
         </b-dropdown>
-        <b-button v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" variant="primary" size="sm" @click="setShowStack(!show_stack)">
+        <b-button v-show="heatmap_data_exists && show_heatmap_column" variant="primary" size="sm" @click="setShowStack(!show_stack)">
             {{show_stack ? "Hide stack" : "Show stack"}}
         </b-button>
         <b-button v-show="!mainData.heatmapData" variant="warning" size="sm" class="ml-2" @click="requestHeatmapDataUpload()">
             Add isoform heatmap
         </b-button>
-        <b-button v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_stack" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
-            {{show_heatmap ? "Hide heatmaps" : "Show heatmaps"}}
-        </b-button>
-        <b-dropdown v-if="canon_disabled || protein_disabled || protein_ready" text="Export page as..." size="sm" variant="dark" class="ml-3">
+        <b-dropdown v-if="heatmap_data_exists" text="Heatmap options" class="ml-2" size="sm" variant="dark">
+            <b-dropdown-item v-if="show_stack" @click="setShowHeatmapColumn(!show_heatmap_column)" v-b-tooltip.hover.right="'Display a column of heatmaps'">
+                Show heatmap column<b-icon-check v-if="show_heatmap_column" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="mainData.rnaModifLevelData && !rna_modif_disabled && !rna_modif_compact_mode" @click="setShowRNAModifHeatmap(!show_rna_modif_heatmap)" v-b-tooltip.hover.right="'Display the RNA modification levels heatmap'">
+                RNA modification levels heatmap<b-icon-check v-if="show_rna_modif_heatmap" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="mainData.rnaModifLevelData && !rna_modif_disabled && !rna_modif_compact_mode" @click="setHideRNAModifHeatmapLabels(!hide_rna_modif_heatmap_labels)" v-b-tooltip.hover.right="'Hide sample labels for the RNA modification levels heatmap'">
+                Hide RNA modification levels heatmap sample labels<b-icon-check v-if="hide_rna_modif_heatmap_labels" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="mainData.heatmapData" @click="setShowIsoformHeatmap(!show_isoform_heatmap)" v-b-tooltip.hover.right="'Display the isoform heatmap'">
+                Isoform heatmap<b-icon-check v-if="show_isoform_heatmap" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="mainData.heatmapData" @click="setHideIsoformHeatmapLabels(!hide_isoform_heatmap_labels)" v-b-tooltip.hover.right="'Hide sample labels for the isoform heatmap'">
+                Hide isoform heatmap sample labels<b-icon-check v-if="hide_isoform_heatmap_labels" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="mainData.heatmapData" @click="setLogTransform(!isoform_heatmap_log_transform)" v-b-tooltip.hover.right="'Toggle log transform for the isoform heatmap data (log10(x + 1))'">
+                Log transform of isoform heatmap<b-icon-check v-if="isoform_heatmap_log_transform" variant="success"></b-icon-check>
+            </b-dropdown-item>
+        </b-dropdown>
+        <b-dropdown v-if="(canon_disabled || protein_disabled || protein_ready) && visible_components_exist" text="Export page as..." size="sm" variant="dark" class="ml-3">
             <b-dropdown-item @click="exportPNG()">PNG</b-dropdown-item>
             <b-dropdown-item @click="exportJPEG()">JPEG</b-dropdown-item>
             <b-dropdown-item @click="exportSVG()">SVG</b-dropdown-item>
             <b-dropdown-item @click="exportPDF()">PDF</b-dropdown-item>
             <b-dropdown-item disabled>Export individual components...</b-dropdown-item>
-            <b-dropdown-item v-if="!protein_disabled && protein_ready && show_canon && show_stack && show_protein && show_protein_labels" @click="exportProteinLabelsSVG()">Protein labels SVG</b-dropdown-item>
-            <b-dropdown-item v-if="!protein_disabled && protein_ready && show_canon && show_stack && show_protein" @click="exportProteinSVG()">Protein diagram SVG</b-dropdown-item>
-            <b-dropdown-item v-if="!protein_disabled && protein_ready && show_canon && show_stack && show_protein && (show_domains || show_motifs)" @click="exportProteinMapSVG()">Protein domain and motif mappings SVG</b-dropdown-item>
-            <b-dropdown-item v-if="!canon_disabled && (mainData.canonData && (Object.keys(mainData.canonData).length !== 0)) && show_canon && show_stack" @click="exportCanonTrackSVG()">Canonical isoform SVG</b-dropdown-item>
-            <b-dropdown-item v-if="is_other_isoforms_button_clicked && !other_isoforms_disabled && !other_isoforms_loading && show_all_other_isoforms && show_stack" @click="exportOtherIsoformsSVG()">Other Ensembl isoforms SVG</b-dropdown-item>
-            <b-dropdown-item v-if="show_stack" @click="exportStackSVG()">Isoform stack SVG</b-dropdown-item>
-            <b-dropdown-item v-if="show_stack" @click="exportStrandSVG()">Gene strand SVG</b-dropdown-item>
-            <b-dropdown-item v-if="mainData.heatmapData && show_heatmap" @click="exportHeatmapSVG()">Heatmap SVG</b-dropdown-item>
-            <b-dropdown-item v-if="mainData.heatmapData && show_heatmap" @click="exportHeatmapLegendSVG()">Heatmap legend SVG</b-dropdown-item>
+            <b-dropdown-item v-if="protein_labels_visible" @click="exportProteinLabelsSVG()">Protein labels SVG</b-dropdown-item>
+            <b-dropdown-item v-if="protein_diagram_visible" @click="exportProteinSVG()">Protein diagram SVG</b-dropdown-item>
+            <b-dropdown-item v-if="protein_mappings_visible" @click="exportProteinMapSVG()">Protein domain and motif mappings SVG</b-dropdown-item>
+            <b-dropdown-item v-if="canonical_isoform_visible" @click="exportCanonTrackSVG()">Canonical isoform SVG</b-dropdown-item>
+            <b-dropdown-item v-if="splice_graph_visible" @click="exportSpliceGraphSVG()">Splice differences graph SVG</b-dropdown-item>
+            <b-dropdown-item v-if="other_ensembl_isoforms_visible" @click="exportOtherIsoformsSVG()">Other Ensembl isoforms SVG</b-dropdown-item>
+            <b-dropdown-item v-if="rna_modification_sites_visible" @click="exportRNAModificationSitesSVG()">RNA modification sites SVG</b-dropdown-item>
+            <b-dropdown-item v-if="rna_modification_levels_visible" @click="exportRNAModificationLevelsSVG()">RNA modification levels SVG</b-dropdown-item>
+            <b-dropdown-item v-if="rna_modification_levels_legend_visible" @click="exportRNAModificationLevelsLegendSVG()">RNA modification levels legend SVG</b-dropdown-item>
+            <b-dropdown-item v-if="isoform_stack_visible" @click="exportStackSVG()">Isoform stack SVG</b-dropdown-item>
+            <b-dropdown-item v-if="gene_strand_visible" @click="exportStrandSVG()">Gene strand SVG</b-dropdown-item>
+            <b-dropdown-item v-if="isoform_heatmap_visible" @click="exportHeatmapSVG()">Heatmap SVG</b-dropdown-item>
+            <b-dropdown-item v-if="isoform_heatmap_legend_visible" @click="exportHeatmapLegendSVG()">Heatmap legend SVG</b-dropdown-item>
         </b-dropdown>
     </b-form>
 
@@ -106,12 +124,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 1.2: Protein domain labels -->
-        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <ProteinLabels :proteinData="mainData.proteinData" :base-axis="baseAxis" ref="proteinLabelsComponent"></ProteinLabels>
         </b-col>
 
         <!-- Column 1.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -140,12 +158,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 2.2: Protein & protein mapping -->
-        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <Protein :proteinData="mainData.proteinData" :base-axis="baseAxis" ref="proteinComponent"></Protein>
         </b-col>
 
         <!-- Column 2.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -169,12 +187,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 3.2: Canonical transcript track -->
-        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <CanonTrack :base-axis="baseAxis" :canon-data="mainData.canonData" ref="canonStackComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></CanonTrack>
         </b-col>
 
         <!-- Column 3.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -188,12 +206,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 4.2: Splice differences graph -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <SpliceGraph :base-axis="baseAxis" ref="spliceGraphComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></SpliceGraph>
         </b-col>
 
         <!-- Column 4.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -210,11 +228,11 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 5.2: Nothing -->
-        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
         <!-- Column 5.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -236,7 +254,7 @@ Requires mainData object which is used here to update the relevant data other co
                 </div>
             </draggable>
             <b-icon-plus v-if="other_isoform_data && other_isoform_data.allIsoforms && other_isoform_data.allIsoforms.length > 1" @click="addOtherClick" style="cursor: pointer;">+</b-icon-plus>
-            <b-modal v-model="modal.addOtherIsoform.show" size="md" title="Edit Ensembl isoform list">
+            <b-modal v-model="modal.addOtherIsoform.show" size="md" title="Edit Ensembl isoform list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="isoform in otherIsoformList" :key="isoform" :style="inclusionStyle((other_isoforms_ids.indexOf(isoform) !== -1))" class="text-center border-bottom">
                     <!-- Delete button -->
@@ -250,44 +268,46 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 6.2: Other isoforms stack -->
-        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <OtherIsoformStack :base-axis="baseAxis" :isoform-list="other_isoform_data.isoformList" ref="otherIsoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></OtherIsoformStack>
         </b-col>
 
         <!-- Column 6.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Row 7: m6A sites label, nothing, and nothing -->
-    <b-row v-show="!m6a_disabled && show_m6a" class="row7">
+    <!-- Row 7: RNA modification sites label, nothing, and nothing -->
+    <b-row v-show="!rna_modif_disabled && show_rna_modif" class="row7">
 
-        <!-- Column 7.1: m6A sites label -->
+        <!-- Column 7.1: RNA modification sites label -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
-            <span>m6A sites (ALPHA):</span>
-            <b-icon-sort-alpha-down v-if="!m6a_compact_mode" @click="sortSitesByCoords()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort m6A sites by ascending genomic coordinates'"></b-icon-sort-alpha-down>
-            <b-icon-sort-alpha-down-alt v-if="!m6a_compact_mode" @click="sortSitesByCoords(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort m6A sites by descending genomic coordinates'"></b-icon-sort-alpha-down-alt>
-            <b-img v-if="mainData.m6aLevelData" @click="sortSitesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort m6A sites by ascending mean modification levels'"></b-img>
-            <b-img v-if="mainData.m6aLevelData" @click="sortSitesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort m6A sites by descending mean modification levels'"></b-img>
+            <span>RNA modification sites (ALPHA):</span>
+            <b-icon-sort-alpha-down v-if="!rna_modif_compact_mode" @click="sortSitesByCoords()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort sites by ascending genomic coordinates'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!rna_modif_compact_mode" @click="sortSitesByCoords(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort sites by descending genomic coordinates'"></b-icon-sort-alpha-down-alt>
+            <b-img v-if="mainData.rnaModifLevelData && !rna_modif_compact_mode" @click="sortSitesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort sites by ascending mean modification levels'"></b-img>
+            <b-img v-if="mainData.rnaModifLevelData && !rna_modif_compact_mode" @click="sortSitesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort sites by descending mean modification levels'"></b-img>
+            <b-icon-arrows-collapse v-if="!rna_modif_compact_mode" @click="setRNAModifCompact(!rna_modif_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Collapse sites into one row (hides the RNA modification levels heatmap and legend)'"></b-icon-arrows-collapse>
+            <b-icon-arrows-expand v-if="rna_modif_compact_mode" @click="setRNAModifCompact(!rna_modif_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Expand sites into individual rows'"></b-icon-arrows-expand>
         </b-col>
 
         <!-- Column 7.2: Nothing -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
         <!-- Column 7.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Row 8: m6A sites list, m6A stack, and m6A modification levels -->
-    <b-row v-show="!m6a_disabled && show_m6a" class="border-bottom row8">
+    <!-- Row 8: RNA modification site list, RNA modification sites stack, and RNA modification levels -->
+    <b-row v-show="!rna_modif_disabled && show_rna_modif" class="border-bottom row8">
 
-        <!-- Column 8.1: m6A site list -->
+        <!-- Column 8.1: RNA modification site list -->
         <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
-            <draggable v-if="!m6a_compact_mode" v-model="siteOrder" @start="drag=true" @end="onSiteEnd">
+            <draggable v-if="!rna_modif_compact_mode" v-model="siteOrder" @start="drag=true" @end="onSiteEnd">
                 <div v-for="site in siteOrder" :key="site" :id="site" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                     <!-- Delete button -->
                     <b-icon-x v-if="(siteOrder.length > 1)" class="icon float-left" @click="removeSite(site);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
@@ -297,12 +317,12 @@ Requires mainData object which is used here to update the relevant data other co
                     <b-icon-list v-if="(siteOrder && (siteOrder.length > 1))" class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-list>
                 </div>
             </draggable>
-            <div v-if="m6a_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+            <div v-if="rna_modif_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                 <!-- Compact mode label -->
                 <span>(Compact mode enabled)</span>
             </div>
-            <b-icon-plus v-if="(!m6a_compact_mode) && allSites && allSites.length > 1" @click="addSiteClick" style="cursor: pointer;">+</b-icon-plus>
-            <b-modal v-model="modal.addSite.show" size="md" title="Edit m6A site list">
+            <b-icon-plus v-if="(!rna_modif_compact_mode) && allSites && allSites.length > 1" @click="addSiteClick" style="cursor: pointer;">+</b-icon-plus>
+            <b-modal v-model="modal.addSite.show" size="md" title="Edit RNA modification site list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="site in allSites" :key="site" :style="inclusionStyle((siteOrder.indexOf(site) !== -1))" class="text-center border-bottom">
                     <!-- Delete button -->
@@ -315,32 +335,32 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column 8.2: m6A site stack -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
-            <m6ASiteStack :base-axis="baseAxis" :site-order="site_data.siteOrder" ref="m6AStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></m6ASiteStack>
+        <!-- Column 8.2: RNA modification sites stack -->
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <RNAModifSiteStack :base-axis="baseAxis" :site-order="site_data.siteOrder" ref="RNAModifStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></RNAModifSiteStack>
         </b-col>
 
-        <!-- Column 8.3: m6A modification levels -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
-            <m6ALevels :m6aLevelData="mainData.m6aLevelData" :site-order="site_data.siteOrder" ref="m6ALevelsComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></m6ALevels>
+        <!-- Column 8.3: RNA modification levels -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+            <RNAModifLevels :rnaModifLevelData="mainData.rnaModifLevelData" :site-order="site_data.siteOrder" ref="RNAModifLevelsComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></RNAModifLevels>
         </b-col>
 
     </b-row>
 
-    <!-- Row 9: Nothing, nothing, and m6A modification levels legend -->
-    <b-row v-show="!m6a_disabled && show_m6a && mainData.m6aLevelData && show_heatmap && !m6a_compact_mode" class="border-bottom row9">
+    <!-- Row 9: Nothing, nothing, and RNA modification levels legend -->
+    <b-row v-show="!rna_modif_disabled && show_rna_modif && show_rna_modif_heatmap && mainData.rnaModifLevelData && show_heatmap_column && !rna_modif_compact_mode" class="border-bottom row9">
 
         <!-- Column 9.1: Nothing -->
         <b-col cols="3">
         </b-col>
 
         <!-- Column 9.2: Nothing -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
-        <!-- Column 9.3: m6A modification levels legend -->
-        <b-col v-show="mainData.m6aLevelData && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
-            <m6ALevelsLegend :m6aLevelData="mainData.m6aLevelData" ref="m6ALevelsLegendComponent" class="grid-item p-3 mx-0 my-1 g-0 text-center"></m6ALevelsLegend>
+        <!-- Column 9.3: RNA modification levels legend -->
+        <b-col v-show="mainData.rnaModifLevelData && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+            <RNAModifLevelsLegend :rnaModifLevelData="mainData.rnaModifLevelData" ref="RNAModifLevelsLegendComponent" class="grid-item p-0 mx-0 my-3 g-0 text-center"></RNAModifLevelsLegend>
         </b-col>
 
     </b-row>
@@ -358,11 +378,11 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 10.2: Nothing -->
-        <b-col class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
         <!-- Column 10.3: Nothing -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -387,7 +407,7 @@ Requires mainData object which is used here to update the relevant data other co
                 </div>
             </draggable>
             <b-icon-plus v-if="isoformList.length > 1" @click="addClick" style="cursor: pointer;">+</b-icon-plus>
-            <b-modal v-model="modal.addIsoform.show" size="md" title="Edit isoform list">
+            <b-modal v-model="modal.addIsoform.show" size="md" title="Edit isoform list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="isoform in isoformList" :key="isoform" :style="inclusionStyle((includedIsoforms.indexOf(isoform) !== -1))" class="text-center border-bottom">
                     <!-- Delete button -->
@@ -401,12 +421,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 11.2: Isoform stack -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <IsoformStack :base-axis="baseAxis" :isoform-list="mainData.isoformData.isoformList" ref="isoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></IsoformStack>
         </b-col>
 
         <!-- Column 11.3: Heatmap -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
             <Heatmap :heatmapData="mainData.heatmapData" ref="heatmapComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></Heatmap>
         </b-col>
 
@@ -421,18 +441,18 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 12.2: Gene strand -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9">
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <GeneStrand :base-axis="baseAxis" :chromosome="mainData.isoformData.chromosome" :is-strand-unknown="mainData.isoformData.is_strand_unknown" :is-strandedness-mismatched="is_strandedness_mismatched" ref="geneStrandComponent" class="grid-item p-3 mx-0 my-1 g-0"/>
         </b-col>
 
         <!-- Column 12.3: Sample labels + heatmap legend -->
-        <b-col v-show="(mainData.heatmapData || mainData.m6aLevelData) && show_heatmap" class="col3" :cols="show_stack ? 3 : 9">
-            <HeatmapLegend :heatmapData="mainData.heatmapData" ref="heatmapLegendComponent" class="grid-item p-3 mx-0 my-1 g-0 text-center"></HeatmapLegend>
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+            <HeatmapLegend :heatmapData="mainData.heatmapData" ref="heatmapLegendComponent" class="grid-item p-0 mx-0 my-3 g-0 text-center"></HeatmapLegend>
         </b-col>
 
     </b-row>
 
-    <!-- Row 13: Nothing, gene strand explanation, and log-transform button -->
+    <!-- Row 13: Nothing, gene strand explanation, and nothing -->
     <b-row class="row13">
 
         <!-- Column 13.1: Nothing -->
@@ -440,13 +460,12 @@ Requires mainData object which is used here to update the relevant data other co
         </b-col>
 
         <!-- Column 13.2: Gene strand explanation -->
-        <b-col v-show="show_stack" class="col2" :cols="((mainData.heatmapData || mainData.m6aLevelData) && show_heatmap) ? 6 : 9" style="text-align: center">
+        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9" style="text-align: center">
             <b-link href="help_gene_strand/" target="_blank">What is this diagram?</b-link>
         </b-col>
 
-        <!-- Column 13.3: Log-transform button -->
-        <b-col v-if="mainData.heatmapData && show_heatmap" class="col3" style="display: flex; justify-content: center;" :cols="show_stack ? 3 : 9">
-            <b-form-checkbox button size="sm" button-variant="outline-secondary" v-model="logTransformChecked" name="check-button" v-b-tooltip.hover.top="'Toggle log transform for the isoform heatmap data'">Transform: log<sub>10</sub>(x+1)</b-form-checkbox>
+        <!-- Column 13.3: Nothing -->
+        <b-col class="col3" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -459,7 +478,7 @@ import { createBaseAxis } from '~/assets/base_axis';
 import { CanonData, OtherIsoformData, ProteinData, mergeRanges, calculateSplicedRegions, calculateRelativeHeights, calculateRelativeHeightsAll } from '~/assets/data_parser';
 import { put_in_svg, put_in_symbol, put_in_hyperlink, use, put_in_protein_symbol, isovis_logo_symbol, line, rect, rounded_rect, text_preserve_whitespace_central_baseline, text_double_centered, text_topped_centered, tspan } from '~/assets/svg_utils';
 import draggable from 'vuedraggable';
-import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconCheck, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
+import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconArrowsCollapse, BIconArrowsExpand, BIconCheck, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
 
 export default
 {
@@ -474,6 +493,8 @@ export default
         BDropdownItem,
         BForm,
         BFormCheckbox,
+        BIconArrowsCollapse,
+        BIconArrowsExpand,
         BIconCheck,
         BIconList,
         BIconPlus,
@@ -520,17 +541,22 @@ export default
             show_splices: false,
             show_constitutive_junctions: false,
 
-            show_m6a: false,
-            m6a_compact_mode: false,
+            show_rna_modif: false,
+            rna_modif_compact_mode: false,
 
             show_canon: true,
             show_stack: true,
-            show_heatmap: true,
+            show_heatmap_column: true,
             showCanonLoading: true,
+
+            show_rna_modif_heatmap: false,
+            hide_rna_modif_heatmap_labels: false,
+            show_isoform_heatmap: false,
+            hide_isoform_heatmap_labels: false,
 
             protein_disabled: false,
             canon_disabled: false,
-            m6a_disabled: false,
+            rna_modif_disabled: true,
 
             is_other_isoforms_button_clicked: false,
             show_all_other_isoforms: false,
@@ -551,7 +577,7 @@ export default
             protein_ready: false,
             labels_ready: false,
             labels: {"ensembl": "", "uniprot": "", "uniparc": "", "interpro_source_database": ""},
-            logTransformChecked: false,
+            isoform_heatmap_log_transform: false,
 
             canondata_ranges: [],
             canondata_start: -1,
@@ -647,6 +673,93 @@ export default
         canonStyle()
         {
             return (this.show_canon) ? "" : "display: none";
+        },
+
+        heatmap_data_exists()
+        {
+            return (this.mainData.heatmapData || this.mainData.rnaModifLevelData);
+        },
+
+        protein_labels_visible()
+        {
+            return (this.protein_diagram_visible && this.show_protein_labels);
+        },
+
+        protein_diagram_visible()
+        {
+            return (!this.protein_disabled && this.protein_ready && this.show_canon && this.show_stack && this.show_protein);
+        },
+
+        protein_mappings_visible()
+        {
+            return (this.protein_diagram_visible && (this.show_domains || this.show_motifs));
+        },
+
+        canonical_isoform_visible()
+        {
+            return (!this.canon_disabled && (this.mainData.canonData && (Object.keys(this.mainData.canonData).length !== 0)) && this.show_canon && this.show_stack);
+        },
+
+        splice_graph_visible()
+        {
+            return (this.show_splices && this.show_stack);
+        },
+
+        other_ensembl_isoforms_visible()
+        {
+            return (this.is_other_isoforms_button_clicked && !this.other_isoforms_disabled && !this.other_isoforms_loading && this.show_all_other_isoforms && this.show_stack);
+        },
+
+        rna_modification_sites_visible()
+        {
+            return (!this.rna_modif_disabled && this.show_rna_modif && this.show_stack);
+        },
+
+        rna_modification_levels_visible()
+        {
+            return (!this.rna_modif_disabled && this.show_rna_modif && this.mainData.rnaModifLevelData && this.show_heatmap_column && !this.rna_modif_compact_mode && this.show_rna_modif_heatmap);
+        },
+
+        rna_modification_levels_legend_visible()
+        {
+            return this.rna_modification_levels_visible;
+        },
+
+        isoform_stack_visible()
+        {
+            return this.show_stack;
+        },
+
+        gene_strand_visible()
+        {
+            return this.isoform_stack_visible;
+        },
+
+        isoform_heatmap_visible()
+        {
+            return (this.mainData.heatmapData && this.show_isoform_heatmap && this.show_heatmap_column);
+        },
+
+        isoform_heatmap_legend_visible()
+        {
+            return this.isoform_heatmap_visible;
+        },
+
+        visible_components_exist()
+        {
+            return (this.protein_labels_visible ||
+                    this.protein_diagram_visible ||
+                    this.protein_mappings_visible ||
+                    this.canonical_isoform_visible ||
+                    this.splice_graph_visible ||
+                    this.other_ensembl_isoforms_visible ||
+                    this.rna_modification_sites_visible ||
+                    this.rna_modification_levels_visible ||
+                    this.rna_modification_levels_legend_visible ||
+                    this.isoform_stack_visible ||
+                    this.gene_strand_visible ||
+                    this.isoform_heatmap_visible ||
+                    this.isoform_heatmap_legend_visible);
         }
     },
 
@@ -659,7 +772,8 @@ export default
 
         addHeatmapData()
         {
-            this.setShowHeatmap(true);
+            this.setShowIsoformHeatmap(true);
+            this.setShowHeatmapColumn(true);
             this.buildHeatmapComponent();
         },
 
@@ -828,8 +942,8 @@ export default
             // We want all the text on the left hand side fully shown and centered
             // Idea: Calculate the width of the longest component on the left hand side, then center-align the texts accordingly
 
-            let [shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
-            let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line);
+            let [shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
+            let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line);
 
             // Create a temporary canvas for calculating text metrics
             let text_metrics_canvas = document.createElement("canvas");
@@ -862,14 +976,16 @@ export default
             // Set the font for calculating metrics for other shown texts
             text_metrics_canvas_ctx.font = "16px sans-serif";
 
-            // Deal with the case when only the heatmap is shown
+            // Deal with the case when only the heatmap column is shown
             if (!this.show_stack)
             {
                 // All the information for the second column
-                let [heatmap_width, heatmap_height, heatmap_symbol] = this.$refs.heatmapComponent.buildHeatmapSvg(true);
-                let [heatmap_legend_width, heatmap_legend_height, heatmap_legend_symbol] = this.$refs.heatmapLegendComponent.buildHeatmapLegendSvg(true);
+                let [isoform_heatmap_width, isoform_heatmap_height, isoform_heatmap_symbol] = (this.isoform_heatmap_visible) ? this.$refs.heatmapComponent.buildHeatmapSvg(true) : [-1, -1, null];
+                let [isoform_heatmap_legend_width, isoform_heatmap_legend_height, isoform_heatmap_legend_symbol] = (this.isoform_heatmap_legend_visible) ? this.$refs.heatmapLegendComponent.buildHeatmapLegendSvg(true) : [-1, -1, null];
+                let [rna_modif_heatmap_width, rna_modif_heatmap_height, rna_modif_heatmap_symbol] = (this.rna_modification_levels_visible) ? this.$refs.RNAModifLevelsComponent.buildHeatmapSvg(true) : [-1, -1, null];
+                let [rna_modif_heatmap_legend_width, rna_modif_heatmap_legend_height, rna_modif_heatmap_legend_symbol] = (this.rna_modification_levels_legend_visible) ? this.$refs.RNAModifLevelsLegendComponent.buildHeatmapLegendSvg(true) : [-1, -1, null];
 
-                let second_column_width = Math.max(heatmap_width, heatmap_legend_width);
+                let second_column_width = Math.max(isoform_heatmap_width, isoform_heatmap_legend_width, rna_modif_heatmap_width, rna_modif_heatmap_legend_width);
 
                 let svg = "";
                 let svg_width = 50 + longest_text_width + 50 + second_column_width + 50;
@@ -896,6 +1012,64 @@ export default
                 x = 50 + longest_text_width / 2;
                 y += main_gene_text_height + 15;
 
+                // RNA modification sites list and RNA modification levels heatmap
+                if (!this.rna_modif_disabled && this.show_rna_modif)
+                {
+                    // Draw the 'RNA modification sites (ALPHA):' label
+                    svg += text_topped_centered("RNA modification sites (ALPHA):", x, y, 16, "sans-serif");
+
+                    {
+                        let text_metrics = text_metrics_canvas_ctx.measureText("RNA modification sites (ALPHA):");
+                        y += text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent + 5;
+                    }
+
+                    let line_y = -1;
+                    if (!((rna_modif_heatmap_legend_width === -1) || (rna_modif_heatmap_height === -1) || !rna_modif_heatmap_symbol))
+                    {
+                        line_y = Math.ceil(y + rna_modif_heatmap_height + 10);
+
+                        // Draw the RNA modification levels heatmap
+                        svg += put_in_symbol("rna_modification_levels_heatmap", rna_modif_heatmap_legend_width, rna_modif_heatmap_height, rna_modif_heatmap_symbol);
+                        svg += use("#rna_modification_levels_heatmap", 50 + longest_text_width + 50, y);
+                    }
+
+                    // Draw all shown RNA modification site coordinates
+                    y += 15;
+                    for (let site_text of shown_rna_site_texts)
+                    {
+                        if (site_text === "RNA modification sites (ALPHA):")
+                            continue;
+
+                        let text_elem = text_double_centered(site_text, x, y, 16, "sans-serif", "");
+                        svg += text_elem;
+                        y += 1 + 30;
+                    }
+
+                    y -= 15;
+
+                    if (line_y !== -1)
+                        y = line_y;
+
+                    svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                    y += 15;
+                }
+
+                // RNA modification levels heatmap legend
+                if (!((rna_modif_heatmap_legend_width === -1) || (rna_modif_heatmap_legend_height === -1) || !rna_modif_heatmap_legend_symbol))
+                {
+                    y -= 5;
+
+                    svg += put_in_symbol("rna_modification_levels_heatmap_legend", rna_modif_heatmap_legend_width, rna_modif_heatmap_legend_height, rna_modif_heatmap_legend_symbol);
+                    svg += use("#rna_modification_levels_heatmap_legend", 50 + longest_text_width + 50, y);
+
+                    y = Math.ceil(y + rna_modif_heatmap_legend_height) + 10;
+
+                    svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                    y += 15;
+                }
+
                 // The accession list
 
                 // Draw the 'User isoforms:' label
@@ -906,13 +1080,16 @@ export default
                     y += text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent + 5;
                 }
 
-                // Draw the heatmap
-                svg += put_in_symbol("heatmap", heatmap_width, heatmap_height, heatmap_symbol);
-                svg += use("#heatmap", 50 + longest_text_width + 50, y);
+                // Draw the isoform heatmap
+                if (!((isoform_heatmap_width === -1) || (isoform_heatmap_height === -1) || !isoform_heatmap_symbol))
+                {
+                    svg += put_in_symbol("isoform_heatmap", isoform_heatmap_width, isoform_heatmap_height, isoform_heatmap_symbol);
+                    svg += use("#isoform_heatmap", 50 + longest_text_width + 50, y);
+                }
 
-                // Draw the grey horizontal line
-                let line_y = Math.ceil(y + heatmap_height + 10);
-                svg += line(0, line_y + 0.5, svg_width - 1, line_y + 0.5, "#dee2e6", 1);
+                let line_y = -1;
+                if (isoform_heatmap_height !== -1)
+                    line_y = Math.ceil(y + isoform_heatmap_height + 10);
 
                 // Draw all shown isoform texts
                 y += 25;
@@ -932,18 +1109,29 @@ export default
                     y += 1 + 50;
                 }
 
-                y = line_y + 10;
+                y -= 30;
+
+                // Draw the grey horizontal line
+                if (line_y !== -1)
+                    y = line_y;
+
+                svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                y += 10;
 
                 // Draw the IsoVis logo
                 svg += isovis_logo_symbol("logo", 123.75, 120);
                 svg += use("#logo", 50 + (longest_text_width - 123.75) / 2, y);
 
-                // Draw the heatmap legend
-                svg += put_in_symbol("heatmap_legend", heatmap_legend_width, heatmap_legend_height, heatmap_legend_symbol);
-                svg += use("#heatmap_legend", 50 + longest_text_width + 50, y);
+                // Draw the isoform heatmap legend
+                if (!((isoform_heatmap_legend_width === -1) || (isoform_heatmap_legend_height === -1) || !isoform_heatmap_legend_symbol))
+                {
+                    svg += put_in_symbol("isoform_heatmap_legend", isoform_heatmap_legend_width, isoform_heatmap_legend_height, isoform_heatmap_legend_symbol);
+                    svg += use("#isoform_heatmap_legend", 50 + longest_text_width + 50, y);
+                }
 
                 // Determine the SVG height
-                let svg_height = Math.ceil(Math.max(y + 120, y + heatmap_legend_height)) + 20;
+                let svg_height = Math.ceil(Math.max(y + 120, y + isoform_heatmap_legend_height)) + 20;
 
                 svg = put_in_svg(svg_width, svg_height, svg);
 
@@ -961,28 +1149,34 @@ export default
                 return;
             }
 
-            let protein_labels_shown = (!this.protein_disabled && this.show_stack && this.show_protein && this.show_protein_labels);
-            let protein_shown = (!this.protein_disabled && this.show_stack && this.show_protein);
-            let canon_shown = (!this.canon_disabled && this.show_stack && this.show_canon);
-            let other_isoforms_shown = (this.is_other_isoforms_button_clicked && !this.other_isoforms_disabled && !this.other_isoforms_loading && this.show_all_other_isoforms && this.show_stack);
-            let heatmap_shown = (this.mainData.heatmapData && this.show_heatmap);
+            let protein_labels_shown = this.protein_labels_visible;
+            let protein_shown = this.protein_diagram_visible;
+            let canon_shown = this.canonical_isoform_visible;
+            let splice_graph_shown = this.splice_graph_visible;
+            let other_isoforms_shown = this.other_ensembl_isoforms_visible;
+            let rna_modification_sites_shown = this.rna_modification_sites_visible;
+            let isoform_heatmap_shown = this.isoform_heatmap_visible;
 
             // All the information for the second column
             let [protein_labels_width, protein_labels_height, protein_labels_symbol] = (protein_labels_shown) ? this.$refs.proteinLabelsComponent.buildProteinLabelsSvg(true) : [-1, -1, null];
             let [protein_width, protein_height, protein_symbol] = (protein_shown) ? this.$refs.proteinComponent.buildProteinSvg(true) : [-1, -1, null];
             let [protein_map_width, protein_map_height, protein_map_symbol] = (protein_shown) ? this.$refs.proteinComponent.buildProteinMapSvg(true) : [-1, -1, null];
             let [canon_track_width, canon_track_height, canon_track_symbol] = (canon_shown) ? this.$refs.canonStackComponent.buildStackSvg(true) : [-1, -1, null];
+            let [splice_graph_width, splice_graph_height, splice_graph_symbol] = (splice_graph_shown) ? this.$refs.spliceGraphComponent.buildGraphSvg(true) : [-1, -1, null];
             let [other_isoforms_width, other_isoforms_height, other_isoforms_symbol] = (other_isoforms_shown) ? this.$refs.otherIsoformStackComponent.buildStackSvg(true) : [-1, -1, null];
+            let [rna_modif_stack_width, rna_modif_stack_height, rna_modif_stack_symbol] = (rna_modification_sites_shown) ? this.$refs.RNAModifStackComponent.buildStackSvg(true) : [-1, -1, null];
             let [isoform_stack_width, isoform_stack_height, isoform_stack_symbol] = this.$refs.isoformStackComponent.buildStackSvg(true);
             let [gene_strand_width, gene_strand_height, gene_strand_symbol] = this.$refs.geneStrandComponent.buildStrandSvg(true);
 
             let second_column_width = Math.max(protein_width, protein_map_width, canon_track_width, isoform_stack_width, gene_strand_width);
 
             // All the information for the third column
-            let [heatmap_width, heatmap_height, heatmap_symbol] = (heatmap_shown) ? this.$refs.heatmapComponent.buildHeatmapSvg(true) : [-1, -1, null];
-            let [heatmap_legend_width, heatmap_legend_height, heatmap_legend_symbol] = (heatmap_shown) ? this.$refs.heatmapLegendComponent.buildHeatmapLegendSvg(true) : [-1, -1, null];
+            let [isoform_heatmap_width, isoform_heatmap_height, isoform_heatmap_symbol] = (isoform_heatmap_shown) ? this.$refs.heatmapComponent.buildHeatmapSvg(true) : [-1, -1, null];
+            let [isoform_heatmap_legend_width, isoform_heatmap_legend_height, isoform_heatmap_legend_symbol] = (isoform_heatmap_shown) ? this.$refs.heatmapLegendComponent.buildHeatmapLegendSvg(true) : [-1, -1, null];
+            let [rna_modif_heatmap_width, rna_modif_heatmap_height, rna_modif_heatmap_symbol] = (this.rna_modification_levels_visible) ? this.$refs.RNAModifLevelsComponent.buildHeatmapSvg(true) : [-1, -1, null];
+            let [rna_modif_heatmap_legend_width, rna_modif_heatmap_legend_height, rna_modif_heatmap_legend_symbol] = (this.rna_modification_levels_legend_visible) ? this.$refs.RNAModifLevelsLegendComponent.buildHeatmapLegendSvg(true) : [-1, -1, null];
 
-            let third_column_width = Math.max(-1, heatmap_width, heatmap_legend_width);
+            let third_column_width = Math.max(-1, isoform_heatmap_width, isoform_heatmap_legend_width, rna_modif_heatmap_width, rna_modif_heatmap_legend_width);
 
             let svg = "";
             let svg_width = 50 + longest_text_width + 50 + second_column_width + 50;
@@ -1175,6 +1369,29 @@ export default
                 y += 15;
             }
 
+            // Splice differences graph
+            if (splice_graph_shown)
+            {
+                // Draw the 'Splice differences graph (ALPHA):' label
+                svg += text_topped_centered("Splice differences graph (ALPHA):", x, y, 16, "sans-serif");
+
+                // Draw the splice differences graph
+                let line_y = -1;
+                if (!((splice_graph_width === -1) || (splice_graph_height === -1) || !splice_graph_symbol))
+                {
+                    line_y = Math.ceil(y + splice_graph_height);
+                    svg += put_in_symbol("splice_graph", splice_graph_width, splice_graph_height, splice_graph_symbol);
+                    svg += use("#splice_graph", 50 + longest_text_width + 50, y);
+                }
+
+                if (line_y !== -1)
+                    y = line_y;
+
+                svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                y += 15;
+            }
+
             // Other Ensembl isoforms
             if (other_isoforms_shown)
             {
@@ -1221,6 +1438,71 @@ export default
                 y += 15;
             }
 
+            // RNA modification sites stack and RNA modification levels heatmap
+            if (rna_modification_sites_shown)
+            {
+                // Draw the 'RNA modification sites (ALPHA):' label
+                svg += text_topped_centered("RNA modification sites (ALPHA):", x, y, 16, "sans-serif");
+
+                {
+                    let text_metrics = text_metrics_canvas_ctx.measureText("RNA modification sites (ALPHA):");
+                    y += text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent + 5;
+                }
+
+                // Draw the RNA modification sites stack
+                let line_y = -1;
+                if (!((rna_modif_stack_width === -1) || (rna_modif_stack_height === -1) || !rna_modif_stack_symbol))
+                {
+                    line_y = Math.ceil(y + rna_modif_stack_height + 10);
+                    svg += put_in_symbol("rna_modification_sites_stack", rna_modif_stack_width, rna_modif_stack_height, rna_modif_stack_symbol);
+                    svg += use("#rna_modification_sites_stack", 50 + longest_text_width + 50, y);
+                }
+
+                // Draw the RNA modification levels heatmap
+                if (!((rna_modif_heatmap_legend_width === -1) || (rna_modif_heatmap_legend_height === -1) || !rna_modif_heatmap_legend_symbol))
+                {
+                    line_y = Math.max(Math.ceil(y + rna_modif_heatmap_height + 10), line_y);
+                    svg += put_in_symbol("rna_modification_levels_heatmap", rna_modif_heatmap_legend_width, rna_modif_heatmap_height, rna_modif_heatmap_symbol);
+                    svg += use("#rna_modification_levels_heatmap", 50 + longest_text_width + 50 + second_column_width + 50, y);
+                }
+
+                // Draw all shown RNA modification site coordinates
+                y += 15;
+                for (let site_text of shown_rna_site_texts)
+                {
+                    if (site_text === "RNA modification sites (ALPHA):")
+                        continue;
+
+                    let text_elem = text_double_centered(site_text, x, y, 16, "sans-serif", "");
+                    svg += text_elem;
+                    y += 1 + 30;
+                }
+
+                y -= 15;
+
+                if (line_y !== -1)
+                    y = line_y;
+
+                svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                y += 15;
+            }
+
+            // RNA modification levels heatmap legend
+            if (!((rna_modif_heatmap_legend_width === -1) || (rna_modif_heatmap_legend_height === -1) || !rna_modif_heatmap_legend_symbol))
+            {
+                y -= 5;
+
+                svg += put_in_symbol("rna_modification_levels_heatmap_legend", rna_modif_heatmap_legend_width, rna_modif_heatmap_legend_height, rna_modif_heatmap_legend_symbol);
+                svg += use("#rna_modification_levels_heatmap_legend", 50 + longest_text_width + 50 + second_column_width + 50, y);
+
+                y = Math.ceil(y + rna_modif_heatmap_legend_height) + 10;
+
+                svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                y += 15;
+            }
+
             // The accession list
 
             // Draw the 'User isoforms:' label
@@ -1235,19 +1517,18 @@ export default
             svg += put_in_symbol("isoform_stack", isoform_stack_width, isoform_stack_height, isoform_stack_symbol);
             svg += use("#isoform_stack", 50 + longest_text_width + 50, y);
 
-            // Draw the heatmap
-            if (heatmap_shown)
+            // Draw the isoform heatmap
+            if (!((isoform_heatmap_width === -1) || (isoform_heatmap_height === -1) || !isoform_heatmap_symbol))
             {
-                if (!((heatmap_width === -1) || (heatmap_height === -1) || !heatmap_symbol))
-                {
-                    svg += put_in_symbol("heatmap", heatmap_width, heatmap_height, heatmap_symbol);
-                    svg += use("#heatmap", 50 + longest_text_width + 50 + second_column_width + 50, y);
-                }
+                svg += put_in_symbol("isoform_heatmap", isoform_heatmap_width, isoform_heatmap_height, isoform_heatmap_symbol);
+                svg += use("#isoform_heatmap", 50 + longest_text_width + 50 + second_column_width + 50, y);
             }
 
-            // Draw the grey horizontal line
-            let line_y = Math.ceil(y + isoform_stack_height + 10);
-            svg += line(0, line_y + 0.5, svg_width - 1, line_y + 0.5, "#dee2e6", 1);
+            let line_y = -1;
+            if (isoform_heatmap_height !== -1)
+                line_y = Math.ceil(y + isoform_heatmap_height + 10);
+
+            line_y = Math.max(y + isoform_stack_height + 10, line_y);
 
             // Draw all shown isoform texts
             y += 25;
@@ -1267,7 +1548,15 @@ export default
                 y += 1 + 50;
             }
 
-            y = line_y + 10;
+            y -= 30;
+
+            // Draw the grey horizontal line
+            if (line_y !== -1)
+                y = line_y;
+
+            svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+            y += 10;
 
             // Draw the IsoVis logo
             svg += isovis_logo_symbol("logo", 123.75, 120);
@@ -1277,18 +1566,15 @@ export default
             svg += put_in_symbol("gene_strand", gene_strand_width, gene_strand_height, gene_strand_symbol);
             svg += use("#gene_strand", 50 + longest_text_width + 50, y);
 
-            // Draw the heatmap legend
-            if (heatmap_shown)
+            // Draw the isoform heatmap legend
+            if (!((isoform_heatmap_legend_width === -1) || (isoform_heatmap_legend_height === -1) || !isoform_heatmap_legend_symbol))
             {
-                if (!((heatmap_legend_width === -1) || (heatmap_legend_height === -1) || !heatmap_legend_symbol))
-                {
-                    svg += put_in_symbol("heatmap_legend", heatmap_legend_width, heatmap_legend_height, heatmap_legend_symbol);
-                    svg += use("#heatmap_legend", 50 + longest_text_width + 50 + second_column_width + 50, y);
-                }
+                svg += put_in_symbol("isoform_heatmap_legend", isoform_heatmap_legend_width, isoform_heatmap_legend_height, isoform_heatmap_legend_symbol);
+                svg += use("#isoform_heatmap_legend", 50 + longest_text_width + 50 + second_column_width + 50, y);
             }
 
             // Determine the SVG height
-            let svg_height = Math.ceil(Math.max(y + 120, y + gene_strand_height, y + heatmap_legend_height)) + 20;
+            let svg_height = Math.ceil(Math.max(y + 120, y + gene_strand_height, y + isoform_heatmap_legend_height)) + 20;
 
             svg = put_in_svg(svg_width, svg_height, svg);
 
@@ -1304,7 +1590,7 @@ export default
             link.click();
         },
 
-        determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line)
+        determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line)
         {
             // Determine the first line of the protein info
             let protein_first_line = "";
@@ -1322,7 +1608,13 @@ export default
             for (let [line_text, ignored] of shown_text_and_links)
                 shown_texts.push(line_text);
 
+            if (this.splice_graph_visible)
+                shown_texts.push("Splice differences graph (ALPHA):");
+
             for (let [line_text, ignored] of shown_other_text_and_links)
+                shown_texts.push(line_text);
+
+            for (let line_text of shown_rna_site_texts)
                 shown_texts.push(line_text);
 
             // Determine the first line of the canonical isoform info
@@ -1363,9 +1655,10 @@ export default
 
         determineLeftSideTexts()
         {
+            // Structure: An array of [text, hyperlink for the text if it exists]
             let shown_text_and_links = [["User isoforms:", null]];
 
-            // Accession list
+            // Accession list (always visible)
             for (let transcriptId of this.transcriptIds)
             {
                 let shown_text = null;
@@ -1392,7 +1685,7 @@ export default
             let shown_canonical_text_and_links = [];
 
             // Canonical isoform
-            if (!this.canon_disabled && this.show_stack && this.show_canon)
+            if (this.canonical_isoform_visible)
             {
                 shown_canonical_text_and_links.push(["Canonical isoform:", null]);
 
@@ -1412,7 +1705,7 @@ export default
             let shown_other_text_and_links = [];
 
             // Other Ensembl isoforms
-            if (this.is_other_isoforms_button_clicked && !this.other_isoforms_disabled && !this.other_isoforms_loading && this.show_all_other_isoforms && this.show_stack)
+            if (this.other_ensembl_isoforms_visible)
             {
                 shown_other_text_and_links.push(["Other Ensembl isoforms (beta):", null]);
 
@@ -1428,6 +1721,22 @@ export default
 
                     shown_other_text_and_links.push([shown_text, link]);
                 }
+            }
+
+            let shown_rna_site_texts = [];
+
+            // RNA modification sites
+            if (!this.rna_modif_disabled && this.show_rna_modif)
+            {
+                shown_rna_site_texts.push("RNA modification sites (ALPHA):");
+
+                if (!this.rna_modif_compact_mode)
+                {
+                    for (let site of this.siteOrder)
+                        shown_rna_site_texts.push(site.toString());
+                }
+                else
+                    shown_rna_site_texts.push("(Compact mode enabled)");
             }
 
             // Protein
@@ -1488,7 +1797,7 @@ export default
                 protein_info_third_line = " Disordered region, " + " Coil";
             }
 
-            return [shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, protein_info_first_line, protein_info_second_line, protein_info_third_line];
+            return [shown_text_and_links, shown_canonical_text_and_links, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line];
         },
 
         exportProteinLabelsSVG()
@@ -1527,12 +1836,48 @@ export default
             link.click();
         },
 
+        exportSpliceGraphSVG()
+        {
+            let svg = this.$refs.spliceGraphComponent.buildGraphSvg();
+            let link = document.createElement('a');
+            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
+            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_splice_graph.svg` : 'IsoVis_splice_graph.svg';
+            link.click();
+        },
+
         exportOtherIsoformsSVG()
         {
             let svg = this.$refs.otherIsoformStackComponent.buildStackSvg();
             let link = document.createElement('a');
             link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
             link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_other_isoforms.svg` : 'IsoVis_other_isoforms.svg';
+            link.click();
+        },
+
+        exportRNAModificationSitesSVG()
+        {
+            let svg = this.$refs.RNAModifStackComponent.buildStackSvg();
+            let link = document.createElement('a');
+            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
+            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_rna_modification_sites.svg` : 'IsoVis_rna_modification_sites.svg';
+            link.click();
+        },
+
+        exportRNAModificationLevelsSVG()
+        {
+            let svg = this.$refs.RNAModifLevelsComponent.buildHeatmapSvg();
+            let link = document.createElement('a');
+            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
+            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_rna_modification_levels.svg` : 'IsoVis_rna_modification_levels.svg';
+            link.click();
+        },
+
+        exportRNAModificationLevelsLegendSVG()
+        {
+            let svg = this.$refs.RNAModifLevelsLegendComponent.buildHeatmapLegendSvg();
+            let link = document.createElement('a');
+            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
+            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_rna_modification_levels_legend.svg` : 'IsoVis_rna_modification_levels_legend.svg';
             link.click();
         },
 
@@ -1758,10 +2103,10 @@ export default
         {
             this.$refs.heatmapComponent.buildHeatmap();
             this.$refs.heatmapLegendComponent.buildHeatmapLegend();
-            if (this.mainData.m6aLevelData)
+            if (this.mainData.rnaModifLevelData)
             {
-                this.$refs.m6ALevelsComponent.buildHeatmap();
-                this.$refs.m6ALevelsLegendComponent.buildHeatmapLegend();
+                this.$refs.RNAModifLevelsComponent.buildHeatmap();
+                this.$refs.RNAModifLevelsLegendComponent.buildHeatmapLegend();
             }
         },
 
@@ -1773,8 +2118,8 @@ export default
             this.$refs.spliceGraphComponent.buildGraph();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
-            if (!this.m6a_disabled)
-                this.$refs.m6AStackComponent.buildStack();
+            if (!this.rna_modif_disabled)
+                this.$refs.RNAModifStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
             if (!this.protein_disabled)
                 this.buildProteinComponent();
@@ -1788,8 +2133,8 @@ export default
             this.$refs.spliceGraphComponent.buildGraph();
             if (!this.canon_disabled)
                 this.$refs.canonStackComponent.buildStack();
-            if (!this.m6a_disabled)
-                this.$refs.m6AStackComponent.buildStack();
+            if (!this.rna_modif_disabled)
+                this.$refs.RNAModifStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
             if (!this.protein_disabled)
             {
@@ -1829,25 +2174,34 @@ export default
             this.resizePage();
         },
 
-        setShowm6A(state)
+        setShowRNAModif(state)
         {
-            this.show_m6a = state;
-            if (this.show_m6a === false)
+            this.show_rna_modif = state;
+            if (this.show_rna_modif === false)
             {
-                this.m6a_compact_mode = false;
-                this.$refs.m6AStackComponent.is_compact = false;
-                this.$refs.m6ALevelsComponent.is_compact = false;
+                this.rna_modif_compact_mode = false;
+                this.$refs.RNAModifStackComponent.is_compact = false;
+                this.$refs.RNAModifLevelsComponent.is_compact = false;
+                this.setShowRNAModifHeatmap(false);
             }
             this.resizePage();
         },
 
-        setm6ACompact(state)
+        setRNAModifCompact(state)
         {
-            this.m6a_compact_mode = state;
-            this.$refs.m6AStackComponent.is_compact = state;
-            this.$refs.m6ALevelsComponent.is_compact = state;
-            if (this.m6a_compact_mode === true)
-                this.show_m6a = true;
+            this.rna_modif_compact_mode = state;
+            this.$refs.RNAModifStackComponent.is_compact = state;
+            this.$refs.RNAModifLevelsComponent.is_compact = state;
+
+            if (this.rna_modif_compact_mode === true)
+            {
+                this.show_rna_modif = true;
+                if (this.mainData.rnaModifLevelData)
+                    this.setShowRNAModifHeatmap(false);
+            }
+            else if (this.mainData.rnaModifLevelData)
+                this.setShowRNAModifHeatmap(true);
+
             this.resizePage();
         },
 
@@ -1871,7 +2225,6 @@ export default
 
             this.show_all_other_isoforms = state;
             this.other_isoforms_toggled = true;
-            //this.resizePage();
             this.is_zoom_reset = true;
             this.resetZoom();
         },
@@ -1880,9 +2233,7 @@ export default
         {
             this.show_splices = state;
             if (!this.show_splices)
-            {
                 this.setShowConstitutiveJunctions(false);
-            }
             this.resizePage();
         },
 
@@ -1900,10 +2251,40 @@ export default
             this.is_stack_toggled = true;
         },
         
-        setShowHeatmap(state)
+        setShowHeatmapColumn(state)
         {
-            this.show_heatmap = state;
+            this.show_heatmap_column = state;
             this.is_heatmap_toggled = true;
+        },
+
+        setShowRNAModifHeatmap(state)
+        {
+            this.show_rna_modif_heatmap = state;
+            this.$refs.RNAModifLevelsComponent.show_rna_modif_heatmap = state;
+            this.$refs.RNAModifLevelsLegendComponent.show_rna_modif_heatmap = state;
+            if (state === true)
+                this.setShowRNAModif(true);
+        },
+
+        setHideRNAModifHeatmapLabels(state)
+        {
+            this.hide_rna_modif_heatmap_labels = state;
+            this.$refs.RNAModifLevelsLegendComponent.hide_rna_modif_heatmap_labels = state;
+            //this.resizePage();
+        },
+
+        setShowIsoformHeatmap(state)
+        {
+            this.show_isoform_heatmap = state;
+            this.$refs.heatmapComponent.show_isoform_heatmap = state;
+            this.$refs.heatmapLegendComponent.show_isoform_heatmap = state;
+        },
+
+        setHideIsoformHeatmapLabels(state)
+        {
+            this.hide_isoform_heatmap_labels = state;
+            this.$refs.heatmapLegendComponent.hide_isoform_heatmap_labels = state;
+            this.resizePage();
         },
 
         requestHeatmapDataUpload()
@@ -1967,10 +2348,11 @@ export default
             this.resizePage();
         },
 
-        toggleLogTransform()
+        setLogTransform(state)
         {
-            this.$refs.heatmapComponent.logTransform = !this.$refs.heatmapComponent.logTransform;
-            this.$refs.heatmapLegendComponent.logTransform = !this.$refs.heatmapLegendComponent.logTransform;
+            this.isoform_heatmap_log_transform = state;
+            this.$refs.heatmapComponent.logTransform = state;
+            this.$refs.heatmapLegendComponent.logTransform = state;
         },
 
         /**
@@ -2436,8 +2818,8 @@ export default
         },
 
         /**
-         * Add an m6A site to the m6A site stack and modification levels heatmap.
-         * @param {Number} site Coordinate of the m6A site
+         * Add an RNA modification site to the RNA modification site stack and modification levels heatmap.
+         * @param {Number} site Coordinate of the RNA modification site
          */
         addSite(site)
         {
@@ -2495,8 +2877,8 @@ export default
         },
 
         /**
-         * Remove an m6A site from the m6A site stack and modification levels heatmap.
-         * @param {Number} site Coordinate of the m6A site
+         * Remove an RNA modification site from the RNA modification site stack and modification levels heatmap.
+         * @param {Number} site Coordinate of the RNA modification site
          */
         removeSite(site)
         {
@@ -2609,7 +2991,7 @@ export default
             for (let transcript_id of this.transcriptIds)
                 isoform_means[transcript_id] = [];
 
-            let cell_values = this.logTransformChecked ? this.mainData.heatmapData.logExport : this.mainData.heatmapData.export;
+            let cell_values = this.isoform_heatmap_log_transform ? this.mainData.heatmapData.logExport : this.mainData.heatmapData.export;
             for (let cell_value of cell_values)
             {
                 let value = cell_value.value;
@@ -2683,7 +3065,7 @@ export default
             for (let site of this.siteOrder)
                 site_level_means[site] = [];
 
-            let all_values = this.mainData.m6aLevelData.export;
+            let all_values = this.mainData.rnaModifLevelData.export;
             for (let site of this.siteOrder)
             {
                 let sample_values = all_values[site];
@@ -2747,8 +3129,8 @@ export default
                 this.$refs.isoformStackComponent.buildStack();
                 this.$refs.otherIsoformStackComponent.buildStack();
                 this.$refs.canonStackComponent.buildStack();
-                if (!this.m6a_disabled)
-                    this.$refs.m6AStackComponent.buildStack();
+                if (!this.rna_modif_disabled)
+                    this.$refs.RNAModifStackComponent.buildStack();
                 this.$refs.geneStrandComponent.buildStrand();
                 this.buildProteinComponent();
 
@@ -2756,7 +3138,7 @@ export default
                     this.$refs.spliceGraphComponent.buildGraph();
             }
 
-            if ((this.mainData.heatmapData || this.mainData.m6aLevelData) && this.show_heatmap)
+            if (this.heatmap_data_exists && this.show_heatmap_column)
                 this.buildHeatmapComponent();
         }
     },
@@ -2785,15 +3167,15 @@ export default
             {
                 this.$refs.isoformStackComponent.buildStack();
                 this.$refs.otherIsoformStackComponent.buildStack();
-                this.$refs.m6AStackComponent.buildStack();
+                this.$refs.RNAModifStackComponent.buildStack();
                 this.$refs.spliceGraphComponent.buildGraph();
             }
 
-            if (this.show_heatmap)
+            if (this.show_heatmap_column)
             {
                 this.$refs.heatmapComponent.buildHeatmap();
-                if (this.mainData.m6aLevelData)
-                    this.$refs.m6ALevelsComponent.buildHeatmap();
+                if (this.mainData.rnaModifLevelData)
+                    this.$refs.RNAModifLevelsComponent.buildHeatmap();
             }
         }
 
@@ -2815,7 +3197,7 @@ export default
             this.resizePage();
         }
 
-        // FIXME: This shouldn't be necessary, but there's an edge case where the protein mappings do not resize
+        // TODO: This shouldn't be necessary, but there's an edge case where the protein mappings do not resize
         // if they're visible and the visibility of other isoforms is toggled
         if (this.other_isoforms_toggled)
         {
@@ -2843,8 +3225,8 @@ export default
                     this.$root.$emit("single_stack_click");
                 else if (where === "OtherStack")
                     this.$root.$emit("single_otherstack_click");
-                else if (where === "m6AStack")
-                    this.$root.$emit("single_m6astack_click");
+                else if (where === "RNAModifStack")
+                    this.$root.$emit("single_rnamodifstack_click");
             }
         });
 
@@ -2882,7 +3264,7 @@ export default
             this.show_constitutive_junctions = false;
 
             this.show_stack = true;
-            this.show_heatmap = true;
+            this.show_heatmap_column = false;
 
             this.is_stack_toggled = false;
             this.is_heatmap_toggled = false;
@@ -2900,12 +3282,12 @@ export default
             this.no_orfs = true;
             this.no_user_orfs = true;
             this.protein_ready = false;
-            this.logTransformChecked = false;
+            this.isoform_heatmap_log_transform = false;
             this.labels = {"ensembl": "", "refseq": "", "uniprot": "", "uniparc": "", "interpro_source_database": ""};
 
             this.protein_disabled = false;
             this.canon_disabled = false;
-            this.m6a_disabled = false;
+            this.rna_modif_disabled = true;
 
             this.siteOrder = [];
             this.allSites = [];
@@ -2946,20 +3328,36 @@ export default
             this.setShowMotifs(true);
             this.setShowDomainLabels(false);
             this.setShowConstitutiveJunctions(false);
-            this.setShowm6A(false);
-            this.setm6ACompact(false);
+            this.setShowRNAModif(false);
+            this.setRNAModifCompact(false);
+
+            this.setHideRNAModifHeatmapLabels(false);
+            this.setHideIsoformHeatmapLabels(false);
+            this.setShowRNAModifHeatmap(false);
+            this.setShowIsoformHeatmap(false);
+            this.setLogTransform(false);
 
             this.resizePage();
 
             if (!this.mainData.demoData)
             {
-                if (!this.mainData.m6aData)
-                    this.m6a_disabled = true;
-                else
+                if (this.mainData.rnaModifData)
                 {
-                    this.siteOrder = JSON.parse(JSON.stringify(this.mainData.m6aData.siteOrder));
-                    this.allSites = JSON.parse(JSON.stringify(this.mainData.m6aData.allSites));
-                    this.site_data = {siteOrder: JSON.parse(JSON.stringify(this.mainData.m6aData.siteOrder))};
+                    this.rna_modif_disabled = false;
+                    if (this.mainData.rnaModifLevelData)
+                        this.setShowRNAModifHeatmap(true);
+                    this.siteOrder = JSON.parse(JSON.stringify(this.mainData.rnaModifData.siteOrder));
+                    this.allSites = JSON.parse(JSON.stringify(this.mainData.rnaModifData.allSites));
+                    this.site_data = {siteOrder: JSON.parse(JSON.stringify(this.mainData.rnaModifData.siteOrder))};
+                }
+
+                if (this.mainData.heatmapData)
+                    this.setShowIsoformHeatmap(true);
+
+                if (this.mainData.heatmapData || (!this.rna_modif_disabled && this.mainData.rnaModifLevelData))
+                {
+                    this.setShowHeatmapColumn(true);
+                    this.resizePage();
                 }
 
                 let gene_id = this.mainData.selectedGene;
@@ -3019,7 +3417,8 @@ export default
             }
             else
             {
-                this.m6a_disabled = true;
+                this.setShowIsoformHeatmap(true);
+                this.show_heatmap_column = true;
                 this.is_gene_on_ensembl = true;
                 this.showCanonLoading = false;
                 this.calculate_canon_mergedranges();
@@ -3036,11 +3435,6 @@ export default
                 this.labels.interpro_source_database = "reviewed";
                 this.labels_ready = true;
             }
-        },
-
-        logTransformChecked()
-        {
-            this.toggleLogTransform();
         }
     }
 }

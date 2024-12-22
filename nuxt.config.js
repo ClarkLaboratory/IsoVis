@@ -61,6 +61,8 @@ export default {
       "BFormFile",
       "BFormGroup",
       "BFormInput",
+      "BIconArrowsCollapse",
+      "BIconArrowsExpand",
       "BIconBook",
       "BIconCheck",
       "BIconDownload",

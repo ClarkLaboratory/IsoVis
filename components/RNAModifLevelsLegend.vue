@@ -4,44 +4,43 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-Component to render a heatmap legend plot, based on heatmapData which must be supplied as input.
-See 'secondaryData' key in demo_data.json for example data.
+Component to render an RNA modification levels legend plot, based on rnaModifLevelData which must be supplied as input.
 
 <template>
 <div>
-    <div id="heatmapLegendDiv">
-        <p>Heatmap legend</p>
+    <div id="RNALevelsLegendDiv">
+        <p>RNA modification levels legend</p>
     </div>
 </div>
 </template>
-
+        
 <script>
 import * as d3 from 'd3';
 import {put_in_svg, rect, line, heatmap_legend_text, linear_gradient, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
 
 export default {
-    props: ["heatmapData"],
+    props: ["rnaModifLevelData"],
     data: () => {
         return {
-            show_isoform_heatmap: true,
-            hide_isoform_heatmap_labels: false,
-            logTransform: false
+            show_rna_modif_heatmap: true,
+            hide_rna_modif_heatmap_labels: false
+            // logTransform: false
         };
     },
 
     methods: {
         buildHeatmapLegend() {
             // Clear the space of any content
-            d3.select('#heatmapLegendDiv').selectAll('*').remove();
+            d3.select('#RNALevelsLegendDiv').selectAll('*').remove();
 
-            if (!this.show_isoform_heatmap)
+            if (!this.show_rna_modif_heatmap)
                 return;
 
             let el = document.getElementById("heatmapDiv");
-            if (!(el && this.heatmapData)) return;
+            if (!(el && this.rnaModifLevelData)) return;
 
-            let data = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            data.splice(this.heatmapData.transcript_id_colnum, 1);
+            let data = JSON.parse(JSON.stringify(this.rnaModifLevelData.samples));
+            data.splice(this.rnaModifLevelData.location_colnum, 1);
 
             for (let i = 0; i < data.length; ++i)
             {
@@ -57,9 +56,9 @@ export default {
             let boundary = el.getBoundingClientRect();
             let width = boundary.width - 2 * padding;
             let colour = {
-                heatmapLow: '#1170aa', // '#962705',
-                heatmapMid: '#fff8e6', // 'white',
-                heatmapHigh: '#fc7d0b',
+                heatmapLow: '#440154',
+                heatmapMid: '#21918c',
+                heatmapHigh: '#fde725',
                 invalid: '#c2c2c2'
             };
 
@@ -69,9 +68,9 @@ export default {
             let num_samples = data.length;
             let cell_width = canvas_width / num_samples;
 
-            if (!this.hide_isoform_heatmap_labels)
+            if (!this.hide_rna_modif_heatmap_labels)
             {
-                d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
+                d3.select("#RNALevelsLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
                 let fontSizeCalcCanvas = document.getElementById("fontSizeCalcCanvas");
                 let fontSizeCalcCanvas_ctx = fontSizeCalcCanvas.getContext("2d");
 
@@ -105,9 +104,9 @@ export default {
                     font_size -= 0.1;
                 }
 
-                d3.select('#heatmapLegendDiv').selectAll('*').remove();
+                d3.select('#RNALevelsLegendDiv').selectAll('*').remove();
 
-                d3.select("#heatmapLegendDiv").append("canvas").attr("id", "heightCalcCanvas");
+                d3.select("#RNALevelsLegendDiv").append("canvas").attr("id", "heightCalcCanvas");
                 let heightCalcCanvas = document.getElementById("heightCalcCanvas");
                 let heightCalcCanvas_ctx = heightCalcCanvas.getContext("2d");
                 heightCalcCanvas_ctx.font = `${font_size}px sans-serif`;
@@ -124,20 +123,20 @@ export default {
             }
 
             height += 15 + 25;
-            d3.select('#heatmapLegendDiv').selectAll('*').remove();
+            d3.select('#RNALevelsLegendDiv').selectAll('*').remove();
 
-            d3.select("#heatmapLegendDiv").append("canvas")
+            d3.select("#RNALevelsLegendDiv").append("canvas")
                 .attr("width", Math.ceil(width))
                 .attr("height", Math.ceil(height))
-                .attr("id", "heatmapLegendCanvas");
-            let canvas = document.getElementById("heatmapLegendCanvas");
+                .attr("id", "RNAModifLevelsLegendCanvas");
+            let canvas = document.getElementById("RNAModifLevelsLegendCanvas");
             let ctx = canvas.getContext("2d");
             ctx.font = `${font_size}px sans-serif`;
             ctx.textBaseline = "bottom";
 
             ctx.beginPath();
 
-            if (!this.hide_isoform_heatmap_labels)
+            if (!this.hide_rna_modif_heatmap_labels)
             {
                 // Draw the horizontal axis line
                 ctx.moveTo(0, 0);
@@ -195,9 +194,9 @@ export default {
             }
 
             // add and position labels to legend
-            let min = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
-            let mid = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
-            let max = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
+            let min = this.rnaModifLevelData.minValue;
+            let mid = this.rnaModifLevelData.average;
+            let max = this.rnaModifLevelData.maxValue;
 
             let min_label = getLabel(min);
             let mid_label = getLabel(mid);
@@ -230,7 +229,7 @@ export default {
 
         buildHeatmapLegendSvg(symbol = false)
         {
-            if (!this.show_isoform_heatmap)
+            if (!this.show_rna_modif_heatmap)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -238,15 +237,15 @@ export default {
             }
 
             let el = document.getElementById("heatmapDiv");
-            if (!(el && this.heatmapData))
+            if (!(el && this.rnaModifLevelData))
             {
                 if (symbol)
                     return [-1, -1, null];
                 return "";
             }
 
-            let data = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            data.splice(this.heatmapData.transcript_id_colnum, 1);
+            let data = JSON.parse(JSON.stringify(this.rnaModifLevelData.samples));
+            data.splice(this.rnaModifLevelData.location_colnum, 1);
 
             for (let i = 0; i < data.length; ++i)
             {
@@ -262,9 +261,9 @@ export default {
             let boundary = el.getBoundingClientRect();
             let width = boundary.width - 2 * padding;
             let colour = {
-                heatmapLow: '#1170aa', // '#962705',
-                heatmapMid: '#fff8e6', // 'white',
-                heatmapHigh: '#fc7d0b',
+                heatmapLow: '#440154',
+                heatmapMid: '#21918c',
+                heatmapHigh: '#fde725',
                 invalid: '#c2c2c2'
             };
 
@@ -274,11 +273,11 @@ export default {
             let num_samples = data.length;
             let cell_width = canvas_width / num_samples;
 
-            d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
+            d3.select("#RNALevelsLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
             let fontSizeCalcCanvas = document.getElementById("fontSizeCalcCanvas");
             let fontSizeCalcCanvas_ctx = fontSizeCalcCanvas.getContext("2d");
 
-            if (!this.hide_isoform_heatmap_labels)
+            if (!this.hide_rna_modif_heatmap_labels)
             {
                 fontSizeCalcCanvas_ctx.textBaseline = "bottom";
                 while (font_size > 2.0)
@@ -322,9 +321,9 @@ export default {
             }
 
             // add and position labels to legend
-            let min = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
-            let mid = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
-            let max = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
+            let min = this.rnaModifLevelData.minValue;
+            let mid = this.rnaModifLevelData.average;
+            let max = this.rnaModifLevelData.maxValue;
 
             let min_label = getLabel(min);
             let mid_label = getLabel(mid);
@@ -353,28 +352,13 @@ export default {
                 text_font_size -= 0.1;
             }
 
-            let log_transform_enabled_font_size = 16.0;
-            if (this.logTransform)
-            {
-                while (log_transform_enabled_font_size > 2.0)
-                {
-                    fontSizeCalcCanvas_ctx.font = `${log_transform_enabled_font_size}px sans-serif`;
-
-                    let text_width = fontSizeCalcCanvas_ctx.measureText("(Log-transformed)").width;
-                    if (svg_width - text_width >= 2)
-                        break;
-
-                    log_transform_enabled_font_size -= 0.1;
-                }
-            }
-
             document.querySelector('#fontSizeCalcCanvas').remove();
 
-            d3.select("#heatmapLegendDiv").append("canvas").attr("id", "heightCalcCanvas");
+            d3.select("#RNALevelsLegendDiv").append("canvas").attr("id", "heightCalcCanvas");
             let heightCalcCanvas = document.getElementById("heightCalcCanvas");
             let heightCalcCanvas_ctx = heightCalcCanvas.getContext("2d");
 
-            if (!this.hide_isoform_heatmap_labels)
+            if (!this.hide_rna_modif_heatmap_labels)
             {
                 heightCalcCanvas_ctx.font = `${font_size}px sans-serif`;
 
@@ -394,7 +378,7 @@ export default {
 
             let svg = "";
 
-            if (!this.hide_isoform_heatmap_labels)
+            if (!this.hide_rna_modif_heatmap_labels)
             {
                 svg += line(0, 0, svg_width - 1, 0, "black", 1);
 
@@ -415,22 +399,13 @@ export default {
             }
 
             // Draw the colour gradient
-            svg = linear_gradient("isoform_heatmap_legend_gradient", [["0%", colour.heatmapLow], ["50%", colour.heatmapMid], ["100%", colour.heatmapHigh]]) + svg;
-            svg += rect((svg_width - legendWidth) / 2, svg_height - 15 - 25, legendWidth, 15, "url(#isoform_heatmap_legend_gradient)");
+            svg = linear_gradient("rna_modification_levels_legend_gradient", [["0%", colour.heatmapLow], ["50%", colour.heatmapMid], ["100%", colour.heatmapHigh]]) + svg;
+            svg += rect((svg_width - legendWidth) / 2, svg_height - 15 - 25, legendWidth, 15, "url(#rna_modification_levels_legend_gradient)");
 
             // Draw the min/mid/max value labels
             svg += text(min_label, (svg_width - legendWidth) / 2, svg_height, text_font_size, "sans-serif");
             svg += text_centered(mid_label, svg_width / 2, svg_height, text_font_size, "sans-serif");
             svg += text_right_aligned(max_label, (svg_width + legendWidth) / 2, svg_height, text_font_size, "sans-serif");
-
-            if (this.logTransform)
-            {
-                heightCalcCanvas_ctx.font = `${log_transform_enabled_font_size}px sans-serif`;
-                let log_transformed_text_metrics = heightCalcCanvas_ctx.measureText("(Log-transformed)");
-                let log_transformed_text_height = Math.ceil(log_transformed_text_metrics.actualBoundingBoxAscent + log_transformed_text_metrics.actualBoundingBoxDescent);
-                svg += text_centered("(Log-transformed)", svg_width / 2, svg_height + 40, log_transform_enabled_font_size, "sans-serif");
-                svg_height += 40 + log_transformed_text_height;
-            }
 
             document.querySelector('#heightCalcCanvas').remove();
 
@@ -443,16 +418,10 @@ export default {
     },
 
     watch: {
-        heatmapData: function() {
+        show_rna_modif_heatmap: function() {
             this.buildHeatmapLegend();
         },
-        show_isoform_heatmap: function() {
-            this.buildHeatmapLegend();
-        },
-        hide_isoform_heatmap_labels: function() {
-            this.buildHeatmapLegend();
-        },
-        logTransform: function() {
+        hide_rna_modif_heatmap_labels: function() {
             this.buildHeatmapLegend();
         }
     }

@@ -4,22 +4,23 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-Component to render an m6A modification levels plot, based on m6aLevelData which must be supplied as input.
+Component to render an RNA modification levels plot, based on rnaModifLevelData which must be supplied as input.
 
 <template>
-<div id="m6ALevelsDiv">
-    <p class="text-center">m6A modification levels</p>
+<div id="RNALevelsDiv">
+    <p class="text-center">RNA modification levels</p>
 </div>
 </template>
         
 <script>
 import * as d3 from 'd3';
-// import {put_in_svg, rect} from "~/assets/svg_utils";
+import {put_in_svg, rect} from "~/assets/svg_utils";
 
 export default {
-    props: ["siteOrder", "m6aLevelData"],
+    props: ["siteOrder", "rnaModifLevelData"],
     data: () => {
         return {
+            show_rna_modif_heatmap: true,
             is_compact: false,
         };
     },
@@ -39,7 +40,10 @@ export default {
             };
             
             // Clear target element of content
-            d3.select('#m6ALevelsDiv').selectAll('*').remove();
+            d3.select('#RNALevelsDiv').selectAll('*').remove();
+
+            if (!this.show_rna_modif_heatmap)
+                return;
 
             // Don't draw the heatmap if compact mode is enabled
             if (this.is_compact)
@@ -47,7 +51,7 @@ export default {
 
             // make copy of data and compute plot width
             let el = document.getElementById("heatmapDiv");
-            if (!(el && this.siteOrder && (this.siteOrder.length > 0) && this.m6aLevelData))
+            if (!(el && this.siteOrder && (this.siteOrder.length > 0) && this.rnaModifLevelData))
                 return;
 
             let boundary = el.getBoundingClientRect();
@@ -55,8 +59,8 @@ export default {
 
             // Labels of row and columns
             let sites = JSON.parse(JSON.stringify(this.siteOrder));
-            let samples = JSON.parse(JSON.stringify(this.m6aLevelData.samples));
-            samples.splice(this.m6aLevelData.location_colnum, 1);
+            let samples = JSON.parse(JSON.stringify(this.rnaModifLevelData.samples));
+            samples.splice(this.rnaModifLevelData.location_colnum, 1);
 
             for (let i = 0; i < samples.length; ++i)
             {
@@ -71,20 +75,20 @@ export default {
             let rowCount = sites.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;
 
-            d3.select("#m6ALevelsDiv").append("canvas")
+            d3.select("#RNALevelsDiv").append("canvas")
                 .attr("width", Math.ceil(width))
                 .attr("height", Math.ceil(height))
-                .attr("id", "m6aLevelsCanvas");
-            let canvas = document.getElementById("m6aLevelsCanvas");
+                .attr("id", "RNALevelsCanvas");
+            let canvas = document.getElementById("RNALevelsCanvas");
             let ctx = canvas.getContext("2d");
 
             // Add background colour
             ctx.fillStyle = colour.invalid;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            let minVal = this.m6aLevelData.minValue;
-            let average = this.m6aLevelData.average;
-            let maxVal = this.m6aLevelData.maxValue;
+            let minVal = this.rnaModifLevelData.minValue;
+            let average = this.rnaModifLevelData.average;
+            let maxVal = this.rnaModifLevelData.maxValue;
             let myColor = d3.scaleLinear()
                 .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
                 .domain([minVal, average, maxVal]);
@@ -93,7 +97,7 @@ export default {
             let cols = samples.length;
             let values = new Array(rows).fill(undefined).map(() => new Array(cols).fill(undefined));
 
-            let cell_values = this.m6aLevelData.export;
+            let cell_values = this.rnaModifLevelData.export;
             for (let i = 0; i < rows; ++i)
             {
                 let site = sites[i];
@@ -128,8 +132,7 @@ export default {
             }
 
             // add tooltip
-            // let self = this;
-            let tooltip = d3.select("#m6ALevelsDiv")
+            let tooltip = d3.select("#RNALevelsDiv")
                             .append("div")
                             .attr("class", "tooltip")
                             .style("visibility", "hidden")
@@ -170,132 +173,127 @@ export default {
                 let sample = samples[col];
                 let value = values[row][col];
 
-                let div = document.getElementById("m6ALevelsDiv");
+                let div = document.getElementById("RNALevelsDiv");
                 let boundary = div.getBoundingClientRect();
                 let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
                 let topVal = (clientY - boundary.top + padding + 5);
 
-                tooltip.html(`Sample: ${sample}<br>Site location: ${site}<br>m6A modification level: ${value}<br>`)
+                tooltip.html(`Sample: ${sample}<br>Site location: ${site}<br>RNA modification level: ${value}<br>`)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
             }
 
             // Add tooltip event listeners to the entire heatmap
-            d3.select("#m6ALevelsDiv").select("canvas")
+            d3.select("#RNALevelsDiv").select("canvas")
                 .on("mouseover", function (evt) {display_tooltip(evt);})
                 .on("mousemove", function (evt) {display_tooltip(evt);})
                 .on("mouseleave", hide_tooltip);
         },
 
-        // buildHeatmapSvg(symbol = false)
-        // {
-        //     // dimensions
-        //     let padding = 16,
-        //     cellDim = 50,
-        //     cellPad = 1;
-        //     let colour = {
-        //         heatmapLow: '#1170aa', // '#962705',
-        //         heatmapMid: '#fff8e6', // 'white',
-        //         heatmapHigh: '#fc7d0b',
-        //         invalid: '#c2c2c2'
-        //     };
+        buildHeatmapSvg(symbol = false)
+        {
+            // dimensions
+            let padding = 16,
+            cellDim = 30,
+            cellPad = 1;
+            let colour = {
+                heatmapLow: '#440154',
+                heatmapMid: '#21918c',
+                heatmapHigh: '#fde725',
+                invalid: '#c2c2c2'
+            };
 
-        //     // make copy of data and compute plot width
-        //     let el = document.getElementById("m6ALevelsDiv");
-        //     if (!(el && this.heatmapData))
-        //     {
-        //         if (symbol)
-        //             return [-1, -1, null];
-        //         return "";
-        //     }
-        //     let boundary = el.getBoundingClientRect();
-        //     let width = boundary.width - 2 * padding;
+            // make copy of data and compute plot width
+            let el = document.getElementById("RNALevelsDiv");
+            if (!el || !this.rnaModifLevelData || !this.siteOrder || (this.siteOrder.length === 0) || !this.show_rna_modif_heatmap || this.is_compact)
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
+            let boundary = el.getBoundingClientRect();
+            let width = boundary.width - 2 * padding;
 
-        //     // Labels of row and columns
-        //     let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
+            // Labels of row and columns
+            let sites = JSON.parse(JSON.stringify(this.siteOrder));
+            let samples = JSON.parse(JSON.stringify(this.rnaModifLevelData.samples));
+            samples.splice(this.rnaModifLevelData.location_colnum, 1);
 
-        //     for (let i = 0; i < samples.length; ++i)
-        //     {
-        //         let sample = samples[i].toLowerCase();
-        //         if (sample === "transcript_id")
-        //         {
-        //             samples.splice(i, 1);
-        //             break;
-        //         }
-        //     }
+            for (let i = 0; i < samples.length; ++i)
+            {
+                let sample = samples[i].toLowerCase();
+                if (sample === "gene_id")
+                {
+                    samples.splice(i, 1);
+                    break;
+                }
+            }
 
-        //     let transcripts = this.heatmapData.transcriptOrder.slice();
-        //     let rowCount = transcripts.length;
-        //     let height = rowCount * (cellDim + cellPad) - cellPad;
+            let rowCount = sites.length;
+            let height = rowCount * (cellDim + cellPad) - cellPad;
 
-        //     // Create an array of uppercase transcripts so that case-insensitive comparison can be performed later
-        //     let uppercase_transcripts = [...transcripts];
-        //     for (let i = 0; i < rowCount; ++i)
-        //         uppercase_transcripts[i] = uppercase_transcripts[i].toUpperCase();
+            width = Math.ceil(width);
+            height = Math.ceil(height);
 
-        //     width = Math.ceil(width);
-        //     height = Math.ceil(height);
+            // Add background colour
+            let svg = rect(0, 0, width, height, colour.invalid);
 
-        //     // Add background colour
-        //     let svg = rect(0, 0, width, height, colour.invalid);
+            let minVal = this.rnaModifLevelData.minValue;
+            let average = this.rnaModifLevelData.average;
+            let maxVal = this.rnaModifLevelData.maxValue;
+            let myColor = d3.scaleLinear()
+                .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
+                .domain([minVal, average, maxVal]);
 
-        //     let minVal = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
-        //     let average = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
-        //     let maxVal = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
-        //     let myColor = d3.scaleLinear()
-        //         .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
-        //         .domain([minVal, average, maxVal]);
+            let rows = rowCount;
+            let cols = samples.length;
+            let values = new Array(rows).fill(undefined).map(() => new Array(cols).fill(undefined));
 
-        //     let rows = uppercase_transcripts.length;
-        //     let cols = samples.length;
-        //     let values = new Array(rows).fill(undefined).map(() => new Array(cols).fill(undefined));
+            let cell_values = this.rnaModifLevelData.export;
+            for (let i = 0; i < rows; ++i)
+            {
+                let site = sites[i];
+                for (let j = 0; j < cols; ++j)
+                {
+                    let sample = samples[j];
+                    if (cell_values[site] && !isNaN(cell_values[site][sample]))
+                        values[i][j] = cell_values[site][sample];
+                }
+            }
 
-        //     let cell_values = this.logTransform ? this.heatmapData.logExport : this.heatmapData.export;
-        //     for (let cell_value of cell_values)
-        //     {
-        //         let transcript = cell_value.transcript;
-        //         let sample = cell_value.sample;
-        //         let value = cell_value.value;
+            let cell_width = width / cols;
+            let cell_height = height / rows;
 
-        //         let transcript_index = uppercase_transcripts.indexOf(transcript.toUpperCase());
-        //         let sample_index = samples.indexOf(sample);
+            // Fill each cell with the correct colour
+            for (let i = 0; i < rows; ++i)
+            {
+                let row = values[i];
+                for (let j = 0; j < cols; ++j)
+                {
+                    let value = row[j];
+                    if (value == undefined)
+                        continue;
 
-        //         if (transcript_index === -1 || sample_index === -1)
-        //             continue;
+                    let x = Math.round(cell_width * j);
+                    let y = Math.round(cell_height * i);
+                    let cell_colour = d3.color(myColor(value)).formatHex();
 
-        //         values[transcript_index][sample_index] = value;
-        //     }
+                    svg += rect(x, y, Math.ceil(cell_width), Math.ceil(cell_height), cell_colour);
+                }
+            }
 
-        //     let cell_width = width / cols;
-        //     let cell_height = height / rows;
+            if (symbol)
+                return [width, height, svg];
 
-        //     // Fill each cell with the correct colour
-        //     for (let i = 0; i < rows; ++i)
-        //     {
-        //         let row = values[i];
-        //         for (let j = 0; j < cols; ++j)
-        //         {
-        //             let value = row[j];
-        //             if (value == undefined)
-        //                 continue;
-
-        //             let x = Math.round(cell_width * j);
-        //             let y = Math.round(cell_height * i);
-        //             let cell_colour = d3.color(myColor(value)).formatHex();
-
-        //             svg += rect(x, y, Math.ceil(cell_width), Math.ceil(cell_height), cell_colour);
-        //         }
-        //     }
-
-        //     if (symbol)
-        //         return [width, height, svg];
-
-        //     svg = put_in_svg(width, height, svg);
-        //     return svg;
-        // }
+            svg = put_in_svg(width, height, svg);
+            return svg;
+        }
     },
 
     watch: {
+        show_rna_modif_heatmap: function() {
+            this.buildHeatmap();
+        },
         siteOrder: function() {
             this.buildHeatmap();
         }

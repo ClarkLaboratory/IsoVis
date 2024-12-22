@@ -16,7 +16,7 @@ Hosted by Stemformatics: https://www.stemformatics.org/
 
 If you use IsoVis, please cite:
 
-Ching Yin Wan, Jack Davis, Manveer Chauhan, Josie Gleeson, Yair D J Prawer, Ricardo De Paoli-Iseppi, Christine A Wells, Jarny Choi, Michael B Clark, IsoVis – a webserver for visualization and annotation of alternative RNA isoforms, *Nucleic Acids Research*, 2024;, gkae343, https://doi.org/10.1093/nar/gkae343
+Ching Yin Wan, Jack Davis, Manveer Chauhan, Josie Gleeson, Yair D J Prawer, Ricardo De Paoli-Iseppi, Christine A Wells, Jarny Choi, Michael B Clark, IsoVis – a webserver for visualization and annotation of alternative RNA isoforms, *Nucleic Acids Research*, Volume 52, Issue W1, 5 July 2024, Pages W341–W347, https://doi.org/10.1093/nar/gkae343
 
 ## Installing IsoVis locally
 

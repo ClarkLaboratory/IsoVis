@@ -21,6 +21,7 @@ export default {
     props: ["heatmapData"],
     data: () => {
         return {
+            show_isoform_heatmap: true,
             logTransform: false
         };
     },
@@ -41,6 +42,9 @@ export default {
             
             // Clear target element of content
             d3.select('#heatmapDiv').selectAll('*').remove();
+
+            if (!this.show_isoform_heatmap)
+                return;
 
             // make copy of data and compute plot width
             let el = document.getElementById("heatmapDiv");
@@ -204,6 +208,13 @@ export default {
                 invalid: '#c2c2c2'
             };
 
+            if (!this.show_isoform_heatmap)
+            {
+                if (symbol)
+                    return [-1, -1, null];
+                return "";
+            }
+
             // make copy of data and compute plot width
             let el = document.getElementById("heatmapDiv");
             if (!(el && this.heatmapData))
@@ -302,6 +313,9 @@ export default {
 
     watch: {
         heatmapData: function() {
+            this.buildHeatmap();
+        },
+        show_isoform_heatmap: function() {
             this.buildHeatmap();
         },
         logTransform: function() {
