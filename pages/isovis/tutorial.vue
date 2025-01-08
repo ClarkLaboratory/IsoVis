@@ -82,7 +82,7 @@
         <div>
             The navigation bar at the top of the page shows two menus. The 'About' menu contains additional information regarding IsoVis, including the changelog for each IsoVis version update and how IsoVis keeps uploaded data private to the user. The 'Help' menu has further information on how to use IsoVis and get help, as well as an extensive <b-link href="../faq/" target="_blank">FAQ page</b-link>.
             <br><br>
-            Users who have encountered issues or would like to request new features can file a bug report or feature request in the IsoVis GitHub repository. For users who wish to send private feedback on IsoVis or do not wish to use GitHub, they may send emails to the <b-link href="mailto:contact@isomix.org">contact@isomix.org</b-link> address shown on the home page.
+            Users who have encountered issues or would like to request new features can file a bug report or feature request in the IsoVis GitHub repository. For users who wish to send private feedback on IsoVis or do not wish to use GitHub, they may send emails to the <b-link href="mailto:contact-isomix@unimelb.edu.au">contact-isomix@unimelb.edu.au</b-link> address shown on the home page.
         </div>
         <br>
         <b-link name="features"></b-link>

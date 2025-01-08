@@ -42,7 +42,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Any questions?</h5>
-                <p>Please contact us on <b-link href="mailto:contact@isomix.org">contact@isomix.org</b-link> if you have any questions regarding our privacy policy.</p>
+                <p>Please contact us on <b-link href="mailto:contact-isomix@unimelb.edu.au">contact-isomix@unimelb.edu.au</b-link> if you have any questions regarding our privacy policy.</p>
             </div>
         </div>
     </div>

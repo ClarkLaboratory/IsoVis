@@ -41,7 +41,7 @@
                 <p>Please do not hesitate to contact us with your enquiries. We also welcome feedback (positive or negative). Alerting us with any bugs or functions can be extremely useful for us, as they can sometimes go undetected otherwise. Feel free to also make new feature requests, as these could be community driven. Thanks for your interest in IsoVis!</p>
                 <ul>
                     <li>Report bugs and request features: <b-link href="https://github.com/ClarkLaboratory/IsoVis/issues" target="_blank">Issue tracker</b-link></li>
-                    <li>All other enquiries: <b-link href="mailto:contact@isomix.org">contact@isomix.org</b-link></li>
+                    <li>All other enquiries: <b-link href="mailto:contact-isomix@unimelb.edu.au">contact-isomix@unimelb.edu.au</b-link></li>
                     <li>Address: 30 Royal Parade, Kenneth Myer Building (144), University of Melbourne, Parkville, Victoria</li>
                 </ul>
             </div>

@@ -48,7 +48,7 @@
             <b-link href="https://www.unimelb.edu.au/" target="_blank"><b-img src="~/assets/logos/uni_logo_long.png" height="70"></b-img></b-link>
         </div>
         <br>
-        <strong>Get in touch:</strong> <b-link href="mailto:contact@isomix.org">contact@isomix.org</b-link>
+        <strong>Get in touch:</strong> <b-link href="mailto:contact-isomix@unimelb.edu.au">contact-isomix@unimelb.edu.au</b-link>
     </div>
 
     <!-- Modal for downloading demo data or Clark Lab data -->
