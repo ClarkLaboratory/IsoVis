@@ -13,11 +13,11 @@
         </div>
         <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
-                <img src="~/assets/logos/NanocountLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <img src="~/assets/logos/IsovisLogo.svg" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
                 <div class="card-body">
-                    <h5 class="card-title">NanoCount</h5>
-                    <p class="card-text">Quantify isoform abundance in Nanopore direct-RNA sequencing</p>
-                    <b-link href="https://github.com/ClarkLaboratory/NanoCount" class="btn btn-primary" target="_blank">Click here for the NanoCount GitHub repository</b-link>
+                    <h5 class="card-title">IsoVis</h5>
+                    <p class="card-text">Visualize transcript structures and expression levels of alternative mRNA isoforms</p>
+                    <b-link href="isovis" class="btn btn-primary" target="_blank">Click here to go to IsoVis</b-link>
                 </div>
             </div>
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
@@ -31,11 +31,11 @@
         </div>
         <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
-                <img src="~/assets/logos/IsovisLogo.svg" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <img src="~/assets/logos/NanocountLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
                 <div class="card-body">
-                    <h5 class="card-title">IsoVis</h5>
-                    <p class="card-text">Visualize transcript structures and expression levels of alternative mRNA isoforms</p>
-                    <b-link href="isovis" class="btn btn-primary" target="_blank">Click here to go to IsoVis</b-link>
+                    <h5 class="card-title">NanoCount</h5>
+                    <p class="card-text">Quantify isoform abundance in Nanopore direct-RNA sequencing</p>
+                    <b-link href="https://github.com/ClarkLaboratory/NanoCount" class="btn btn-primary" target="_blank">Click here for the NanoCount GitHub repository</b-link>
                 </div>
             </div>
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
@@ -44,6 +44,22 @@
                     <h5 class="card-title">IsoLamp</h5>
                     <p class="card-text">Discovery and annotation of transcript isoforms from amplicon sequencing</p>
                     <b-link href="https://github.com/ClarkLaboratory/IsoLamp" class="btn btn-primary" target="_blank">Click here for the IsoLamp GitHub repository</b-link>
+                </div>
+            </div>
+        </div>
+        <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
+            <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
+                <div class="card-body">
+                    <h5 class="card-title">LongViewSC</h5>
+                    <p class="card-text">Interactive visualization of gene and isoform expression in single-cell data</p>
+                    <b-link href="https://github.com/Sefi196/LongViewSC" class="btn btn-primary" target="_blank">Click here for the LongViewSC GitHub repository</b-link>
+                </div>
+            </div>
+            <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
+                <div class="card-body">
+                    <h5 class="card-title">FLAMES single-cell RNA-seq tutorial</h5>
+                    <p class="card-text">A tutorial on using FLAMES to process and analyze long-read single-cell RNA sequencing data</p>
+                    <b-link href="https://sefi196.github.io/FLAMESv2_LR_sc_tutorial/" class="btn btn-primary" target="_blank">Click here for the FLAMES single-cell RNA-seq tutorial</b-link>
                 </div>
             </div>
         </div>
