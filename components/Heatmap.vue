@@ -123,7 +123,7 @@ export default {
                 for (let j = 0; j < cols; ++j)
                 {
                     let value = row[j];
-                    if (value == undefined)
+                    if ((value == undefined) || Number.isNaN(value))
                         continue;
 
                     let x = Math.round(cell_width * j);
@@ -292,7 +292,7 @@ export default {
                 for (let j = 0; j < cols; ++j)
                 {
                     let value = row[j];
-                    if (value == undefined)
+                    if ((value == undefined) || Number.isNaN(value))
                         continue;
 
                     let x = Math.round(cell_width * j);
