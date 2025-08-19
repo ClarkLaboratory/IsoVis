@@ -959,7 +959,7 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new BEDLine(raw_line);
-            if (!line.valid)
+            if (!(line.valid))
                 continue;
 
             let gene_to_search = this.gene;
@@ -1025,7 +1025,7 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new ReducedBEDLine(raw_line, this.num_reduced_bed_columns);
-            if (!line.valid)
+            if (!(line.valid))
                 continue;
 
             let gene_to_search = this.gene;
@@ -1102,7 +1102,7 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new MinimalBEDLine(raw_line, this.num_reduced_bed_columns);
-            if (!line.valid)
+            if (!(line.valid))
                 continue;
 
             let gene_to_search = this.gene;
@@ -1181,7 +1181,7 @@ export class PrimaryData {
         for (let line of lines)
         {
             let gff3_line = new GFF3Line(line);
-            if (!gff3_line.valid)
+            if (!(gff3_line.valid))
                 continue;
 
             let gene_name = gff3_line.attributes.gene_id;
@@ -1203,7 +1203,7 @@ export class PrimaryData {
         for (let line of lines)
         {
             let gtf_line = new GTFLine(line);
-            if (!gtf_line.valid)
+            if (!(gtf_line.valid))
                 continue;
 
             let gene_name = gtf_line.attributes.gene_id;
@@ -1228,7 +1228,7 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new BEDLine(raw_line);
-            if (!line.valid)
+            if (!(line.valid))
                 continue;
 
             let gene = line.gene;
@@ -1246,7 +1246,7 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new ReducedBEDLine(raw_line, this.num_reduced_bed_columns);
-            if (!line.valid)
+            if (!(line.valid))
                 continue;
 
             let gene = line.gene;
@@ -1264,7 +1264,7 @@ export class PrimaryData {
         for (let raw_line of lines)
         {
             let line = new MinimalBEDLine(raw_line, this.num_reduced_bed_columns);
-            if (!line.valid)
+            if (!(line.valid))
                 continue;
 
             let gene = line.gene;
@@ -1799,17 +1799,18 @@ export class ProteinData
 
                     let motif_obj =
                     {
-                        "colour": colour,
-                        "type": type,
                         "display": true,
+                        "colour": colour,
                         "start": start,
                         "end": end,
+                        "startStyle": "straight",
+                        "endStyle": "straight",
                         "metadata":
                         {
                             "database": database,
-                            "type": type,
                             "start": start,
-                            "end": end
+                            "end": end,
+                            "type": type
                         }
                     };
                     this.json.motifs.push(motif_obj);
@@ -1850,33 +1851,20 @@ export class ProteinData
                         {
                             let region_obj = 
                             {
-                                "modelStart": fragment.start,
-                                "modelEnd": fragment.end,
+                                "display": true,
+                                "colour": "#4a1c83",
                                 "start": fragment.start,
                                 "end": fragment.end,
-                                "modelLength": fragment.end - fragment.start,
-                                "colour": "#4a1c83",
-                                "endStyle": "curved",
                                 "startStyle": "curved",
-                                "text": "",
-                                "type": "pfama",
-                                "display": true,
-                                "aliStart": fragment.start,
-                                "aliEnd": fragment.end,
-                                "href": "/family/" + entry_protein_location.model,
+                                "endStyle": "curved",
                                 "metadata":
                                 {
+                                    "database": result.metadata.source_database,
                                     "start": fragment.start,
                                     "end": fragment.end,
-                                    "scoreName": "e-value",
-                                    "score": entry_protein_location.score.toString(),
-                                    "aliStart": fragment.start,
-                                    "aliEnd": fragment.end,
                                     "description": result.metadata.name,
                                     "accession": result.metadata.accession,
-                                    "database": result.metadata.source_database,
-                                    "identifier": result.metadata.name.substring(0, result.metadata.name.indexOf(' ')),
-                                    "type": result.metadata.type.charAt(0).toUpperCase() + result.metadata.type.substring(1)
+                                    "identifier": result.metadata.name.substring(0, result.metadata.name.indexOf(' '))
                                 }
                             };
                             regions.push(region_obj);
@@ -1901,16 +1889,10 @@ export class ProteinData
                 var copy = JSON.parse(JSON.stringify(region));
                 region.start = data.length - copy.end;
                 region.end = data.length - copy.start;
-                region.aliStart = data.length - copy.aliEnd;
-                region.aliEnd = data.length - copy.aliStart;
-                region.modelStart = data.length - copy.modelEnd;
-                region.modelEnd = data.length - copy.modelStart;
                 region.startStyle = copy.endStyle;
                 region.endStyle = copy.startStyle;
                 region.metadata.start = copy.metadata.end;
                 region.metadata.end = copy.metadata.start;
-                region.metadata.aliStart = copy.metadata.aliEnd;
-                region.metadata.aliEnd = copy.metadata.aliStart;
             }
         }
 
@@ -1921,6 +1903,8 @@ export class ProteinData
                 var copy = JSON.parse(JSON.stringify(motif))
                 motif.start = data.length - copy.end;
                 motif.end = data.length - copy.start;
+                motif.startStyle = copy.endStyle;
+                motif.endStyle = copy.startStyle;
                 motif.metadata.start = copy.metadata.end;
                 motif.metadata.end = copy.metadata.start;
             }
@@ -1933,7 +1917,7 @@ export class ProteinData
         {
             let start = region.start;
             let end = region.end;
-            let region_key = `${region.type}_${start}_${end}`;
+            let region_key = `${region.metadata.database}_${start}_${end}`;
 
             this.domainMap[region_key] = {};
             this.domainMap[region_key][start] = this.C2GMap(this.P2CMap(start)[0]);
@@ -1944,7 +1928,7 @@ export class ProteinData
         {
             let start = motif.start;
             let end = motif.end;
-            let motif_key = `${motif.type}_${start}_${end}`;
+            let motif_key = `${motif.metadata.type}_${start}_${end}`;
 
             this.motifMap[motif_key] = {};
             this.motifMap[motif_key][start] = this.C2GMap(this.P2CMap(start)[0]);

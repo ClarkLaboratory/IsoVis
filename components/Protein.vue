@@ -226,7 +226,7 @@ export default {
                 {
                     let start = region.start;
                     let end = region.end;
-                    let region_key = `${region.type}_${start}_${end}`;
+                    let region_key = `${region.metadata.database}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     // Assume that colours are in the form '#rrggbb'
@@ -291,7 +291,7 @@ export default {
                 {
                     let start = motif.start;
                     let end = motif.end;
-                    let motif_key = `${motif.type}_${start}_${end}`;
+                    let motif_key = `${motif.metadata.type}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     // Assume that colours are in the form '#rrggbb'
@@ -411,7 +411,7 @@ export default {
                 {
                     let start = region.start;
                     let end = region.end;
-                    let region_key = `${region.type}_${start}_${end}`;
+                    let region_key = `${region.metadata.database}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     for (let coord of coords)
@@ -566,7 +566,7 @@ export default {
                 {
                     let start = motif.start;
                     let end = motif.end;
-                    let motif_key = `${motif.type}_${start}_${end}`;
+                    let motif_key = `${motif.metadata.type}_${start}_${end}`;
                     let points = [start, end].sort();
 
                     for (let coord of coords)
