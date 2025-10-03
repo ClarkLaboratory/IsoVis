@@ -454,7 +454,7 @@ export default
             const signal = this.controller.signal;
 
             // Search for Ensembl gene IDs by gene symbol from mygene.info
-            let data = await fetch(`https://mygene.info/v3/query?species=${this.taxon_id}&fields=symbol,ensembl.gene&q=symbol:${this.enteredGene}*`, { signal })
+            let data = await fetch(`https://mygene.info/v3/query?species=${this.taxon_id}&fields=symbol,ensembl.gene&q=symbol:${this.enteredGene}*&size=30`, { signal })
                 .then(res => res.json())
                 .catch(() => {});
 
