@@ -3553,7 +3553,7 @@ export default
             if (!ascending)
                 shown_isoforms.reverse();
 
-            shown_isoforms.concat(no_mean_isoforms);
+            shown_isoforms = shown_isoforms.concat(no_mean_isoforms);
 
             this.transcriptIds = [];
             this.mainData.isoformData.isoformList = [];
@@ -3588,6 +3588,9 @@ export default
             for (let peptide of this.peptideOrder)
             {
                 let sample_values = all_values[peptide];
+                if ((sample_values === null) || (sample_values === undefined))
+                    continue;
+
                 for (let sample of Object.keys(sample_values))
                 {
                     let value = sample_values[sample];
@@ -3627,7 +3630,7 @@ export default
             if (!ascending)
                 shown_peptides.reverse();
 
-            shown_peptides.concat(no_mean_peptides);
+            shown_peptides = shown_peptides.concat(no_mean_peptides);
 
             this.peptideOrder = [];
             this.peptide_data.peptideOrder = [];
@@ -3651,6 +3654,9 @@ export default
             for (let site of this.siteOrder)
             {
                 let sample_values = all_values[site];
+                if ((sample_values === null) || (sample_values === undefined))
+                    continue;
+
                 for (let sample of Object.keys(sample_values))
                 {
                     let value = sample_values[sample];
@@ -3690,7 +3696,7 @@ export default
             if (!ascending)
                 shown_sites.reverse();
 
-            shown_sites.concat(no_mean_sites);
+            shown_sites = shown_sites.concat(no_mean_sites);
 
             this.siteOrder = [];
             this.site_data.siteOrder = [];
