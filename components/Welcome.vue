@@ -86,18 +86,18 @@
         <p></p>
 
         <b-link href="https://doi.org/10.1126/sciadv.adp0783" target="_blank"><p style="margin-bottom: 0px">Gleeson J <i>et al.</i> Isoform-level profiling of m<sup>6</sup>A epitranscriptomic signatures in human brain. <i>Sci Adv</i> 2025;<b>11</b>:eadp0783.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.zip')">.zip (7.85 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.7z')">.7z (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.tar.gz')">.tar.gz (7.84 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_bioRxiv_2024.tar.xz')">.tar.xz (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_SciAdv_2024.zip')">.zip (7.85 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_SciAdv_2024.7z')">.7z (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_SciAdv_2024.tar.gz')">.tar.gz (7.84 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('Gleeson_et_al_SciAdv_2024.tar.xz')">.tar.xz (6.09 MB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 
         <b-link href="https://doi.org/10.1186/s13059-025-03724-1" target="_blank"><p style="margin-bottom: 0px">De Paoli-Iseppi R <i>et al.</i> Long-read sequencing reveals the RNA isoform repertoire of neuropsychiatric risk genes in human brain. <i>Genome Biol</i> 2025;<b>26</b>:298.</p></b-link>
-        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_medRxiv_2024.zip')">.zip (122 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_medRxiv_2024.7z')">.7z (111 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_medRxiv_2024.tar.gz')">.tar.gz (120 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
-        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_medRxiv_2024.tar.xz')">.tar.xz (111 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_GenomeBiol_2024.zip')">.zip (122 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_GenomeBiol_2024.7z')">.7z (111 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_GenomeBiol_2024.tar.gz')">.tar.gz (120 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
+        <b-button variant="primary" @click="downloadFile('DePaoliIseppi_et_al_GenomeBiol_2024.tar.xz')">.tar.xz (111 kB) <b-icon-download aria-hidden="true"></b-icon-download></b-button>
 
         <p></p>
 

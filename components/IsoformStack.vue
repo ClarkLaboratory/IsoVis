@@ -19,7 +19,7 @@ import * as d3 from 'd3';
 import {put_in_svg, rect, line} from "~/assets/svg_utils";
 
 export default {
-    props: ["baseAxis", "isoformList"],
+    props: ["baseAxis", "isoformList", "orfInfo"],
     
     data: () => {
         return {
@@ -33,6 +33,10 @@ export default {
             show_user_orfs: false,
             start_drag: -1,
             end_drag: -1,
+
+            ump_orfs_to_highlight: [],
+            ump_transcripts_to_highlight: [],
+            transcripts_to_highlight: [],
 
             tooltip_text: ""
         };
@@ -86,8 +90,20 @@ export default {
 
             try
             {
-                await navigator.clipboard.writeText(this.tooltip_text);
-                this.set_tooltip_copied(true);
+                // Are we copying the tooltip text within the IsoVis website?
+                if (navigator && navigator.clipboard)
+                {
+                    await navigator.clipboard.writeText(this.tooltip_text);
+                    this.set_tooltip_copied(true);
+                }
+                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                else if (window.parent !== window)
+                {
+                    window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
+                    this.set_tooltip_copied(true);
+                }
+                else
+                    this.set_tooltip_copied(false);
             }
             catch (error)
             {
@@ -180,10 +196,8 @@ export default {
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
             this.baseAxis.setPlotWidth(this.width);
 
-            // var data = (state.showCanon) ? state.canonData : state.primaryData;
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
             let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
-            // let exonTranslation = `translate(0, ${(this.isoformHeight - exonHeight) / 2})`;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
@@ -231,10 +245,9 @@ export default {
             let is_ascending = self.baseAxis.isAscending();
             let is_forward_strand = (self.baseAxis.genomeCoords().strand === '+');
             let is_reverse_needed = (is_ascending !== is_forward_strand);
+            let sort_sign = (is_reverse_needed) ? -1 : 1;
 
-            ordered_screen_ranges.sort(function (a, b) {return a[0] - b[0];});
-            if (is_reverse_needed)
-                ordered_screen_ranges.reverse();
+            ordered_screen_ranges.sort(function (a, b) {return sort_sign * (a[0] - b[0]);});
 
             // Add the intron line to each isoform
             ctx.beginPath();
@@ -254,27 +267,19 @@ export default {
             let exon_info = [];
 
             // Add exons to each isoform
-            ctx.fillStyle = (self.show_orfs || self.show_user_orfs) ? "rgb(112,112,112)" : "rgb(83,83,83)";
             for (let i = 0; i < self.isoformList.length; ++i)
             {
                 let isoform = self.isoformList[i];
                 let exon_ranges = isoform.exonRanges;
                 let y = transformation(i) + (self.isoformHeight - exonHeight) / 2;
 
-                let ordered_exon_ranges = JSON.parse(JSON.stringify(exon_ranges));
-                for (let j = 0; j < ordered_exon_ranges.length; ++j)
-                {
-                    let [x0, x1] = ordered_exon_ranges[j];
-                    if (x0 > x1)
-                    {
-                        ordered_exon_ranges[j][0] = x1;
-                        ordered_exon_ranges[j][1] = x0;
-                    }
-                }
-
-                ordered_exon_ranges.sort(function (a, b) {return a[0] - b[0];});
-                if (!is_forward_strand)
-                    ordered_exon_ranges.reverse();
+                let transcript_id = isoform.transcriptID;
+                if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                    ctx.fillStyle = "rgb(0,208,255)";   // uniquely mapped transcript: cyan
+                else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                    ctx.fillStyle = "rgb(0,0,255)";     // gene-level UMP: blue
+                else
+                    ctx.fillStyle = (self.show_orfs || self.show_user_orfs) ? "rgb(112,112,112)" : "rgb(83,83,83)";
 
                 for (let j = 0; j < exon_ranges.length; ++j)
                 {
@@ -302,9 +307,9 @@ export default {
                         x0 = temp;
                     }
 
-                    for (let k = 0; k < ordered_exon_ranges.length; ++k)
+                    for (let k = 0; k < exon_ranges.length; ++k)
                     {
-                        if ((ordered_exon_ranges[k][0] !== x0) || (ordered_exon_ranges[k][1] !== x1))
+                        if ((exon_ranges[k][0] !== x0) || (exon_ranges[k][1] !== x1))
                             continue;
 
                         for (let l = 0; l < ordered_screen_ranges.length; ++l)
@@ -312,7 +317,7 @@ export default {
                             let [screen_x0, screen_x1] = ordered_screen_ranges[l];
                             if ((screen_x0 <= actual_x0) && (actual_x0 <= screen_x1) && (screen_x0 <= actual_x0 + actual_width) && (actual_x0 + actual_width <= screen_x1))
                             {
-                                exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, isoform.transcriptID, x0, x1, k + 1, ordered_exon_ranges.length, l + 1, ordered_screen_ranges.length]);
+                                exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, transcript_id, x0, x1, k + 1, exon_ranges.length, l + 1, ordered_screen_ranges.length]);
                                 break;
                             }
                         }
@@ -327,28 +332,21 @@ export default {
                 let orf_exon_info = [];
 
                 // Add ORFs to each isoform
-                ctx.fillStyle = "rgb(83,83,83)";
                 let orfHeight = self.isoformHeight / 2;
                 for (let i = 0; i < self.isoformList.length; ++i)
                 {
                     let isoform = self.isoformList[i];
+                    let exon_ranges = isoform.exonRanges;
                     let orf_ranges = self.show_orfs ? isoform.orf : isoform.user_orf;
                     let y = transformation(i) + orfHeight / 2;
 
-                    let ordered_exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
-                    for (let j = 0; j < ordered_exon_ranges.length; ++j)
-                    {
-                        let [x0, x1] = ordered_exon_ranges[j];
-                        if (x0 > x1)
-                        {
-                            ordered_exon_ranges[j][0] = x1;
-                            ordered_exon_ranges[j][1] = x0;
-                        }
-                    }
-
-                    ordered_exon_ranges.sort(function (a, b) {return a[0] - b[0];});
-                    if (!is_forward_strand)
-                        ordered_exon_ranges.reverse();
+                    let transcript_id = isoform.transcriptID;
+                    if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                        ctx.fillStyle = "rgb(0,208,255)";   // uniquely mapped transcript: cyan
+                    else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                        ctx.fillStyle = "rgb(0,0,255)";     // gene-level UMP: blue
+                    else
+                        ctx.fillStyle = "rgb(83,83,83)";
 
                     for (let [x0, x1] of orf_ranges)
                     {
@@ -377,7 +375,7 @@ export default {
                             orf_start = temp;
                         }
 
-                        for (let [exon_start, exon_end] of isoform.exonRanges)
+                        for (let [exon_start, exon_end] of exon_ranges)
                         {
                             if (exon_start > exon_end)
                             {
@@ -386,11 +384,11 @@ export default {
                                 exon_start = temp;
                             }
 
-                            if (((orf_start <= exon_start) && (exon_start <= orf_end)) || ((orf_start <= exon_end) && (exon_end <= orf_end)))
+                            if ((exon_start <= orf_start) && (orf_start <= exon_end) && (exon_start <= orf_end) && (orf_end <= exon_end))
                             {
-                                for (let k = 0; k < ordered_exon_ranges.length; ++k)
+                                for (let k = 0; k < exon_ranges.length; ++k)
                                 {
-                                    if ((ordered_exon_ranges[k][0] !== exon_start) || (ordered_exon_ranges[k][1] !== exon_end))
+                                    if ((exon_ranges[k][0] !== exon_start) || (exon_ranges[k][1] !== exon_end))
                                         continue;
 
                                     for (let l = 0; l < ordered_screen_ranges.length; ++l)
@@ -398,7 +396,7 @@ export default {
                                         let [screen_x0, screen_x1] = ordered_screen_ranges[l];
                                         if ((screen_x0 <= actual_x0) && (actual_x0 <= screen_x1) && (screen_x0 <= actual_x0 + actual_width) && (actual_x0 + actual_width <= screen_x1))
                                         {
-                                            orf_exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, isoform.transcriptID, exon_start, exon_end, k + 1, ordered_exon_ranges.length, l + 1, ordered_screen_ranges.length]);
+                                            orf_exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, transcript_id, exon_start, exon_end, k + 1, exon_ranges.length, l + 1, ordered_screen_ranges.length]);
                                             break;
                                         }
                                     }
@@ -412,6 +410,49 @@ export default {
                 }
 
                 exon_info = orf_exon_info.concat(exon_info);
+            }
+
+            // Colour any highlighted ORFs
+            if (self.show_user_orfs && this.orfInfo && (Object.keys(this.orfInfo).length !== 0))
+            {
+                ctx.fillStyle = "rgb(255,149,0)";
+                let orf_ids = Object.keys(this.orfInfo);
+                for (let orf_id of orf_ids)
+                {
+                    if (this.ump_orfs_to_highlight.indexOf(orf_id) === -1)
+                        continue;
+
+                    let orfHeight = self.isoformHeight / 2;
+                    for (let i = 0; i < self.isoformList.length; ++i)
+                    {
+                        let isoform = self.isoformList[i];
+                        let accessions = isoform.accessions;
+                        if (accessions.indexOf(orf_id) === -1)
+                            continue;
+
+                        let orf_ranges = this.orfInfo[orf_id];
+                        let y = transformation(i) + orfHeight / 2;
+
+                        for (let [x0, x1] of orf_ranges)
+                        {
+                            let x = self.baseAxis.isAscending() ? self.baseAxis.scale(x0) : self.baseAxis.scale(x1);
+                            let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
+                            let actual_x0 = Math.round(x);
+                            let actual_x1 = Math.round(width + x);
+                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                            let height = Math.ceil(orfHeight);
+                            let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
+                            let actual_y1 = Math.round(height + y);
+                            let actual_height = actual_y1 - Math.round(y);
+
+                            // Don't draw the exon if it's outside of the canvas
+                            if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
+                                ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
+                            else
+                                continue;
+                        }
+                    }
+                }
             }
 
             let tooltip = d3.select("#stackDiv")
@@ -490,11 +531,29 @@ export default {
                 let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
                 let topVal = (clientY - boundary.top + padding + 5);
 
-                let tooltip_text = `Transcript: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
+                let encoded_orfs_text = "";
+                for (let i = 0; i < self.isoformList.length; ++i)
+                {
+                    let isoform = self.isoformList[i];
+                    if (isoform.transcriptID === shown_transcript_id)
+                    {
+                        if (isoform.accessions && isoform.accessions.length !== 0)
+                        {
+                            if (isoform.accessions.length > 1)
+                                encoded_orfs_text = "ORFs encoded: " + isoform.accessions.join(", ") + "\r\n";
+                            else
+                                encoded_orfs_text = "ORF encoded: " + isoform.accessions[0] + "\r\n";
+                        }
+                        break;
+                    }
+                }
+
+                let tooltip_text = `${encoded_orfs_text}Transcript: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
                 let event = new CustomEvent("set_isoformstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
-                tooltip.html(`Transcript: ${shown_transcript_id}<br>Exon #${shown_exon_number} / ${shown_total_exons}<br>Exonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}<br>Exon range: ${shown_exon_start} - ${shown_exon_end}<br>(Click on the exon to copy the text in this tooltip)<br>`)
+                let tooltip_html = tooltip_text.replaceAll("\r\n", "<br>") + "<br>(Click on the exon to copy the text in this tooltip)<br>";
+                tooltip.html(tooltip_html)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
 
@@ -528,18 +587,14 @@ export default {
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
             this.baseAxis.setPlotWidth(this.width);
 
-            // var data = (state.showCanon) ? state.canonData : state.primaryData;
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
             let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
-            // let exonTranslation = `translate(0, ${(this.isoformHeight - exonHeight) / 2})`;
 
-            let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
-
-            let canvas_width = Math.ceil(self.width);
+            let canvas_width = Math.ceil(this.width);
             let canvas_height = Math.ceil(svgHeight);
 
-            let transformation = (i) => self.groupScale(i, self.isoformHeight, self.isoformGap);
-            let screen_ranges = self.baseAxis.screenRanges();
+            let transformation = (i) => this.groupScale(i, this.isoformHeight, this.isoformGap);
+            let screen_ranges = this.baseAxis.screenRanges();
 
             let svg = "";
 
@@ -566,24 +621,22 @@ export default {
                     actual_x0 = 0;
                 }
                 else if (actual_x1 >= canvas_width)
-                {
                     actual_width -= (actual_x1 - canvas_width);
-                }
 
-                for (let i = 0; i < self.isoformList.length; ++i)
+                for (let i = 0; i < this.isoformList.length; ++i)
                 {
                     let y0 = transformation(i);
-                    svg += rect(actual_x0, y0, actual_width, self.isoformHeight, "#d5ebe8");
+                    svg += rect(actual_x0, y0, actual_width, this.isoformHeight, "#d5ebe8");
                 }
             }
 
             // Add the intron line to each isoform
-            for (let i = 0; i < self.isoformList.length; ++i)
+            for (let i = 0; i < this.isoformList.length; ++i)
             {
-                let isoform = self.isoformList[i];
-                let x0 = self.baseAxis.scale(isoform.start);
-                let x1 = self.baseAxis.scale(isoform.end);
-                let y0 = (self.isoformHeight) / 2 + transformation(i);
+                let isoform = this.isoformList[i];
+                let x0 = this.baseAxis.scale(isoform.start);
+                let x1 = this.baseAxis.scale(isoform.end);
+                let y0 = (this.isoformHeight) / 2 + transformation(i);
                 let y1 = y0;
 
                 if (((x0 <= 0) && (x1 <= 0)) || ((x0 >= canvas_width) && (x1 >= canvas_width)))
@@ -606,17 +659,23 @@ export default {
             }
 
             // Add exons to each isoform
-            let exon_colour = (self.show_orfs || self.show_user_orfs) ? "#707070" : "#535353";
-            for (let i = 0; i < self.isoformList.length; ++i)
+            for (let i = 0; i < this.isoformList.length; ++i)
             {
-                let isoform = self.isoformList[i];
+                let isoform = this.isoformList[i];
                 let exon_ranges = isoform.exonRanges;
-                let y = transformation(i) + (self.isoformHeight - exonHeight) / 2;
+                let y = transformation(i) + (this.isoformHeight - exonHeight) / 2;
+
+                let transcript_id = isoform.transcriptID;
+                let exon_colour = (this.show_orfs || this.show_user_orfs) ? "#707070" : "#535353";
+                if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                    exon_colour = "#00d0ff";    // uniquely mapped transcript: cyan
+                else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                    exon_colour = "#0000ff";    // gene-level UMP: blue
 
                 for (let [x0, x1] of exon_ranges)
                 {
-                    let x = self.baseAxis.isAscending() ? self.baseAxis.scale(x0) : self.baseAxis.scale(x1);
-                    let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
+                    let x = this.baseAxis.isAscending() ? this.baseAxis.scale(x0) : this.baseAxis.scale(x1);
+                    let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
                     let actual_x0 = Math.round(x);
                     let actual_x1 = Math.round(width + x);
                     let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every exon, so ensure they're each at least 1 pixel wide
@@ -641,29 +700,33 @@ export default {
                         actual_x0 = 0;
                     }
                     else if (actual_x1 >= canvas_width)
-                    {
                         actual_width -= (actual_x1 - canvas_width);
-                    }
 
                     svg += rect(actual_x0, actual_y0, actual_width, actual_height, exon_colour);
                 }
             }
 
-            if (self.show_orfs || self.show_user_orfs)
+            if (this.show_orfs || this.show_user_orfs)
             {
                 // Add ORFs to each isoform
-                let orfHeight = self.isoformHeight / 2;
-                for (let i = 0; i < self.isoformList.length; ++i)
+                let orfHeight = this.isoformHeight / 2;
+                for (let i = 0; i < this.isoformList.length; ++i)
                 {
-                    let isoform = self.isoformList[i];
-                    let orf_ranges = self.show_orfs ? isoform.orf : isoform.user_orf;
-
+                    let isoform = this.isoformList[i];
+                    let orf_ranges = this.show_orfs ? isoform.orf : isoform.user_orf;
                     let y = transformation(i) + orfHeight / 2;
+
+                    let transcript_id = isoform.transcriptID;
+                    let exon_colour = "#535353";
+                    if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                        exon_colour = "#00d0ff";    // uniquely mapped transcript: cyan
+                    else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                        exon_colour = "#0000ff";    // gene-level UMP: blue
 
                     for (let [x0, x1] of orf_ranges)
                     {
-                        let x = self.baseAxis.isAscending() ? self.baseAxis.scale(x0) : self.baseAxis.scale(x1);
-                        let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
+                        let x = this.baseAxis.isAscending() ? this.baseAxis.scale(x0) : this.baseAxis.scale(x1);
+                        let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
                         let actual_x0 = Math.round(x);
                         let actual_x1 = Math.round(width + x);
                         let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
@@ -688,11 +751,66 @@ export default {
                             actual_x0 = 0;
                         }
                         else if (actual_x1 >= canvas_width)
-                        {
                             actual_width -= (actual_x1 - canvas_width);
-                        }
 
-                        svg += rect(actual_x0, actual_y0, actual_width, actual_height, "#535353");
+                        svg += rect(actual_x0, actual_y0, actual_width, actual_height, exon_colour);
+                    }
+                }
+            }
+
+            // Colour any highlighted ORFs
+            if (this.show_user_orfs && this.orfInfo && (Object.keys(this.orfInfo).length !== 0))
+            {
+                let exon_colour = "#ff9500"; 
+                let orf_ids = Object.keys(this.orfInfo);
+                for (let orf_id of orf_ids)
+                {
+                    if (this.ump_orfs_to_highlight.indexOf(orf_id) === -1)
+                        continue;
+
+                    let orfHeight = this.isoformHeight / 2;
+                    for (let i = 0; i < this.isoformList.length; ++i)
+                    {
+                        let isoform = this.isoformList[i];
+                        let accessions = isoform.accessions;
+                        if (accessions.indexOf(orf_id) === -1)
+                            continue;
+
+                        let orf_ranges = this.orfInfo[orf_id];
+                        let y = transformation(i) + orfHeight / 2;
+
+                        for (let [x0, x1] of orf_ranges)
+                        {
+                            let x = this.baseAxis.isAscending() ? this.baseAxis.scale(x0) : this.baseAxis.scale(x1);
+                            let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
+                            let actual_x0 = Math.round(x);
+                            let actual_x1 = Math.round(width + x);
+                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                            actual_x1 = actual_x0 + actual_width;
+                            let height = Math.ceil(orfHeight);
+                            let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
+                            let actual_y1 = Math.round(height + y);
+                            let actual_height = actual_y1 - Math.round(y);
+
+                            // Don't draw the exon if it's outside of the canvas
+                            if (((actual_x0 < 0) && (actual_x1 < 0)) || ((actual_x0 >= canvas_width) && (actual_x1 >= canvas_width)))
+                                continue;
+
+                            if ((actual_x0 < 0) && (actual_x1 >= canvas_width))
+                            {
+                                actual_x0 = 0;
+                                actual_width = canvas_width;
+                            }
+                            else if (actual_x0 < 0)
+                            {
+                                actual_width += actual_x0;
+                                actual_x0 = 0;
+                            }
+                            else if (actual_x1 >= canvas_width)
+                                actual_width -= (actual_x1 - canvas_width);
+
+                            svg += rect(actual_x0, actual_y0, actual_width, actual_height, exon_colour);
+                        }
                     }
                 }
             }

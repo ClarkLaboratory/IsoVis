@@ -40,18 +40,7 @@ export default {
             let el = document.getElementById("heatmapDiv");
             if (!(el && this.heatmapData)) return;
 
-            let data = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            data.splice(this.heatmapData.transcript_id_colnum, 1);
-
-            for (let i = 0; i < data.length; ++i)
-            {
-                let sample = data[i].toLowerCase();
-                if (sample === "gene_id")
-                {
-                    data.splice(i, 1);
-                    break;
-                }
-            }
+            let samples = this.heatmapData.labels;
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
@@ -66,7 +55,7 @@ export default {
             let height = 0;
             let font_size = 16.0;
             let canvas_width = Math.ceil(width);
-            let num_samples = data.length;
+            let num_samples = samples.length;
             let cell_width = canvas_width / num_samples;
 
             if (!this.hide_isoform_heatmap_labels)
@@ -82,7 +71,7 @@ export default {
                     let spans = [];
                     for (let i = 0; i < num_samples; ++i)
                     {
-                        let sample = data[i];
+                        let sample = samples[i];
                         let x_coord = -Math.round(cell_width * (i + 0.5));
                         let sample_text_metrics = fontSizeCalcCanvas_ctx.measureText(sample);
                         let sample_text_height = sample_text_metrics.actualBoundingBoxAscent + sample_text_metrics.actualBoundingBoxDescent;
@@ -114,7 +103,7 @@ export default {
 
                 for (let i = 0; i < num_samples; ++i)
                 {
-                    let sample = data[i];
+                    let sample = samples[i];
                     let sample_text_height = heightCalcCanvas_ctx.measureText(sample).width;
                     if (height < sample_text_height)
                         height = sample_text_height;
@@ -160,7 +149,7 @@ export default {
 
                 for (let i = 0; i < num_samples; ++i)
                 {
-                    let sample = data[i];
+                    let sample = samples[i];
                     let sample_text_metrics = ctx.measureText(sample);
                     let sample_text_height = sample_text_metrics.actualBoundingBoxAscent + sample_text_metrics.actualBoundingBoxDescent;
                     let x_coord = -Math.round(cell_width * (i + 0.5)) + Math.round(sample_text_height / 2);
@@ -226,6 +215,9 @@ export default {
             ctx.fillText(min_label, (canvas.width - legendWidth) / 2, height);
             ctx.fillText(mid_label, mid_label_start, height);
             ctx.fillText(max_label, max_label_start, height);
+
+            d3.select("#heatmapLegendCanvas")
+                .on("contextmenu", function (evt) {evt.preventDefault();});
         },
 
         buildHeatmapLegendSvg(symbol = false)
@@ -245,18 +237,7 @@ export default {
                 return "";
             }
 
-            let data = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            data.splice(this.heatmapData.transcript_id_colnum, 1);
-
-            for (let i = 0; i < data.length; ++i)
-            {
-                let sample = data[i].toLowerCase();
-                if (sample === "gene_id")
-                {
-                    data.splice(i, 1);
-                    break;
-                }
-            }
+            let samples = this.heatmapData.labels;
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
@@ -271,7 +252,7 @@ export default {
             let height = 0;
             let font_size = 16.0;
             let canvas_width = Math.ceil(width);
-            let num_samples = data.length;
+            let num_samples = samples.length;
             let cell_width = canvas_width / num_samples;
 
             d3.select("#heatmapLegendDiv").append("canvas").attr("id", "fontSizeCalcCanvas");
@@ -287,7 +268,7 @@ export default {
                     let spans = [];
                     for (let i = 0; i < num_samples; ++i)
                     {
-                        let sample = data[i];
+                        let sample = samples[i];
                         let x_coord = -Math.round(cell_width * (i + 0.5));
                         let sample_text_metrics = fontSizeCalcCanvas_ctx.measureText(sample);
                         let sample_text_height = sample_text_metrics.actualBoundingBoxAscent + sample_text_metrics.actualBoundingBoxDescent;
@@ -380,7 +361,7 @@ export default {
 
                 for (let i = 0; i < num_samples; ++i)
                 {
-                    let sample = data[i];
+                    let sample = samples[i];
                     let sample_text_height = heightCalcCanvas_ctx.measureText(sample).width;
                     if (height < sample_text_height)
                         height = sample_text_height;
@@ -408,7 +389,7 @@ export default {
                 // Draw the sample names below the ticks
                 for (let i = 0; i < num_samples; ++i)
                 {
-                    let sample = data[i];
+                    let sample = samples[i];
                     let x_coord = Math.round(cell_width * (i + 0.5));
                     svg += heatmap_legend_text(sample, x_coord, 9, font_size, "sans-serif");
                 }

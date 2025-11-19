@@ -84,8 +84,20 @@ export default {
 
             try
             {
-                await navigator.clipboard.writeText(this.tooltip_text);
-                this.set_tooltip_copied(true);
+                // Are we copying the tooltip text within the IsoVis website?
+                if (navigator && navigator.clipboard)
+                {
+                    await navigator.clipboard.writeText(this.tooltip_text);
+                    this.set_tooltip_copied(true);
+                }
+                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                else if (window.parent !== window)
+                {
+                    window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
+                    this.set_tooltip_copied(true);
+                }
+                else
+                    this.set_tooltip_copied(false);
             }
             catch (error)
             {
@@ -301,7 +313,8 @@ export default {
                 let event = new CustomEvent("set_rnamodifstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
-                tooltip.html(`Site location: ${shown_site}<br>(Click on the RNA modification site to copy the text in this tooltip)<br>`)
+                let tooltip_html = tooltip_text.replaceAll("\r\n", "<br>") + "<br>(Click on the RNA modification site to copy the text in this tooltip)<br>";
+                tooltip.html(tooltip_html)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
 

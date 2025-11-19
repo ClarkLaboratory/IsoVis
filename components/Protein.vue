@@ -131,6 +131,9 @@ export default {
             d3.select('#proteinDiv').selectAll('*').remove();
             const parent = document.getElementById('proteinDiv');
             const graphic = new DomainGfx({data, parent});
+
+            d3.select("#proteinDiv")
+                .on("contextmenu", function (evt) {evt.preventDefault();})
         },
 
         buildProteinSvg(symbol = false) {
@@ -345,6 +348,9 @@ export default {
                     }
                 }
             }
+
+            d3.select("#proteinMapCanvas")
+                .on("contextmenu", function (evt) {evt.preventDefault();})
         },
 
         buildProteinMapSvg(symbol = false) {
@@ -537,6 +543,8 @@ export default {
 
                         svg += line(x0, y0, x1, y1, "#535353", 1);
 
+                        y1 = svg_height;
+
                         x0 = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
                         x1 = axis.scale(data.domainMap[region_key][coord[1].original]);
 
@@ -691,6 +699,8 @@ export default {
                         }
 
                         svg += line(x0, y0, x1, y1, "#535353", 1);
+
+                        y1 = svg_height;
 
                         x0 = axis.proteinScale(coord[need_flip ? 0 : 1].scaled);
                         x1 = axis.scale(data.motifMap[motif_key][coord[1].original]);

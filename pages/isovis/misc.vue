@@ -12,7 +12,7 @@
                 <h5 class="card-title">Disclaimer</h5>
                 <p>IsoVis renders visualisations based on user provided data and some data sourced from other sites. Hence IsoVis is not responsible for the content of these data being displayed, nor do we guarantee constant availability of the externally sourced data.</p>
                 <p>Information obtained on the IsoVis website is not intended to take the place of medical advice from a fully qualified health professional.</p>
-                <p>The results shown by IsoVis website may not be used for advertising or product endorsement purposes without the author's explicit written permission.</p>
+                <p>The results shown by the IsoVis website may not be used for advertising or product endorsement purposes without the author's explicit written permission.</p>
             </div>
         </div>
         <div class="card">

@@ -59,18 +59,7 @@ export default {
 
             // Labels of row and columns
             let sites = JSON.parse(JSON.stringify(this.siteOrder));
-            let samples = JSON.parse(JSON.stringify(this.rnaModifLevelData.samples));
-            samples.splice(this.rnaModifLevelData.location_colnum, 1);
-
-            for (let i = 0; i < samples.length; ++i)
-            {
-                let sample = samples[i].toLowerCase();
-                if (sample === "gene_id")
-                {
-                    samples.splice(i, 1);
-                    break;
-                }
-            }
+            let samples = this.rnaModifLevelData.labels;
 
             let rowCount = sites.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;
@@ -187,7 +176,8 @@ export default {
             d3.select("#RNALevelsDiv").select("canvas")
                 .on("mouseover", function (evt) {display_tooltip(evt);})
                 .on("mousemove", function (evt) {display_tooltip(evt);})
-                .on("mouseleave", hide_tooltip);
+                .on("mouseleave", hide_tooltip)
+                .on("contextmenu", function (evt) {evt.preventDefault();});
         },
 
         buildHeatmapSvg(symbol = false)
@@ -216,18 +206,7 @@ export default {
 
             // Labels of row and columns
             let sites = JSON.parse(JSON.stringify(this.siteOrder));
-            let samples = JSON.parse(JSON.stringify(this.rnaModifLevelData.samples));
-            samples.splice(this.rnaModifLevelData.location_colnum, 1);
-
-            for (let i = 0; i < samples.length; ++i)
-            {
-                let sample = samples[i].toLowerCase();
-                if (sample === "gene_id")
-                {
-                    samples.splice(i, 1);
-                    break;
-                }
-            }
+            let samples = this.rnaModifLevelData.labels;
 
             let rowCount = sites.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;

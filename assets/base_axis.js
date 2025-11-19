@@ -24,8 +24,8 @@ export class BaseAxis {
     constructor(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all) {
         this.width = width; // genomic width
         this.plotWidth = 700; // screen resolution width
-        this.start = start; 
-        this.end = end; 
+        this.start = start;
+        this.end = end;
         this.fixedIntronLength = 50;
         this.shrink = false; // specifies if intron areas are shrunk, to highlight exonic features - set to true when introns are normalized
         this.mergedRanges = mergedRanges; // metagene coordinates
@@ -40,7 +40,7 @@ export class BaseAxis {
         this.shrunkRange = []; // range for genomic scaling after intron normalization
         this.screenDomain = [0, this.width]; // domain for scaling to screen resolution
         this.screenRange = [0, this.plotWidth]; // range for scaling to screen resolution
-        this.proteinDomain = []; // domain for protein scaling fucntion
+        this.proteinDomain = []; // domain for protein scaling function
         this.avgExonLength = 0;
         this.strand = strand;
         this.ascending = true; // do coordinates increase from left to right? (depends on gene orientation and whether or not reading direction has been switched)
@@ -138,21 +138,14 @@ export class BaseAxis {
          * Calculates scale domain and range for normalized intron state
          */
 
-        let ranges = [];
-        
-        for (var range of this.mergedRanges)
-            ranges.push(range);
-        
-        if (ranges.length < 1) return;
-
-        // Sort metagenes into genomic order
-        ranges.sort(function (a, b) {return a[0] - b[0];});
+        if (this.mergedRanges.length === 0)
+            return;
 
         // Determine which metagenes would be shown in the current zoomed area
         let shown_ranges = [];
         let zoom_start = Math.min(this.start, this.end);
         let zoom_end = Math.max(this.start, this.end);
-        for (let [a, b] of ranges)
+        for (let [a, b] of this.mergedRanges)
         {
             let metagene_start = Math.min(a, b);
             let metagene_end = Math.max(a, b);
@@ -188,7 +181,8 @@ export class BaseAxis {
                 shown_ranges.push(range);
         }
 
-        if (shown_ranges.length < 1) return;
+        if (shown_ranges.length === 0)
+            return;
 
         // Initialise helper variables
         const width = this.width;
@@ -204,9 +198,6 @@ export class BaseAxis {
         const allExonLength = shown_ranges.reduce(function (previous, range) {return previous + Math.abs(range[1] - range[0])}, 0);
         let intronLength = (numIntrons > 0) ? ((width - allExonLength) / numIntrons) * 0.25 : 0;
         this.avgExonLength = (width - numIntrons * intronLength) / rangeCount;
-        // const intronLength = numIntrons > 1 ? Math.max(this.fixedIntronLength, (width * 0.25) / numIntrons) : this.fixedIntronLength;
-        // this.avgExonLength = (width - numIntrons * intronLength) / rangeCount;
-        // const allExonLength = shown_ranges.reduce(function (previous, range) {return previous + Math.abs(range[1] - range[0])}, 0);
         const rangeToLength = d3.scaleLinear().domain([0, allExonLength / rangeCount]).range([0, this.avgExonLength]);
         const d3Domain = [];
         const d3Range = [];
@@ -278,6 +269,7 @@ export class BaseAxis {
         }
         return ranges;
     }
+    
 }
 
 export function createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all, plotWidth=400) {

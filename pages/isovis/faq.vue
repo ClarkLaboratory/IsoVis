@@ -76,7 +76,7 @@
         <br>
         <div>
             Q: <b>What data can I export from IsoVis?</b><br>
-            A: You can export images of your isoform stack and heatmap either on their own or together using the 'Export image as...' button.<br>
+            A: You can export images of different components of the visualization (e.g. isoform stack and heatmap) either on their own or together using the 'Export page as...' button.<br>
                The currently available image formats are PNG, JPEG, SVG and PDF.<br>
                Exported images only show the uploaded data and do not contain website navigation or help features.
         </div>
@@ -114,8 +114,13 @@
                 <li>Protein domain mapping: Turn on or off the mapping of InterPro protein domains to exons.</li>
                 <li>Protein motif mapping: Turn on or off the mapping of InterPro protein motifs to exons.</li>
                 <li>Protein domain labels (beta): Show or hide labels of InterPro protein domains.</li>
+                <li>Peptide mapping (beta): Show or hide the peptide stack.</li>
                 <li>Known ORFs: Turn on or off the display of the coding sequence. Applicable to annotated isoforms with known ORFs only.</li>
-                <li>Load all other Ensembl isoforms (beta): Loads all Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data.</li>
+                <li>User ORFs: Turn on or off the display of the coding sequence. Applicable to isoforms with ORF annotations in the uploaded stack data only.</li>
+                <li>Load all other Ensembl isoforms: Loads all Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data.</li>
+                <li>RNA modifications (beta): Show or hide the RNA modifications stack.</li>
+                <li>Show splice differences graph: Toggle a graph that draws alternative splice junctions found in the isoforms being visualized.</li>
+                <li>Show constitutive junctions: Control whether constitutive splice junctions should also be shown in the splice differences graph.</li>
             </ul>
         </div>
         <div>
@@ -145,7 +150,7 @@
         <div>
             Q: <b>Why doesn't my data show linked gene, canonical transcript, or protein information?</b><br>
             A: If uploading non-human data, ensure you have selected the correct species in the 'Data upload' pop-up.<br>
-               If you have selected the species, check that the data formatting is correct, such as annotating known transcript isoforms with Ensembl transcript IDs.<br>
+               If you have selected the correct species, check that the data formatting is correct, such as annotating known transcript isoforms with Ensembl transcript IDs.<br>
                Alternatively, if the species isn't present in the upload list, there is no data in Ensembl to link to.
         </div>
         <br>
@@ -161,13 +166,13 @@
         <br>
         <div>
             Q: <b>How do I zoom into transcripts?</b><br>
-            A: You could click and drag within the visualization of the canonical transcript, isoform stack, or gene strand.<br>
+            A: You could click and drag within the visualization of the isoform stack or most components that are placed above or below it, such as the canonical transcript, peptide stack, and gene strand diagram.<br>
                You could also use the coordinate box at the top of the page: Enter the range of genomic coordinates you wish to zoom into and press 'Enter'.
         </div>
         <br>
         <div>
             Q: <b>How do I reset the zoom?</b><br>
-            A: You could right-click the visualization of the canonical transcript, isoform stack, or gene strand.<br>
+            A: You could right-click the visualization of the isoform stack or most components that are placed above or below it, such as the canonical transcript, peptide stack, and gene strand diagram.<br>
                Alternatively, you could click on the 'Reset zoom' button at the top of the page.
         </div>
         <br>
@@ -180,13 +185,18 @@
         <br>
         <div>
             Q: <b>How can I view the details of each heatmap cell?</b><br>
-            A: You can hover your cursor over a heatmap cell to see which sample and transcript it is for, as well as its numerical value.<br>
+            A: You can hover your cursor over a heatmap cell to see which sample and transcript / peptide / RNA modification site location it is for, as well as its numerical value.<br>
+        </div>
+        <br>
+        <div>
+            Q: <b>What are the heatmap options?</b><br>
+            A: Each heatmap can be shown or hidden. The sample labels used for each heatmap can also be toggled, which is useful for cases where the samples used by all shown heatmaps are identical or the labels take up a large amount of space. For the isoform counts heatmap, there is an additional option for toggling log transform. Lastly, the entire heatmap column can be hidden, which causes the stack to resize and take up the remaining screen space.<br>
         </div>
         <br>
         <div>
             Q: <b>Why does hovering over a heatmap cell show an 'undefined' or 'NaN' numerical value?</b><br>
             A: 'Undefined' is shown when the heatmap file does not contain any data for that cell. The row of that cell would also show 'undefined' values.<br>
-               'NaN' stands for 'not a number'. This value is shown when the heatmap cell does not contain numerical data.
+               'NaN' stands for 'not a number.' This value is shown when the heatmap cell does not contain numerical data.
         </div>
         <br>
         <div>
@@ -197,7 +207,7 @@
         <div>
             Q: <b>Why is the entire heatmap greyed out? Why does the heatmap colour scale show 'NaN'?</b><br>
             A: The uploaded heatmap data file does not contain any data related to the gene being visualized.<br>
-               'NaN' stands for 'not a number'. The heatmap colour scale shows this when the whole heatmap is greyed out.<br>
+               'NaN' stands for 'not a number.' The heatmap colour scale shows this when the whole heatmap is greyed out.<br>
                If the heatmap file should contain relevant data, ensure it is formatted correctly and uses the correct gene and transcript IDs.
         </div>
         <br>
@@ -229,6 +239,7 @@
                 <li>Linux: Chrome, Firefox</li>
             </ul>
             We recommend using IsoVis on Chrome or Edge as it tends to perform better on these browsers than on Firefox.<br>
+            IsoVis has not been tested on Edge within macOS or Linux yet.<br>
             We <b>do not</b> recommend using IsoVis on Safari as certain features do not work there yet, such as exporting PNGs and JPEGs.<br> 
         </div>
         <br>

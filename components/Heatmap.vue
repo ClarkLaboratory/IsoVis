@@ -53,18 +53,7 @@ export default {
             let width = boundary.width - 2 * padding;
 
             // Labels of row and columns
-            let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            samples.splice(this.heatmapData.transcript_id_colnum, 1);
-
-            for (let i = 0; i < samples.length; ++i)
-            {
-                let sample = samples[i].toLowerCase();
-                if (sample === "gene_id")
-                {
-                    samples.splice(i, 1);
-                    break;
-                }
-            }
+            let samples = this.heatmapData.labels;
 
             let transcripts = this.heatmapData.transcriptOrder.slice();
             let rowCount = transcripts.length;
@@ -136,7 +125,6 @@ export default {
             }
 
             // add tooltip
-            // let self = this;
             let tooltip = d3.select("#heatmapDiv")
                             .append("div")
                             .attr("class", "tooltip")
@@ -192,7 +180,8 @@ export default {
             d3.select("#heatmapDiv").select("canvas")
                 .on("mouseover", function (evt) {display_tooltip(evt);})
                 .on("mousemove", function (evt) {display_tooltip(evt);})
-                .on("mouseleave", hide_tooltip);
+                .on("mouseleave", hide_tooltip)
+                .on("contextmenu", function (evt) {evt.preventDefault();});
         },
 
         buildHeatmapSvg(symbol = false)
@@ -227,18 +216,7 @@ export default {
             let width = boundary.width - 2 * padding;
 
             // Labels of row and columns
-            let samples = JSON.parse(JSON.stringify(this.heatmapData.samples));
-            samples.splice(this.heatmapData.transcript_id_colnum, 1);
-
-            for (let i = 0; i < samples.length; ++i)
-            {
-                let sample = samples[i].toLowerCase();
-                if (sample === "gene_id")
-                {
-                    samples.splice(i, 1);
-                    break;
-                }
-            }
+            let samples = this.heatmapData.labels;
 
             let transcripts = this.heatmapData.transcriptOrder.slice();
             let rowCount = transcripts.length;

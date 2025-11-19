@@ -326,6 +326,9 @@ export default {
                     ctx.textBaseline = prev_text_baseline;
                 }
             }
+
+            d3.select("#proteinLabelsCanvas")
+                .on("contextmenu", function (evt) {evt.preventDefault();})
         },
 
         buildProteinLabelsSvg(symbol = false) {

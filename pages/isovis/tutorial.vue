@@ -47,7 +47,7 @@
             <br><br>
             IsoVis can integrate relevant information from <b-link href="https://www.ensembl.org/index.html" target="_blank">Ensembl</b-link> and <b-link href="https://www.ebi.ac.uk/interpro/" target="_blank">InterPro</b-link> into visualizations. When isoforms are labelled by their Ensembl gene and transcript IDs in the stack file, IsoVis can retrieve the open reading frames of known transcripts, the canonical Ensembl transcript, and the protein domains and motifs of that transcript.
             <br><br>
-            Users can upload files containing isoform information on one gene to a whole transcriptome to IsoVis. Isovis allows users to select and switch between genes to visualize, with the central visualization displaying the isoform information of one gene at a time.
+            Users can upload files containing isoform information on one gene to a whole transcriptome into IsoVis. Isovis allows users to select and switch between genes to visualize, with the central visualization displaying the isoform information of one gene at a time.
             <br><br>
             IsoVis can accept and visualize properly formatted stack and heatmap files containing isoform information from any species (see <b-link href="../help_upload/" target="_blank">help page on proper formatting on input files</b-link>). Currently, IsoVis can integrate Ensembl and InterPro information from any chordate species in Ensembl, plus Drosophila and yeast.
             <br><br>
@@ -89,7 +89,7 @@
         <h3>IsoVis visualization features</h3>
         <br>
         <div class="text-center">
-            <b-img src="~/assets/tutorial/demo_visualization.png" style="max-width: 45vw;"></b-img>
+            <b-img src="~/assets/tutorial/demo_visualization.png" style="max-width: 55vw;"></b-img>
             <br>
             The demo data visualization in IsoVis, which demonstrates the key visualization features.
         </div>
@@ -145,9 +145,9 @@
         </div>
         <br>
         <div>
-            The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript, the canonical protein, the mapping for protein domains and motifs, labels for the protein domains (beta), any known ORFs (open reading frames), and all other Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data (beta).
+            The 'Stack options' button can be used to configure the isoform stack: By default, introns are normalized and have the same width, but intron normalization can be disabled to display the locus in genomic scale. The genomic coordinate axis can be configured to have ascending or descending genomic coordinates. Several elements of the isoform stack can be toggled, including the canonical transcript; the canonical protein; the mapping for protein domains and motifs; labels for the protein domains (beta); any known and user-annotated novel ORFs (open reading frames); all other Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data; and a splice differences graph that shows splice junctions found in the displayed isoforms.
             <br><br>
-            If the 'Known ORFs' stack option is enabled, then Ensembl isoforms that have known ORFs show grey, thinner rectangles for untranslated regions and thicker rectangles for ORFs.
+            If the 'Known ORFs' stack option is enabled, then Ensembl isoforms that have known ORFs show grey, thinner rectangles for untranslated regions and thicker rectangles for ORFs. If the user wishes to visualize the ORFs of novel isoforms, they can upload a stack data file containing such ORF annotations and enable the 'User ORFs' stack option.
         </div>
         <br>
         <div class="text-center">
@@ -181,7 +181,7 @@
         <div>
             Users can optionally upload a heatmap data file, which includes any form of quantitative data related to the shown isoforms. One common use case is to display the expression levels or count matrix for each isoform in specific samples.
             <br><br>
-            Each heatmap cell is coloured on a blue-white-orange scale. Cells can be hovered over to display a pop-up that shows which sample and isoform they are from, as well as the numerical value they are encoding. The three numbers below the scale indicate the minimum, mean, and maximum of the heatmap data values. The shown data can be log-transformed using the log-transform button at the bottom of the heatmap, allowing easier comparison of data across orders of magnitude.
+            Each heatmap cell is coloured on a blue-white-orange scale. Cells can be hovered over to display a pop-up that shows which sample and isoform they are from, as well as the numerical value they are encoding. The three numbers below the scale indicate the minimum, mean, and maximum of the heatmap data values. The shown data can be log-transformed using the log-transform button in the heatmap options menu, allowing easier comparison of data across orders of magnitude.
             <br><br>
             Users can click on the two colour-gradient icons next to the 'User isoforms:' label to sort isoforms by ascending or descending mean heatmap values. This is useful for quickly showing which isoforms have higher overall expression levels in samples.
             <br><br>
@@ -213,7 +213,7 @@
         </div>
         <br>
         <div>
-            An image showing the visualized data can be exported using the options under the 'Export image as...' menu. Only relevant details of the webpage are included in the exported image. Currently, image export options are PNG, JPEG, SVG and PDF.
+            An image showing the visualized data can be exported using the options under the 'Export page as...' menu. Only relevant details of the webpage are included in the exported image. Currently, image export options are PNG, JPEG, SVG and PDF.
         </div>
         <br>
         <b-link name="uploading_data"></b-link>
@@ -245,7 +245,7 @@
         <div>
             To change the gene being visualized, click on the 'Change selected gene' button at the top of the page. The 'Select a gene' pop-up will appear and you can search for and select a different gene to visualize.
             <br><br>
-            To change the dataset being visualized, clear the visualized data using either the 'IsoVis' button or the 'Clear data and return to the home page' button, then choose different files to upload to IsoVis.
+            To change the dataset being visualized, clear the visualized data using either the 'IsoVis' button or the 'Clear data and return to the home page' button, then choose different files to upload into IsoVis.
         </div>
     </b-container>
 </template>

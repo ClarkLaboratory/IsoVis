@@ -8,7 +8,7 @@ Component to render the splice junctions graph.
 
 <template>
 <div id="spliceGraphDiv" ref="parentDiv" style="position: relative; min-height: 100px;">
-    <p>Splice graph</p>
+    <p>Splice differences graph</p>
 </div>
 </template>
 
@@ -339,6 +339,8 @@ export default {
                     }
 
                     svg += arc(x_start, y_start, x_end, y_end, x_radius, y_radius, arc_colour, dasharray);
+
+                    arc_colour = "#000000";
                 }
             }
 

@@ -27,6 +27,12 @@
                 <li><b-link href="#isoform_heatmap_data">Isoform heatmap data</b-link></li>
                 <li><b-link href="#rna_modifications_data">RNA modifications data</b-link></li>
                 <li><b-link href="#rna_modification_level_data">RNA modification level data</b-link></li>
+                <li><b-link href="#peptide_data">Peptide data</b-link></li>
+                <ol>
+                    <li><b-link href="#peptide_bed12">BED12</b-link></li>
+                    <li><b-link href="#peptide_bed4_to_bed9">BED4 to BED9</b-link></li>
+                </ol>
+                <li><b-link href="#peptide_counts_data">Peptide counts data</b-link></li>
                 <li><b-link href="#important_notes">Important notes</b-link></li>
             </ol>
         </div>
@@ -46,7 +52,7 @@
         <h3>Isoform stack data</h3>
         <br>
         <div>
-            Isoform stack data can be provided in <b-link href="#isoform_stack_gff_gtf">GFF/GTF files</b-link> or <b-link href="#isoform_stack_bed">BED files</b-link>.
+            Isoform stack data can be provided in <b><b-link href="#isoform_stack_gff_gtf">GFF/GTF files</b-link></b> or <b><b-link href="#isoform_stack_bed">BED files</b-link></b>. Alternatively, users may upload a <b>GenomeProt GTF annotation file</b>, which also stores peptide data.
             <br><br>
             <b-link name="isoform_stack_gff_gtf"></b-link>
             <b><u>Isoform stack data GFF/GTF files:</u></b>
@@ -72,7 +78,6 @@
                     </ul> 
                 </li>
             </ol>
-            The exons and user ORF of each transcript <b>must</b> be ordered by <b>ascending</b> starting genome coordinates.<br>
             The strand of each transcript isoform (column 7) must be specified.
             <br><br>
 
@@ -127,7 +132,8 @@
         <br>
         <div>
             Isoform heatmap data can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
-            These files must have a file extension of either '.csv' or '.txt'.
+            These files must have a file extension of '.csv', '.tsv' or '.txt'.<br>
+            The uploaded file can either be a <b>Bambu transcript counts file</b> (e.g. counts_transcript.txt) or adhere to the following formatting requirements:
             <br><br>
             The first row of the file should contain column names.
             <br><br>
@@ -137,7 +143,7 @@
                 <li>Be named by unique sample IDs.</li>
                 <li>Contain numeric data corresponding to the transcript/sample of the corresponding row/column.</li>
             </ul>
-            <b>Note</b>: Older IsoVis versions used to require a gene_id column in isoform heatmap data files. For backwards compatibility, the current version of IsoVis ignores the gene_id column if it is present.
+            <b>Note</b>: Older IsoVis versions used to require a gene_id column in isoform heatmap data files. For backwards compatibility, the current version of IsoVis ignores the gene_id column if it is present. Similarly, the GENEID column of Bambu transcript counts files is also ignored.
             <br><br>
             There is no requirement on the positions of the columns.
             <br><br>
@@ -191,7 +197,7 @@
         <br>
         <div>
             RNA modification levels can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
-            These files must have a file extension of either '.csv' or '.txt'.
+            These files must have a file extension of '.csv', '.tsv' or '.txt'.
             <br><br>
             The first row of the file should contain column names.
             <br><br>
@@ -238,6 +244,80 @@
                         <td>0.7</td>
                         <td>0.8</td>
                         <td>0.9</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <br>
+        <b-link name="peptide_data"></b-link>
+        <h3>Peptide data</h3>
+        <br>
+        <div>
+            Peptide data can be provided either as a <b-link href="#peptide_bed12">BED12 file</b-link> or a <b-link href="#peptide_bed4_to_bed9">BED4 to BED9 file</b-link>. Alternatively, users may upload a GenomeProt GTF annotation file as stack data, which also stores peptide data.
+            <br><br>
+            The name column (column 4) of each line <strong>must contain</strong> a transcript ID and peptide sequence in the format <strong>transcriptID_peptideSequence</strong> or <strong>transcriptID|peptideSequence</strong>. Example:
+            <ul>
+                <li><strong>ENST00000123456.1_ACDEFGHI</strong> or <strong>ENST00000123456.1|ACDEFGHI</strong> (for known transcripts)</li>
+                <li><strong>novelTranscript1_ACDEFGHI</strong> or <strong>novelTranscript1|ACDEFGHI</strong> (for novel transcripts)</li>
+            </ul>
+            <b-link name="peptide_bed12"></b-link>
+            <u>1. BED12:</u><br>
+            BED12 files must have a file extension of either '.bed' or '.bed12'.<br>
+            The genomic start and end coordinates of each peptide <strong>must</strong> be specified in columns 2 and 3 respectively.<br>
+            The blocks of genomic coordinates spanned by each peptide should be specified in columns 10 to 12.
+            <br><br>
+            <b-link name="peptide_bed4_to_bed9"></b-link>
+            <u>2. BED4 to BED9:</u><br>
+            BED4 to BED9 files must have a file extension of either '.bed' or '.bedx', where x is 4, 5, 6, 7, 8, or 9.<br>
+            Similar to BED4 - BED9 isoform stack data files, instead of specifying the genomic coordinates of each peptide, columns 2 and 3 should specify the genomic start and end coordinates of a peptide block respectively.<br>
+            All blocks of a peptide should be arranged in ascending starting genomic coordinates.
+        </div>
+        <br>
+        <b-link name="peptide_counts_data"></b-link>
+        <h3>Peptide counts data</h3>
+        <br>
+        <div>
+            Peptide counts can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
+            These files must have a file extension of '.csv', '.tsv' or '.txt'.<br>
+            The uploaded file can either be a <b>DIA-NN peptide counts file</b> (e.g. report.pr_matrix.tsv) or adhere to the following formatting requirements:
+            <br><br>
+            The first row of the file should contain column names.
+            <br><br>
+            The <b>peptide_sequence</b> column <strong>must</strong> be in the file. It stores the amino acid sequence of each peptide (e.g. ACDEFGHI).<br>
+            All other columns should:
+            <ul>
+                <li>Be named by unique sample IDs.</li>
+                <li>Contain numeric data corresponding to the peptide/sample of the corresponding row/column.</li>
+            </ul>
+            There is no requirement on the positions of the columns.
+            <br><br>
+            Example peptide counts data:<table class="table b-table table-sm">
+                <thead>
+                    <tr>
+                        <th>peptide_sequence</th>
+                        <th>sample_1</th>
+                        <th>sample_2</th>
+                        <th>sample_3</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>ACDEFGHI</td>
+                        <td>2000</td>
+                        <td>2100</td>
+                        <td>10000</td>
+                    </tr>
+                    <tr>
+                        <td>KLMNPQRSTVWY</td>
+                        <td>4000</td>
+                        <td>3700</td>
+                        <td>3700</td>
+                    </tr>
+                    <tr>
+                        <td>ADFHKMPRTW</td>
+                        <td>1900</td>
+                        <td>8300</td>
+                        <td>7600</td>
                     </tr>
                 </tbody>
             </table>

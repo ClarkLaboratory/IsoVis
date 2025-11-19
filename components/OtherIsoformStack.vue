@@ -86,8 +86,20 @@ export default {
 
             try
             {
-                await navigator.clipboard.writeText(this.tooltip_text);
-                this.set_tooltip_copied(true);
+                // Are we copying the tooltip text within the IsoVis website?
+                if (navigator && navigator.clipboard)
+                {
+                    await navigator.clipboard.writeText(this.tooltip_text);
+                    this.set_tooltip_copied(true);
+                }
+                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                else if (window.parent !== window)
+                {
+                    window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
+                    this.set_tooltip_copied(true);
+                }
+                else
+                    this.set_tooltip_copied(false);
             }
             catch (error)
             {
@@ -231,10 +243,9 @@ export default {
             let is_ascending = self.baseAxis.isAscending();
             let is_forward_strand = (self.baseAxis.genomeCoords().strand === '+');
             let is_reverse_needed = (is_ascending !== is_forward_strand);
+            let sort_sign = (is_reverse_needed) ? -1 : 1;
 
-            ordered_screen_ranges.sort(function (a, b) {return a[0] - b[0];});
-            if (is_reverse_needed)
-                ordered_screen_ranges.reverse();
+            ordered_screen_ranges.sort(function (a, b) {return sort_sign * (a[0] - b[0]);});
 
             // Add the intron line to each isoform
             ctx.beginPath();
@@ -260,21 +271,6 @@ export default {
                 let isoform = self.isoformList[i];
                 let exon_ranges = isoform.exonRanges;
                 let y = transformation(i) + (self.isoformHeight - exonHeight) / 2;
-
-                let ordered_exon_ranges = JSON.parse(JSON.stringify(exon_ranges));
-                for (let j = 0; j < ordered_exon_ranges.length; ++j)
-                {
-                    let [x0, x1] = ordered_exon_ranges[j];
-                    if (x0 > x1)
-                    {
-                        ordered_exon_ranges[j][0] = x1;
-                        ordered_exon_ranges[j][1] = x0;
-                    }
-                }
-
-                ordered_exon_ranges.sort(function (a, b) {return a[0] - b[0];});
-                if (!is_forward_strand)
-                    ordered_exon_ranges.reverse();
 
                 for (let j = 0; j < exon_ranges.length; ++j)
                 {
@@ -302,9 +298,9 @@ export default {
                         x0 = temp;
                     }
 
-                    for (let k = 0; k < ordered_exon_ranges.length; ++k)
+                    for (let k = 0; k < exon_ranges.length; ++k)
                     {
-                        if ((ordered_exon_ranges[k][0] !== x0) || (ordered_exon_ranges[k][1] !== x1))
+                        if ((exon_ranges[k][0] !== x0) || (exon_ranges[k][1] !== x1))
                             continue;
 
                         for (let l = 0; l < ordered_screen_ranges.length; ++l)
@@ -312,7 +308,7 @@ export default {
                             let [screen_x0, screen_x1] = ordered_screen_ranges[l];
                             if ((screen_x0 <= actual_x0) && (actual_x0 <= screen_x1) && (screen_x0 <= actual_x0 + actual_width) && (actual_x0 + actual_width <= screen_x1))
                             {
-                                exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, isoform.transcriptID, x0, x1, k + 1, ordered_exon_ranges.length, l + 1, ordered_screen_ranges.length]);
+                                exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, isoform.transcriptID, x0, x1, k + 1, exon_ranges.length, l + 1, ordered_screen_ranges.length]);
                                 break;
                             }
                         }
@@ -332,23 +328,9 @@ export default {
                 for (let i = 0; i < self.isoformList.length; ++i)
                 {
                     let isoform = self.isoformList[i];
+                    let exon_ranges = isoform.exonRanges;
                     let orf_ranges = isoform.orf;       // always show known ORFs as user ORFs won't be present
                     let y = transformation(i) + orfHeight / 2;
-
-                    let ordered_exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
-                    for (let j = 0; j < ordered_exon_ranges.length; ++j)
-                    {
-                        let [x0, x1] = ordered_exon_ranges[j];
-                        if (x0 > x1)
-                        {
-                            ordered_exon_ranges[j][0] = x1;
-                            ordered_exon_ranges[j][1] = x0;
-                        }
-                    }
-
-                    ordered_exon_ranges.sort(function (a, b) {return a[0] - b[0];});
-                    if (!is_forward_strand)
-                        ordered_exon_ranges.reverse();
 
                     for (let [x0, x1] of orf_ranges)
                     {
@@ -377,7 +359,7 @@ export default {
                             orf_start = temp;
                         }
 
-                        for (let [exon_start, exon_end] of isoform.exonRanges)
+                        for (let [exon_start, exon_end] of exon_ranges)
                         {
                             if (exon_start > exon_end)
                             {
@@ -386,11 +368,11 @@ export default {
                                 exon_start = temp;
                             }
 
-                            if (((orf_start <= exon_start) && (exon_start <= orf_end)) || ((orf_start <= exon_end) && (exon_end <= orf_end)))
+                            if ((exon_start <= orf_start) && (orf_start <= exon_end) && (exon_start <= orf_end) && (orf_end <= exon_end))
                             {
-                                for (let k = 0; k < ordered_exon_ranges.length; ++k)
+                                for (let k = 0; k < exon_ranges.length; ++k)
                                 {
-                                    if ((ordered_exon_ranges[k][0] !== exon_start) || (ordered_exon_ranges[k][1] !== exon_end))
+                                    if ((exon_ranges[k][0] !== exon_start) || (exon_ranges[k][1] !== exon_end))
                                         continue;
 
                                     for (let l = 0; l < ordered_screen_ranges.length; ++l)
@@ -398,7 +380,7 @@ export default {
                                         let [screen_x0, screen_x1] = ordered_screen_ranges[l];
                                         if ((screen_x0 <= actual_x0) && (actual_x0 <= screen_x1) && (screen_x0 <= actual_x0 + actual_width) && (actual_x0 + actual_width <= screen_x1))
                                         {
-                                            orf_exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, isoform.transcriptID, exon_start, exon_end, k + 1, ordered_exon_ranges.length, l + 1, ordered_screen_ranges.length]);
+                                            orf_exon_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, isoform.transcriptID, exon_start, exon_end, k + 1, exon_ranges.length, l + 1, ordered_screen_ranges.length]);
                                             break;
                                         }
                                     }
@@ -496,7 +478,8 @@ export default {
                 let event = new CustomEvent("set_otherisoformstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
-                tooltip.html(`Transcript: ${shown_transcript_id}<br>Exon #${shown_exon_number} / ${shown_total_exons}<br>Exonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}<br>Exon range: ${shown_exon_start} - ${shown_exon_end}<br>(Click on the exon to copy the text in this tooltip)<br>`)
+                let tooltip_html = tooltip_text.replaceAll("\r\n", "<br>") + "<br>(Click on the exon to copy the text in this tooltip)<br>";
+                tooltip.html(tooltip_html)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
 

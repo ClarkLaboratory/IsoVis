@@ -24,6 +24,611 @@ export function prioritiseKnownTranscripts(transcripts)
     return orderedList;
 }
 
+export class PeptideData {
+    /**
+     * Create a peptide data instance
+     * 
+     * @param {string} file the input file
+     * @param {Array<string>} transcript_ids an array of transcript IDs for the gene to be visualized
+     */
+    constructor(file, transcript_ids)
+    {
+        this.valid = false; // set to true at the end
+        this.error = "";
+        this.warning = "";
+        this.file = file;
+        this.transcript_ids = transcript_ids;
+    }
+
+    async parseFile()
+    {
+        let file = this.file;
+
+        if (!file || file.size < 10)
+        {
+            this.error = "Please upload a peptide data file.";
+            return;
+        }
+
+        if (file.size > 536870912)
+        {
+            this.error = "Peptide data file size should be less than 500 MB.";
+            return;
+        }
+
+        let filename = file.name;
+        if (!filename)
+        {
+            this.error = "Filename for peptide data is empty.";
+            return;
+        }
+
+        if (filename.indexOf('.') === -1)
+        {
+            this.error = "Peptide data file does not contain a file extension. Please specify the correct file extension in its filename.";
+            return;
+        }
+
+        this.is_bed_type_unknown = false;
+        this.is_reduced_bed = false;
+        this.num_reduced_bed_columns = -1;
+
+        if (filename.endsWith(".bed12"))
+            this.filetype = "BED";
+        else if (filename.endsWith(".bed"))
+        {
+            this.filetype = "BED";
+            this.is_bed_type_unknown = true;
+        }
+        else
+        {
+            let last_dot_index = filename.lastIndexOf('.');
+            let file_extension = filename.substring(last_dot_index + 1);
+
+            // Is this a reduced BED file? (BED4 to BED9)
+            let valid_column_numbers = [4, 5, 6, 7, 8, 9];
+            for (let valid_column_number of valid_column_numbers)
+            {
+                if (file_extension === `bed${valid_column_number}`)
+                {
+                    this.filetype = "BED";
+                    this.is_reduced_bed = true;
+                    this.num_reduced_bed_columns = valid_column_number;
+                    break;
+                }
+            }
+
+            if (this.num_reduced_bed_columns === -1)
+            {
+                this.error = "Invalid peptide data file extension.";
+                return;
+            }
+        }
+
+        // The user has uploaded a .bed file, so determine the number of columns it should have
+        if (this.is_bed_type_unknown)
+        {
+            let slice_index = 0;
+            while (slice_index !== -1)
+            {
+                let arr = await this.filteredLines(slice_index);
+                let filtered_lines = arr[0];
+                slice_index = arr[1];
+
+                if (filtered_lines.length === 0)
+                    continue;
+
+                let num_columns = filtered_lines[0].split('\t').length;
+                if ((num_columns <= 3) || (num_columns === 10) || (num_columns === 11) || (num_columns >= 13))
+                {
+                    this.error = "Incorrect number of columns found in the uploaded peptide data BED file. Please upload a BED4 to BED9 file or a BED12 file.";
+                    break;
+                }
+
+                // If there are 12 columns, this is a BED12 file
+                if (num_columns === 12)
+                {
+                    this.is_bed_type_unknown = false;
+                    break;
+                }
+
+                // If there are 4 to 9 columns, this is a reduced BED file
+                this.is_reduced_bed = true;
+                this.num_reduced_bed_columns = num_columns;
+                this.is_bed_type_unknown = false;
+                break;
+            }
+
+            if (this.is_bed_type_unknown)
+            {
+                if (!this.error)
+                    this.error = "The uploaded peptide data BED file does not contain any valid BED line. Please upload a BED4 to BED9 file or a BED12 file.";
+                return;
+            }
+        }
+
+        this.transcripts = {};
+
+        /* Structure: [array of genomic start and end coordinates the peptide's mapped to] */
+        this.peptide_info = {};
+
+        let parser_type = this.filetype;
+        let loading_msg = `Getting peptides from ${this.filetype} file...`;
+
+        this.update_loading_msg(loading_msg);
+
+        let slice_index = 0;
+        while (slice_index !== -1)
+        {
+            let arr = await this.filteredLines(slice_index);
+            let filtered_lines = arr[0];
+            slice_index = arr[1];
+
+            let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+
+            if (parser_type === "BED")
+            {
+                if (this.is_reduced_bed)
+                    this.peptidesFromReducedBED(filtered_lines);
+                else
+                    this.peptidesFromBED(filtered_lines);
+            }
+
+            this.update_loading_percentage(loading_percentage);
+        }
+
+        if ((parser_type === "BED") && this.is_reduced_bed)
+        {
+            for (let transcript of Object.keys(this.transcripts))
+            {
+                for (let peptide of Object.keys(this.transcripts[transcript]))
+                {
+                    let stringified_coords = JSON.stringify(this.transcripts[transcript][peptide]);
+                    if (!(peptide in this.peptide_info))
+                        this.peptide_info[peptide] = [stringified_coords];
+                    else if (this.peptide_info[peptide].indexOf(stringified_coords) === -1)
+                        this.peptide_info[peptide].push(stringified_coords);
+                }
+            }
+        }
+
+        this.peptides = Object.keys(this.peptide_info);
+        this.peptideOrder = JSON.parse(JSON.stringify(this.peptides));
+        this.valid = true;
+
+        this.peptides.sort();
+
+        this.no_peptides = (Object.keys(this.transcripts).length === 0) || (this.peptides.length === 0);
+        if (this.no_peptides)
+            this.warning = "No peptides are mapped to the transcripts of the selected gene. Peptide visualization disabled for this gene.";
+    }
+
+    update_loading_msg(loading_msg)
+    {
+        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
+        document.dispatchEvent(event);
+    }
+
+    update_loading_percentage(loading_percentage)
+    {
+        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
+        document.dispatchEvent(event);
+    }
+
+    peptidesFromBED(lines)
+    {
+        for (let raw_line of lines)
+        {
+            let line = new PeptideBEDLine(raw_line);
+            if (!(line.valid))
+                continue;
+
+            let transcript = line.transcript;
+            if (!transcript)
+                continue;
+
+            let peptide = line.peptide;
+            if (!peptide)
+                continue;
+
+            // Only consider transcripts of the selected gene
+            if (this.transcript_ids.indexOf(transcript) === -1)
+                continue;
+
+            let peptide_blocks = [];
+            for (let i = 0; i < line.blockCount; ++i)
+            {
+                let start = line.start + line.blockStarts[i];
+                let size = line.blockSizes[i];
+                let range = [start, start + size - 1];
+
+                let isFound = false;
+                for (let [block_start, block_end] of peptide_blocks)
+                {
+                    if (block_start === range[0] && block_end === range[1])
+                    {
+                        isFound = true;
+                        break;
+                    }
+                }
+
+                if (!isFound)
+                    peptide_blocks.push(range);
+            }
+
+            // Keep a record of which peptides each transcript is associated with
+            if (!(transcript in this.transcripts))
+            {
+                this.transcripts[transcript] = {};
+                this.transcripts[transcript][peptide] = [];
+            }
+            else if (!(peptide in this.transcripts[transcript]))
+                this.transcripts[transcript][peptide] = [];
+            else
+                continue;
+
+            let stringified_coords = JSON.stringify(peptide_blocks);
+            if (!(peptide in this.peptide_info))
+                this.peptide_info[peptide] = [stringified_coords];
+            else if (this.peptide_info[peptide].indexOf(stringified_coords) === -1)
+                this.peptide_info[peptide].push(stringified_coords);
+        }
+    }
+
+    peptidesFromReducedBED(lines)
+    {
+        for (let raw_line of lines)
+        {
+            let line = new PeptideReducedBEDLine(raw_line, this.num_reduced_bed_columns);
+            if (!(line.valid))
+                continue;
+
+            let transcript = line.transcript;
+            if (!transcript)
+                continue;
+
+            let peptide = line.peptide;
+            if (!peptide)
+                continue;
+
+            // Only consider transcripts of the selected gene
+            if (this.transcript_ids.indexOf(transcript) === -1)
+                continue;
+
+            // Keep a record of which peptides each transcript is associated with
+            if (!(transcript in this.transcripts))
+            {
+                this.transcripts[transcript] = {};
+                this.transcripts[transcript][peptide] = [];
+            }
+            else if (!(peptide in this.transcripts[transcript]))
+                this.transcripts[transcript][peptide] = [];
+
+            let peptide_block = [line.start, line.end];
+
+            let isFound = false;
+            let peptide_blocks = this.transcripts[transcript][peptide];
+            for (let [block_start, block_end] of peptide_blocks)
+            {
+                if (block_start === range[0] && block_end === range[1])
+                {
+                    isFound = true;
+                    break;
+                }
+            }
+
+            if (!isFound)
+                this.transcripts[transcript][peptide].push(peptide_block);
+        }
+    }
+
+    async filteredLines(slice_index)
+    {
+        let chunk_size = 5242880; // 5 MB
+
+        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
+        let next_slice_index = -1;
+
+        if (text.length === chunk_size)
+        {
+            // FIXME: Make this code chunk size independent: A newline must exist for it to work
+            let last_newline_index = text.lastIndexOf('\n');
+            next_slice_index = slice_index + last_newline_index + 1;
+            text = text.substring(0, last_newline_index);
+        }
+
+        text = text.replace(/\r/g, '');
+        let raw_lines = text.split('\n');
+        let filtered_lines = [];
+
+        for (let i = 0; i < raw_lines.length; ++i)
+        {
+            let line = raw_lines[i];
+
+            // Ignore empty lines and comments
+            if ((line === "") || (line[0] === '#'))
+                continue;
+
+            filtered_lines.push(line);
+        }
+
+        return [filtered_lines, next_slice_index];
+    }
+
+    async getFileChunk(start, end)
+    {
+        let file = this.file;
+        let slice = file.slice(start, end);
+        let text = await slice.text().then(
+            res => res
+        ).catch(err =>
+        {
+            console.log("Error parsing file!");
+            console.log(err);
+        });
+        return text;
+    }
+}
+
+export class PeptideCountsData {
+    /**
+     * Create a peptide counts data instance
+     *
+     * @param {string} file the input file
+     * @param {string} peptides peptide sequences for the gene of interest
+     */
+    constructor(file, peptides)
+    {
+        this.valid = false; // set to true at the end
+        this.error = "";
+        this.warning = "";
+        this.file = file;
+        this.peptides = peptides;
+    }
+
+    async parseFile()
+    {
+        let file = this.file;
+
+        if (!file || file.size < 10)
+        {
+            this.error = "Please upload a peptide counts file.";
+            return;
+        }
+
+        if (file.size > 536870912)
+        {
+            this.error = "Peptide counts file size should be less than 500 MB.";
+            return;
+        }
+
+        let filename = file.name;
+        if (!filename)
+        {
+            this.error = "Filename for peptide counts data is empty.";
+            return;
+        }
+
+        if (filename.indexOf('.') === -1)
+        {
+            this.error = "Peptide counts file does not contain a file extension. Please specify the correct file extension in its filename.";
+            return;
+        }
+
+        // Determine delimiter
+        if (filename.endsWith(".csv"))
+            this.delim = ',';
+        else if (filename.endsWith(".tsv") || filename.endsWith(".txt"))
+            this.delim = '\t';
+        else
+        {
+            this.error = "Invalid peptide counts file extension.";
+            return;
+        }
+
+        let slice_index = 0;
+        let filtered_lines = [];
+        let arr = await this.filteredLines(slice_index, true);
+
+        filtered_lines = arr[0];
+        slice_index = arr[1];
+
+        if (filtered_lines.length === 0)
+        {
+            this.error = "No relevant data lines found in peptide counts file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
+            return;
+        }
+
+        let first_line = filtered_lines[0];
+        this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+        if (this.samples.length < 2)
+        {
+            this.error = "First line of peptide counts file has less than 2 data columns. The file must have at least 2 data columns.";
+            return;
+        }
+
+        let forbidden_column_names = ["1/k0", "1/k0", "all mapped proteins", "all mapped genes", "average.missed.tryptic.cleavages", "average.peptide.charge", "average.peptide.length", "best.fr.mz", "best.fr.mz.delta", "channel", "channel.evidence", "channel.l", "channel.q.value", "corr", "cscore", "decoy", "decoy.cscore", "decoy.evidence", "delta", "delta", "description", "empirical.quality", "evidence", "exclude.from.quant", "excludefromassay", "file.name", "filename", "first.protein.description", "fragment.charge", "fragment.correlations", "fragment.info", "fragment.loss.type", "fragment.quant.corrected", "fragment.quant.raw", "fragment.series.number", "fragment.sum", "fragment.type", "fragmentcharge", "fragmentlosstype", "fragmentseriesnumber", "fragmenttype", "fullunimodpeptidename", "fwhm", "fwhm.rt", "fwhm.scans", "gene", "gene.names", "genes", "genes.maxlfq", "genes.maxlfq.quality", "genes.maxlfq.unique", "genes.maxlfq.unique.quality", "genes.normalised", "genes.quantity", "genes.topn", "gg.q.value", "global.peptidoform.q.value", "global.pg.q.value", "global.q.value", "intensities", "ion.mobility", "irt", "label.ratio", "lib.peptidoform.q.value", "lib.pg.q.value", "lib.ptm.site.confidence", "lib.q.value", "libraryintensity", "m/z", "mass.evidence", "median.mass.acc.ms1", "median.mass.acc.ms1.corrected", "median.mass.acc.ms2", "median.mass.acc.ms2.corrected", "median.rt.prediction.acc", "modification", "modified.sequence", "modifiedpeptide", "ms.level", "ms1.apex.area", "ms1.apex.mz.delta", "ms1.area", "ms1.normalised", "ms1.profile.corr", "ms1.signal", "ms1.total.signal.after", "ms1.total.signal.before", "ms2.scan", "ms2.scan", "ms2.signal", "n.proteotypic.sequences", "n.sequences", "normalisation.factor", "normalisation.instability", "normalisation.noise", "peptidegrouplabel", "peptidesequence", "peptidoform.q.value", "pg.maxlfq", "pg.maxlfq.quality", "pg.normalised", "pg.pep", "pg.q.value", "pg.quantity", "pg.topn", "pgqvalue", "precursor.charge", "precursor.id", "precursor.lib.index", "precursor.mz", "precursor.normalised", "precursor.quantity", "precursorcharge", "precursormz", "precursors.identified", "predicted.iim", "predicted.im", "predicted.irt", "predicted.rt", "probability", "product.mz", "productmz", "protein", "protein.group", "protein.id", "protein.ids", "protein.index.in.group", "protein.name", "protein.names", "protein.q.value", "protein.sites", "proteingroup", "proteinname", "proteins.identified", "proteotypic", "ptm.site.confidence", "q.value", "quantity.quality", "qvalue", "relative.intensity", "residue", "retention.times", "rt.start", "rt.stop", "run", "run.index", "sequence", "site", "site.occupancy.probabilities", "theoretical.mz", "total.quantity", "translated.q.value", "uniprotid", "window.high", "window.low"];
+
+        this.labels = [];
+        this.peptide_sequence_colnum = -1;
+
+        for (let i = 0; i < this.samples.length; ++i)
+        {
+            let sample = this.samples[i].toLowerCase();
+            if (((sample === "peptide_sequence") || (sample === "stripped.sequence") || (sample === "peptide")) && (this.peptide_sequence_colnum === -1))
+                this.peptide_sequence_colnum = i;
+            else if (forbidden_column_names.indexOf(sample) === -1)
+                this.labels.push(this.samples[i]);
+        }
+
+        if (this.peptide_sequence_colnum === -1)
+        {
+            this.error = "No peptide sequence column found in the peptide counts file.";
+            return;
+        }
+
+        // Prepare attributes
+        this.maxValue = NaN; // min/max/avg values for colour scheme & legend
+        this.minValue = NaN;
+
+        this.sum = 0;
+        this.num_nonzerovals = 0;
+
+        this.export = {};
+
+        let loading_percentage = 0;
+        let loading_msg = "Getting peptide counts...";
+        this.update_loading_msg(loading_msg);
+        this.update_loading_percentage(loading_percentage);
+
+        filtered_lines.splice(0, 1);
+        this.processFilteredLines(filtered_lines);
+
+        while (slice_index !== -1)
+        {
+            loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+            this.update_loading_percentage(loading_percentage);
+
+            let arr = await this.filteredLines(slice_index);
+            filtered_lines = arr[0];
+            slice_index = arr[1];
+            this.processFilteredLines(filtered_lines);
+        }
+
+        loading_percentage = 100;
+        this.update_loading_percentage(loading_percentage);
+
+        this.valid = true;
+
+        this.no_peptide_counts = (Object.keys(this.export).length === 0);
+        if (this.no_peptide_counts)
+            this.warning = "The peptide counts file does not contain any information on the transcripts' peptides. Peptide counts visualization disabled.";
+        else
+        {
+            if (this.num_nonzerovals === 0)
+                this.num_nonzerovals = 1;
+
+            this.average = this.sum / this.num_nonzerovals;                 // calculate averages
+        }
+    }
+
+    update_loading_msg(loading_msg)
+    {
+        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
+        document.dispatchEvent(event);
+    }
+
+    update_loading_percentage(loading_percentage)
+    {
+        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
+        document.dispatchEvent(event);
+    }
+
+    async filteredLines(slice_index, get_samples = false)
+    {
+        let chunk_size = 5242880; // 5 MB
+
+        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
+        let next_slice_index = -1;
+
+        if (text.length === chunk_size)
+        {
+            // FIXME: Make this code chunk size independent: A newline must exist for it to work
+            let last_newline_index = text.lastIndexOf('\n');
+            next_slice_index = slice_index + last_newline_index + 1;
+            text = text.substring(0, last_newline_index);
+        }
+
+        text = text.replace(/\r/g, '');
+        let raw_lines = text.split('\n');
+        let filtered_lines = [];
+
+        let first_line_found = !get_samples;
+        for (let i = 0; i < raw_lines.length; ++i)
+        {
+            let line = raw_lines[i];
+
+            // Ignore empty lines
+            if (line === "")
+                continue;
+
+            if (!first_line_found)
+            {
+                filtered_lines.push(line);
+                first_line_found = true;
+                continue;
+            }
+
+            // Find all lines that contain the peptides being searched for
+            for (let peptide of this.peptides)
+            {
+                if (line.indexOf(peptide) !== -1)
+                {
+                    filtered_lines.push(line);
+                    break;
+                }
+            }
+        }
+
+        return [filtered_lines, next_slice_index];
+    }
+
+    processFilteredLines(filtered_lines)
+    {
+        for (let i = 0; i < filtered_lines.length; ++i)
+        {
+            // Clean up text and separate values
+            let entries = filtered_lines[i].replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+            if (entries.length !== this.samples.length)
+                continue;
+
+            let peptide = entries[this.peptide_sequence_colnum];
+            if (this.peptides.indexOf(peptide) === -1)
+                continue;
+
+            for (let j = 0; j < this.samples.length; ++j)
+            {
+                let sample = this.samples[j];
+                if (this.labels.indexOf(sample) === -1)
+                    continue;
+
+                let value = parseFloat(entries[j]);
+
+                if (value)
+                {
+                    this.sum += value;
+                    this.num_nonzerovals += 1;
+                }
+
+                if (isNaN(this.maxValue) || value > this.maxValue) this.maxValue = value;
+                if (isNaN(this.minValue) || value < this.minValue) this.minValue = value;
+
+                if (!this.export[peptide])
+                {
+                    this.export[peptide] = {};
+                    this.export[peptide][sample] = value;
+                }
+                else if (this.export[peptide][sample] === undefined)
+                    this.export[peptide][sample] = value;
+            }
+        }
+    }
+
+    async getFileChunk(start, end)
+    {
+        let file = this.file;
+        let slice = file.slice(start, end);
+        let text = await slice.text().then(
+            res => res
+        ).catch(err =>
+        {
+            console.log("Error parsing file!");
+            console.log(err);
+        });
+        return text;
+    }
+}
+
 export class RNAModifSitesData {
     /**
      * Create an RNA modification sites data instance
@@ -293,7 +898,7 @@ export class RNAModifSitesLevelData {
         // Determine delimiter
         if (filename.endsWith(".csv"))
             this.delim = ',';
-        else if (filename.endsWith(".txt"))
+        else if (filename.endsWith(".tsv") || filename.endsWith(".txt"))
             this.delim = '\t';
         else
         {
@@ -307,11 +912,6 @@ export class RNAModifSitesLevelData {
 
         filtered_lines = arr[0];
         slice_index = arr[1];
-
-        let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-        let loading_msg = "Getting RNA modification levels...";
-        this.update_loading_msg(loading_msg);
-        this.update_loading_percentage(loading_percentage);
 
         if (filtered_lines.length === 0)
         {
@@ -329,14 +929,17 @@ export class RNAModifSitesLevelData {
 
         this.location_colnum = -1;
         this.gene_id_colnum = -1;
+        this.labels = [];
 
         for (let i = 0; i < this.samples.length; ++i)
         {
             let sample = this.samples[i].toLowerCase();
-            if (sample === "location")
+            if ((sample === "location") && (this.location_colnum === -1))
                 this.location_colnum = i;
-            else if (sample === "gene_id")
+            else if ((sample === "gene_id") && (this.gene_id_colnum === -1))
                 this.gene_id_colnum = i;
+            else
+                this.labels.push(this.samples[i]);
         }
 
         if (this.location_colnum === -1)
@@ -360,19 +963,27 @@ export class RNAModifSitesLevelData {
 
         this.export = {};
 
+        let loading_percentage = 0;
+        let loading_msg = "Getting RNA modification levels...";
+        this.update_loading_msg(loading_msg);
+        this.update_loading_percentage(loading_percentage);
+
         filtered_lines.splice(0, 1);
         this.processFilteredLines(filtered_lines);
 
         while (slice_index !== -1)
         {
+            loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+            this.update_loading_percentage(loading_percentage);
+
             let arr = await this.filteredLines(slice_index);
             filtered_lines = arr[0];
             slice_index = arr[1];
             this.processFilteredLines(filtered_lines);
-
-            loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-            this.update_loading_percentage(loading_percentage);
         }
+
+        loading_percentage = 100;
+        this.update_loading_percentage(loading_percentage);
 
         this.valid = true;
 
@@ -531,6 +1142,7 @@ export class PrimaryData {
         this.species = species;
         this.is_use_grch37 = is_use_grch37;
         this.is_strand_unknown = false;
+        this.is_genomeprot = false;
     }
 
     async parseFile()
@@ -616,6 +1228,202 @@ export class PrimaryData {
                 return;
             }
         }
+
+        let genomeprot_comment = "##GenomeProt";
+        let first_line = await this.getFileChunk(0, genomeprot_comment.length);
+
+        // Parse the file differently if it's a combined annotations GTF file from GenomeProt
+        if (first_line === genomeprot_comment && this.filetype === "GTF")
+        {
+            this.is_genomeprot = true;
+
+            this.transcripts = {};
+            this.peptides = {};
+            this.orfs = {};
+            this.chromosome = "";
+            this.gene_label = "";
+
+            this.geneInfo = {};
+            if (gene)
+                this.geneInfo[gene] = null;
+
+            this.geneNameInfo = {};
+
+            this.gene_attributes = {"uniq_map_peptides": [], "lncRNA_peptides": [], "novel_txs": [], "novel_txs_distinguished": [], "unann_orfs": [], "uorf_5": [], "dorf_3": [], "marker": []};
+            this.gene_name_attributes = JSON.parse(JSON.stringify(this.gene_attributes));
+            this.markerInfo = {};
+
+            let first_parser_type = null;
+            let second_parser_type = null;
+
+            if (!gene)
+            {
+                first_parser_type = `g_${this.filetype}`;
+                second_parser_type = `e_${this.filetype}`;
+            }
+            else
+                first_parser_type = `e_${this.filetype}`;
+
+            let loading_msg = "";
+
+            if (first_parser_type.startsWith("g_"))
+                loading_msg = `Getting genes from GenomeProt combined annotations ${this.filetype} file...`;
+            else
+                loading_msg = `Getting peptides, transcripts and ORFs of gene '${this.gene}' from GenomeProt combined annotations ${this.filetype} file...`;
+
+            this.update_loading_msg(loading_msg);
+
+            let slice_index = 0;
+            while (slice_index !== -1)
+            {
+                let arr = await this.filteredLines(slice_index);
+                let filtered_lines = arr[0];
+                slice_index = arr[1];
+
+                let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+
+                if (first_parser_type === "g_GTF")
+                    this.genesFromGenomeProtGTF(filtered_lines);
+                else if (first_parser_type === "e_GTF")
+                    this.featuresFromGenomeProtGTF(filtered_lines);
+
+                this.update_loading_percentage(loading_percentage);
+            }
+
+            this.genes = Object.keys(this.geneInfo);
+            if (this.genes.length > 1)
+            {
+                // this.genes.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
+                // for (let key of Object.keys(this.gene_attributes))
+                // {
+                //     this.gene_attributes[key].sort();
+                //     this.gene_name_attributes[key].sort();
+                // }
+
+                this.valid = true;  // More than one gene found in the file; let the user pick one to visualize
+                return;
+            }
+            else if (this.genes.length === 0)
+            {
+                this.error = "No genes found from the GenomeProt combined annotations file. Please upload a file with at least one gene.";
+                return;
+            }
+
+            if (this.gene === null)
+                this.gene = this.genes[0];
+
+            if (second_parser_type)
+            {
+                loading_msg = `Getting peptides, transcripts and ORFs of gene '${this.gene}' from GenomeProt combined annotations ${this.filetype} file...`;
+                this.update_loading_msg(loading_msg);
+
+                let slice_index = 0;
+                while (slice_index !== -1)
+                {
+                    let arr = await this.filteredLines(slice_index);
+                    let filtered_lines = arr[0];
+                    slice_index = arr[1];
+
+                    let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+
+                    this.featuresFromGenomeProtGTF(filtered_lines);
+                    this.update_loading_percentage(loading_percentage);
+                }
+            }
+
+            if (Object.keys(this.transcripts).length === 0)
+            {
+                this.error = "GenomeProt combined annotations file contains the searched gene ID but does not contain any of its transcripts.";
+                return;
+            }
+
+            if (Object.keys(this.peptides).length === 0)
+                this.warning = "GenomeProt combined annotations file contains the searched gene ID but does not contain any mapped peptides.";
+
+            this.transcriptOrder = prioritiseKnownTranscripts(Object.keys(JSON.parse(JSON.stringify(this.transcripts)))); // store row order to allow for manual reordering
+
+            // Get rid of any transcripts that have no exons
+            while (true)
+            {
+                let no_empty_transcripts_found = true;
+                for (let i = 0; i < this.transcriptOrder.length; ++i)
+                {
+                    let transcript_id = this.transcriptOrder[i];
+                    let transcript_obj = this.transcripts[transcript_id];
+                    if ((!transcript_obj.exons) || (transcript_obj.exons.length === 0))
+                    {
+                        no_empty_transcripts_found = false;
+                        this.transcriptOrder.splice(i, 1);
+                        delete this.transcripts[transcript_id];
+                        break;
+                    }
+                }
+
+                if (no_empty_transcripts_found)
+                    break;
+            }
+
+            // Store lists of all transcripts and ORFs the peptides uniquely map to
+            this.transcripts_identified = [];
+            this.orfs_identified = [];
+            for (let peptide of Object.keys(this.peptides))
+            {
+                let peptide_info = this.peptides[peptide];
+                let transcripts_identified = peptide_info.transcripts_identified;
+                let orfs_identified = peptide_info.orfs_identified;
+
+                for (let transcript_identified of transcripts_identified)
+                    if (this.transcripts_identified.indexOf(transcript_identified) === -1)
+                        this.transcripts_identified.push(transcript_identified);
+
+                for (let orf_identified of orfs_identified)
+                    if (this.orfs_identified.indexOf(orf_identified) === -1)
+                        this.orfs_identified.push(orf_identified);
+            }
+
+            // build isoform objects from transcript data and save in list
+            this.isoformList = [];
+            for (let i=0; i<this.transcriptOrder.length; ++i)
+                this.isoformList.push(new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]]));
+
+            this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList)); // keep a copy to allow for manually adding/removing rows
+
+            this.mergedRanges = mergeRanges(this.isoformList); // build the metagene
+
+            // extra information about the gene
+            this.gene = gene;
+            this.start = this.isoformList[0].strand === '+' ? 
+                this.mergedRanges[0][0] : 
+                this.mergedRanges[this.mergedRanges.length - 1][1];
+            this.end = this.isoformList[0].strand === '+' ? 
+                this.mergedRanges[this.mergedRanges.length - 1][1] : 
+                this.mergedRanges[0][0];
+            this.width = Math.abs(this.end - this.start);
+            this.strand = this.isoformList[0].strand;
+
+            this.peptideOrder = Object.keys(this.peptides);
+            this.peptideOrder.sort();
+            for (let peptide_sequence of this.peptideOrder)
+            {
+                this.peptides[peptide_sequence].ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
+                if (this.strand !== '+')
+                    this.peptides[peptide_sequence].ranges.reverse();
+            }
+
+            // Sort the regions of each ORF by ascending / descending region starts according to the gene's strandedness
+            for (let accession of Object.keys(this.orfs))
+            {
+                this.orfs[accession].sort((block0, block1) => block0[0] - block1[0]);
+                if (this.strand !== '+')
+                    this.orfs[accession].reverse();
+            }
+
+            this.valid = true; // data parsed correctly and ready for visualization
+
+            return;
+        }
+
+        // Parse the file as non-GenomeProt stack data
 
         // The user has uploaded a .bed file, so determine the number of columns it should have
         if (this.is_bed_type_unknown)
@@ -737,6 +1545,7 @@ export class PrimaryData {
         this.genes = Object.keys(this.geneInfo);
         if (this.genes.length > 1)
         {
+            // this.genes.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
             this.valid = true;  // More than one gene found in the file; let the user pick one to visualize
             return;
         }
@@ -791,16 +1600,17 @@ export class PrimaryData {
 
         // build isoform objects from transcript data and save in list
         this.isoformList = [];
-        for (let i=0; i<this.transcriptOrder.length; ++i)
+        for (let i = 0; i < this.transcriptOrder.length; ++i)
+        {
             this.isoformList.push(new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]]));
+            this.transcripts[this.transcriptOrder[i]] = null;
+        }
 
-        // for (let [key, value] of Object.entries(this.transcripts)) this.isoformList.push(new Isoform(key, value));
-        this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList)) // keep a copy to allow for manually adding/removing rows
+        this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList)); // keep a copy to allow for manually adding/removing rows
 
         this.mergedRanges = mergeRanges(this.isoformList); // build the metagene
 
         // extra information about the gene
-        this.minExons = this.mergedRanges.length; 
         this.gene = gene;
         this.start = this.isoformList[0].strand === '+' ? 
             this.mergedRanges[0][0] : 
@@ -812,6 +1622,10 @@ export class PrimaryData {
         this.strand = this.isoformList[0].strand;
 
         this.valid = true; // data parsed correctly and ready for visualization
+
+        let properties_to_delete = "file gene error is_use_grch37 is_bed_type_unknown is_reduced_bed is_minimal_bed num_reduced_bed_columns filetype geneInfo species".split(' ');
+        for (let property_to_delete of properties_to_delete)
+            delete this[property_to_delete];
     }
 
     update_loading_msg(loading_msg)
@@ -867,15 +1681,11 @@ export class PrimaryData {
                 {
                     this.transcripts[transcript] = {};
                     this.transcripts[transcript].user_orf = [];
+                    this.transcripts[transcript].exons = [line.range];
+                    this.transcripts[transcript].strand = line.strand;
                 }
-
-                if (!this.transcripts[transcript].exon_count)
-                    this.transcripts[transcript].exon_count = 0;
-
-                let exon = this.transcripts[transcript].exon_count;
-                this.transcripts[transcript][exon] = line.range;
-                this.transcripts[transcript].strand = line.strand;
-                this.transcripts[transcript].exon_count += 1;
+                else
+                    this.transcripts[transcript].exons.push(line.range);
             }
             else
             {
@@ -933,15 +1743,11 @@ export class PrimaryData {
                 {
                     this.transcripts[transcript] = {};
                     this.transcripts[transcript].user_orf = [];
+                    this.transcripts[transcript].exons = [line.range];
+                    this.transcripts[transcript].strand = line.strand;
                 }
-
-                if (!this.transcripts[transcript].exon_count)
-                    this.transcripts[transcript].exon_count = 0;
-
-                let exon = this.transcripts[transcript].exon_count;
-                this.transcripts[transcript][exon] = line.range;
-                this.transcripts[transcript].strand = line.strand;
-                this.transcripts[transcript].exon_count += 1;
+                else
+                    this.transcripts[transcript].exons.push(line.range);
             }
             else
             {
@@ -991,29 +1797,23 @@ export class PrimaryData {
 
             if (!(transcript in this.transcripts))
             {
-                let strand = line.strand;
-
                 this.transcripts[transcript] = {};
-                this.transcripts[transcript].strand = strand;
                 this.transcripts[transcript].user_orf = [];
+                this.transcripts[transcript].exons = [];
+                this.transcripts[transcript].strand = line.strand;
 
                 for (let i = 0; i < line.blockCount; ++i)
                 {
                     let start = line.start + line.blockStarts[i];
                     let size = line.blockSizes[i];
                     let range = [start, start + size - 1];
-                    this.transcripts[transcript][i] = range;
+                    this.transcripts[transcript].exons.push(range);
 
                     if ((line.orf_start !== undefined) && (line.orf_end !== undefined))
                     {
                         let orf = intersection([line.orf_start, line.orf_end], range);
                         if (orf.length !== 0)
-                        {
-                            if (strand === '+')
-                                this.transcripts[transcript].user_orf.push(orf);
-                            else
-                                this.transcripts[transcript].user_orf.unshift(orf);
-                        }
+                            this.transcripts[transcript].user_orf.push(orf);
                     }
                 }
             }
@@ -1058,39 +1858,23 @@ export class PrimaryData {
             if (!(transcript in this.transcripts))
             {
                 this.transcripts[transcript] = {};
-                this.transcripts[transcript].strand = line.strand;
                 this.transcripts[transcript].user_orf = [];
+                this.transcripts[transcript].exons = [];
+                this.transcripts[transcript].strand = line.strand;
+
                 this.transcripts[transcript].user_orf_range = [];
                 if ((line.orf_start !== undefined) && (line.orf_end !== undefined))
                     this.transcripts[transcript].user_orf_range = [line.orf_start, line.orf_end];
             }
 
-            let exon_number = 0;
-            let strand = this.transcripts[transcript].strand;
-            while (true)
+            let range = [line.start, line.end];
+            this.transcripts[transcript].exons.push(range);
+
+            if (this.transcripts[transcript].user_orf_range.length !== 0)
             {
-                if (!this.transcripts[transcript][exon_number])
-                {
-                    let start = line.start;
-                    let end = line.end;
-                    let range = [start, end];
-                    this.transcripts[transcript][exon_number] = range;
-
-                    if (this.transcripts[transcript].user_orf_range.length !== 0)
-                    {
-                        let orf = intersection(this.transcripts[transcript].user_orf_range, range);
-                        if (orf.length !== 0)
-                        {
-                            if (strand === '+')
-                                this.transcripts[transcript].user_orf.push(orf);
-                            else
-                                this.transcripts[transcript].user_orf.unshift(orf);
-                        }
-                    }
-
-                    break;
-                }
-                exon_number += 1;
+                let orf = intersection(this.transcripts[transcript].user_orf_range, range);
+                if (orf.length !== 0)
+                    this.transcripts[transcript].user_orf.push(orf);
             }
         }
     }
@@ -1157,22 +1941,11 @@ export class PrimaryData {
             if (!(transcript in this.transcripts))
             {
                 this.transcripts[transcript] = {};
+                this.transcripts[transcript].exons = [[line.start, line.end]];
                 this.transcripts[transcript].strand = gene_strand;
             }
-
-            let exon_number = 0;
-            while (true)
-            {
-                if (!this.transcripts[transcript][exon_number])
-                {
-                    let start = line.start;
-                    let end = line.end;
-                    let range = [start, end];
-                    this.transcripts[transcript][exon_number] = range;
-                    break;
-                }
-                exon_number += 1;
-            }
+            else
+                this.transcripts[transcript].exons.push([line.start, line.end]);
         }
     }
 
@@ -1220,6 +1993,426 @@ export class PrimaryData {
             gene_name = gene_name.toUpperCase();
             if (!(gene_name in this.geneInfo))
                 this.geneInfo[gene_name] = null;
+        }
+    }
+
+    featuresFromGenomeProtGTF(lines)
+    {
+        for (let line of lines)
+        {
+            let gtf_line = new GenomeProtGTFLine(line);
+            if (!(gtf_line.valid))
+                continue;
+
+            let gene_id = gtf_line.attributes.gene_id;
+            if (!gene_id)
+                continue;
+
+            let period_index = gene_id.indexOf('.');
+            if (period_index !== -1)
+                gene_id = gene_id.substring(0, period_index);
+
+            gene_id = gene_id.toUpperCase();
+            if (this.gene !== gene_id)
+                continue;
+
+            // Extract the gene's chromosome
+            if (!(this.chromosome) && gtf_line.chromosome)
+                this.chromosome = gtf_line.chromosome;
+
+            // Only extract information for peptides, CDS regions and exons
+            let is_peptide = (gtf_line.source === "custom") && (gtf_line.feature === "exon");
+            let is_cds = (gtf_line.source === "custom") && (gtf_line.feature === "CDS");
+            let is_exon = (gtf_line.source === "Bambu") && (gtf_line.feature === "exon");
+
+            if (!(is_peptide || is_cds || is_exon))
+                continue;
+
+            // Ensure the GTF line has a transcript ID
+            let transcript = gtf_line.attributes.transcript_id;
+            if (!transcript)
+                continue;
+
+            transcript = transcript.split(".")[0];
+
+            // Initialize the info entry for the transcript if it doesn't have already one
+            if (!(transcript in this.transcripts))
+            {
+                this.transcripts[transcript] = {};
+                this.transcripts[transcript].accessions = [];
+                this.transcripts[transcript].user_orf = [];             // The union of all ORFs identified in the transcript rather than just one of its ORFs
+                this.transcripts[transcript].exons = [];
+                this.transcripts[transcript].strand = gtf_line.strand;
+            }
+
+            let gene_name = gtf_line.attributes.gene_name;
+            if (gene_name && !(this.gene_label))
+                this.gene_label = gene_name;
+
+            if (is_peptide)
+            {
+                let accession = gtf_line.attributes.accession;
+                let peptide = gtf_line.attributes.peptide;
+                if (!(accession && peptide))
+                    continue;
+
+                let       peptide_ids_gene = (      gtf_line.attributes.peptide_ids_gene === "TRUE");
+                let peptide_ids_transcript = (gtf_line.attributes.peptide_ids_transcript === "TRUE");
+                let        peptide_ids_orf = (       gtf_line.attributes.peptide_ids_orf === "TRUE");
+
+                let transcript_biotype = gtf_line.attributes.transcript_biotype;
+                if (!transcript_biotype)
+                    transcript_biotype = "unknown";
+
+                let orf_type = gtf_line.attributes.orf_type;
+                if (!orf_type)
+                    orf_type = "unknown";
+
+                let localisation = gtf_line.attributes.localisation;
+                if (!localisation)
+                    localisation = "unknown";
+
+                let       gene_identified = (      gtf_line.attributes.gene_identified === "TRUE");
+                let transcript_identified = (gtf_line.attributes.transcript_identified === "TRUE");
+                let        orf_identified = (       gtf_line.attributes.orf_identified === "TRUE");
+
+                let range = gtf_line.range;
+
+                // Initialize the info entry for the peptide if it doesn't already have one
+                if (!(peptide in this.peptides))
+                {
+                    this.peptides[peptide] = {};
+
+                    // Genomic coordinates spanned by each 'exon' of the peptide
+                    this.peptides[peptide].ranges = [range];
+
+                    // Whether the peptide can identify the gene
+                    this.peptides[peptide].peptide_ids_gene = peptide_ids_gene;
+
+                    // Transcripts identified by the peptide (there should be at most one)
+                    this.peptides[peptide].transcripts_identified = [];
+                    if (peptide_ids_transcript)
+                        this.peptides[peptide].transcripts_identified.push(transcript);
+
+                    // ORFs identified by the peptide (there should be at most one)
+                    this.peptides[peptide].orfs_identified = [];
+                    if (peptide_ids_orf)
+                        this.peptides[peptide].orfs_identified.push(accession);
+
+                    // The transcripts that the peptide maps to
+                    this.peptides[peptide].transcript_info = {};
+                    this.peptides[peptide].transcript_info[transcript] = {"peptide_ids_transcript": peptide_ids_transcript, "biotype": transcript_biotype,
+                                                                          "localisation": localisation, "transcript_identified": transcript_identified};
+
+                    // The ORFs that the peptide maps to (e.g. InterPro proteins, novel ORFs)
+                    this.peptides[peptide].accession_info = {};
+                    this.peptides[peptide].accession_info[accession] = {"peptide_ids_orf": peptide_ids_orf, "orf_type": orf_type,
+                                                                        "gene_identified": gene_identified, "orf_identified": orf_identified};
+                }
+                else
+                {
+                    // Peptide 'exon'
+                    let isFound = false;
+                    for (let [peptide_section_start, peptide_section_end] of this.peptides[peptide].ranges)
+                    {
+                        if ((peptide_section_start === range[0]) && (peptide_section_end === range[1]))
+                        {
+                            isFound = true;
+                            break;
+                        }
+                    }
+
+                    if (!isFound)
+                        this.peptides[peptide].ranges.push(range);
+
+                    // Whether the peptide can identify the gene
+                    this.peptides[peptide].peptide_ids_gene ||= peptide_ids_gene;
+
+                    // Transcripts identified by the peptide
+                    if (peptide_ids_transcript && (this.peptides[peptide].transcripts_identified.indexOf(transcript) === -1))
+                        this.peptides[peptide].transcripts_identified.push(transcript);
+
+                    // ORFs identified by the peptide
+                    if (peptide_ids_orf && (this.peptides[peptide].orfs_identified.indexOf(accession) === -1))
+                        this.peptides[peptide].orfs_identified.push(accession);
+
+                    // A transcript the peptide maps to
+                    if (!(transcript in this.peptides[peptide].transcript_info))
+                        this.peptides[peptide].transcript_info[transcript] = {"peptide_ids_transcript": peptide_ids_transcript, "biotype": transcript_biotype,
+                                                                              "localisation": localisation, "transcript_identified": transcript_identified};
+
+                    // An ORF the peptide maps to
+                    if (!(accession in this.peptides[peptide].accession_info))
+                        this.peptides[peptide].accession_info[accession] = {"peptide_ids_orf": peptide_ids_orf, "orf_type": orf_type,
+                                                                            "gene_identified": gene_identified, "orf_identified": orf_identified};
+                }
+            }
+            else if (is_cds)
+            {
+                let pid = gtf_line.attributes.pid;
+                if (!pid)
+                    continue;
+
+                // There is supposed to be one accession per transcript; skip the line if there isn't one or if the transcript ID doesn't come after the underscore of the PID attribute
+                let to_remove_index = pid.indexOf('_' + transcript);
+                if (to_remove_index === -1)
+                    continue;
+
+                let accession = pid.substring(0, to_remove_index);
+                if (this.transcripts[transcript].accessions.indexOf(accession) === -1)
+                    this.transcripts[transcript].accessions.push(accession);
+
+                let isFound = false;
+                for (let [orf_block_start, orf_block_end] of this.transcripts[transcript].user_orf)
+                {
+                    if ((orf_block_start === gtf_line.range[0]) && (orf_block_end === gtf_line.range[1]))
+                    {
+                        isFound = true;
+                        break;
+                    }
+                }
+
+                if (!isFound)
+                    this.transcripts[transcript].user_orf.push(gtf_line.range);
+
+                if (!(accession in this.orfs))
+                    this.orfs[accession] = [gtf_line.range];
+                else
+                {
+                    let isFound = false;
+                    for (let [orf_block_start, orf_block_end] of this.orfs[accession])
+                    {
+                        if ((orf_block_start === gtf_line.range[0]) && (orf_block_end === gtf_line.range[1]))
+                        {
+                            isFound = true;
+                            break;
+                        }
+                    }
+
+                    if (!isFound)
+                        this.orfs[accession].push(gtf_line.range);
+                }
+            }
+            else if (is_exon)
+            {
+                this.transcripts[transcript].exons.push(gtf_line.range);
+
+                // If the gene being searched is a marker gene, store related information about it
+                if (Object.keys(this.markerInfo).length !== 0)
+                    continue;
+
+                // All marker genes must contain a 'marker_gene' attribute with the value 'TRUE'
+                if (gtf_line.attributes.marker_gene !== "TRUE")
+                    continue;
+
+                // p_val_adj: Adjusted p-value
+                let p_val_adj = parseFloat(gtf_line.attributes.p_val_adj);
+                if (!Number.isFinite(p_val_adj))
+                    continue;
+
+                // avg_log2fc: log2(fold change of average expression between the two groups)
+                let avg_log2fc = parseFloat(gtf_line.attributes.avg_log2fc);
+                if (!Number.isFinite(avg_log2fc))
+                    continue;
+
+                // pct.1: Percentage of cells where the gene is detected in the 1st group
+                let pct1 = parseFloat(gtf_line.attributes["pct.1"]);
+                if (!Number.isFinite(pct1))
+                    continue;
+
+                // pct.2: Percentage of cells where the gene is detected in the 2nd group
+                let pct2 = parseFloat(gtf_line.attributes["pct.2"]);
+                if (!Number.isFinite(pct2))
+                    continue;
+
+                // cluster: Cluster(s) containing marker gene (1st group)
+                let cluster = gtf_line.attributes.cluster;
+                if (!cluster)
+                    continue;
+
+                cluster = cluster.split(',').map((cluster_name) => cluster_name.trim());
+                if (cluster.indexOf('') !== -1)
+                    continue;
+
+                // against: Cluster(s) used for comparison (2nd group)
+                let against = gtf_line.attributes.against;
+                if (against)
+                {
+                    against = against.split(',').map((cluster_name) => cluster_name.trim());
+                    if (against.indexOf('') !== -1)
+                        continue;
+                }
+                else
+                    against = undefined;
+
+                this.markerInfo = {"p_val_adj": p_val_adj, "avg_log2fc": avg_log2fc, "pct1": pct1, "pct2": pct2, "cluster": cluster};
+                if (against)
+                    this.markerInfo.against = against;
+            }
+        }
+    }
+
+    genesFromGenomeProtGTF(lines)
+    {
+        for (let line of lines)
+        {
+            let gtf_line = new GenomeProtGTFLine(line);
+            if (!(gtf_line.valid))
+                continue;
+
+            let gene_id = gtf_line.attributes.gene_id;
+            if (!gene_id)
+                continue;
+
+            let period_index = gene_id.indexOf('.');
+            if (period_index !== -1)
+                gene_id = gene_id.substring(0, period_index);
+
+            gene_id = gene_id.toUpperCase();
+            if (!(gene_id in this.geneInfo))
+                this.geneInfo[gene_id] = null;
+
+            let gene_name = gtf_line.attributes.gene_name;
+            if ((!gene_name) || (gene_name === gene_id))
+                gene_name = '';
+            else if (!(gene_name in this.geneNameInfo))
+                this.geneNameInfo[gene_name] = [gene_id];
+            else if (this.geneNameInfo[gene_name].indexOf(gene_id) === -1)
+                this.geneNameInfo[gene_name].push(gene_id);
+
+            // Information for marker genes is stored in a GTF line for an isoform exon
+            let is_exon = (gtf_line.source === "Bambu") && (gtf_line.feature === "exon");
+            if (is_exon)
+            {
+                // All marker genes must contain a 'marker_gene' attribute with the value 'TRUE'
+                if (gtf_line.attributes.marker_gene !== "TRUE")
+                    continue;
+
+                if (gene_id in this.markerInfo)
+                    continue;
+
+                // p_val_adj: Adjusted p-value
+                let p_val_adj = parseFloat(gtf_line.attributes.p_val_adj);
+                if (!Number.isFinite(p_val_adj))
+                    continue;
+
+                // avg_log2fc: log2(fold change of average expression between the two groups)
+                let avg_log2fc = parseFloat(gtf_line.attributes.avg_log2fc);
+                if (!Number.isFinite(avg_log2fc))
+                    continue;
+
+                // pct.1: Percentage of cells where the gene is detected in the 1st group
+                let pct1 = parseFloat(gtf_line.attributes["pct.1"]);
+                if (!Number.isFinite(pct1))
+                    continue;
+
+                // pct.2: Percentage of cells where the gene is detected in the 2nd group
+                let pct2 = parseFloat(gtf_line.attributes["pct.2"]);
+                if (!Number.isFinite(pct2))
+                    continue;
+
+                // cluster: Cluster(s) containing marker gene (1st group)
+                let cluster = gtf_line.attributes.cluster;
+                if (!cluster)
+                    continue;
+
+                cluster = cluster.split(',').map((cluster_name) => cluster_name.trim());
+                if (cluster.indexOf('') !== -1)
+                    continue;
+
+                // against: Cluster(s) used for comparison (2nd group)
+                let against = gtf_line.attributes.against;
+                if (against)
+                {
+                    against = against.split(',').map((cluster_name) => cluster_name.trim());
+                    if (against.indexOf('') !== -1)
+                        continue;
+                }
+
+                if (this.gene_attributes.marker.indexOf(gene_id) === -1)
+                    this.gene_attributes.marker.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.marker.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.marker.push(gene_name);
+
+                continue;
+            }
+
+            // Only use information from peptides
+            let is_peptide = (gtf_line.source === "custom") && (gtf_line.feature === "exon");
+            if (!is_peptide)
+                continue;
+
+            let accession = gtf_line.attributes.accession;
+            let peptide = gtf_line.attributes.peptide;
+            if (!(accession && peptide))
+                continue;
+
+            let peptide_ids_orf = (gtf_line.attributes.peptide_ids_orf === "TRUE");
+            if (!peptide_ids_orf)
+                continue;
+
+            let peptide_ids_transcript = (gtf_line.attributes.peptide_ids_transcript === "TRUE");
+            let transcript_biotype = gtf_line.attributes.transcript_biotype;
+            let orf_type = gtf_line.attributes.orf_type;
+            let localisation = gtf_line.attributes.localisation;
+
+            // ORFs with UMPs
+            if (this.gene_attributes.uniq_map_peptides.indexOf(gene_id) === -1)
+                this.gene_attributes.uniq_map_peptides.push(gene_id);
+            if ((gene_name !== '') && (this.gene_name_attributes.uniq_map_peptides.indexOf(gene_name) === -1))
+                this.gene_name_attributes.uniq_map_peptides.push(gene_name);
+
+            // Long non-coding RNAs with UMPs
+            if (transcript_biotype === "lncRNA")
+            {
+                if (this.gene_attributes.lncRNA_peptides.indexOf(gene_id) === -1)
+                    this.gene_attributes.lncRNA_peptides.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.lncRNA_peptides.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.lncRNA_peptides.push(gene_name);
+            }
+            // Novel transcript isoforms with UMPs
+            else if (transcript_biotype === "novel")
+            {
+                if (this.gene_attributes.novel_txs.indexOf(gene_id) === -1)
+                    this.gene_attributes.novel_txs.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.novel_txs.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.novel_txs.push(gene_name);
+
+                // Novel transcript isoforms distinguished by UMPs
+                if (peptide_ids_transcript)
+                {
+                    if (this.gene_attributes.novel_txs_distinguished.indexOf(gene_id) === -1)
+                        this.gene_attributes.novel_txs_distinguished.push(gene_id);
+                    if ((gene_name !== '') && (this.gene_name_attributes.novel_txs_distinguished.indexOf(gene_name) === -1))
+                        this.gene_name_attributes.novel_txs_distinguished.push(gene_name);
+                }
+            }
+
+            // Unannotated ORFs with UMPs
+            if (orf_type === "unannotated")
+            {
+                if (this.gene_attributes.unann_orfs.indexOf(gene_id) === -1)
+                    this.gene_attributes.unann_orfs.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.unann_orfs.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.unann_orfs.push(gene_name);
+            }
+
+            // 5' uORFs with UMPs
+            if (localisation === "5UTR")
+            {
+                if (this.gene_attributes.uorf_5.indexOf(gene_id) === -1)
+                    this.gene_attributes.uorf_5.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.uorf_5.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.uorf_5.push(gene_name);
+            }
+            // 3' dORFs with UMPs
+            else if (localisation === "3UTR")
+            {
+                if (this.gene_attributes.dorf_3.indexOf(gene_id) === -1)
+                    this.gene_attributes.dorf_3.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.dorf_3.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.dorf_3.push(gene_name);
+            }
         }
     }
 
@@ -1367,22 +2560,6 @@ export class PrimaryData {
         });
         return response;
     }
-
-    updateTranscriptOrder(transcripts) {
-        /**
-         * Update transcript order after reordering / removing / adding isoforms. 
-         * 
-         * @param {Array<string>} transcripts: list of transcripts 
-         */
-        let newIsoformList = [];
-        for (let i = 0; i < transcripts.length; ++i) {
-            for (let isoform of this.allIsoforms) {
-                if (isoform.transcriptID == transcripts[i]) newIsoformList.push(isoform);
-            }
-        }
-        this.isoformList = newIsoformList;
-        this.transcriptOrder = transcripts;
-    }
 }
 
 /**
@@ -1430,11 +2607,11 @@ export class SecondaryData {
         // Determine delimiter
         if (filename.endsWith(".csv"))
             this.delim = ',';
-        else if (filename.endsWith(".txt"))
+        else if (filename.endsWith(".tsv") || filename.endsWith(".txt"))
             this.delim = '\t';
         else
         {
-            this.error = "Invalid heatmap file extension.";
+            this.error = "Invalid heatmap file extension. Please upload a CSV (comma-separated values) or tab-separated text (TSV / TXT) file.";
             return;
         }
 
@@ -1444,11 +2621,6 @@ export class SecondaryData {
         
         filtered_lines = arr[0];
         slice_index = arr[1];
-
-        let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-        let loading_msg = `Extracting data for gene '${this.gene}' from heatmap file...`;
-        this.update_loading_msg(loading_msg);
-        this.update_loading_percentage(loading_percentage);
 
         if (filtered_lines.length === 0)
         {
@@ -1460,20 +2632,23 @@ export class SecondaryData {
         this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
         if (this.samples.length < 2)
         {
-            this.error = "First line of heatmap file has less than 2 data columns. The file must have at least 2 data columns.";
+            this.error = "The first line of heatmap file has less than 2 data columns. The file must have at least 2 data columns.";
             return;
         }
 
         this.gene_id_colnum = -1;
         this.transcript_id_colnum = -1;
+        this.labels = [];
 
         for (let i = 0; i < this.samples.length; ++i)
         {
             let sample = this.samples[i].toLowerCase();
-            if (sample === "gene_id")
+            if (((sample === "gene_id") || (sample === "geneid")) && (this.gene_id_colnum === -1))
                 this.gene_id_colnum = i;
-            else if (sample === "transcript_id")
+            else if (((sample === "transcript_id") || (sample === "txname")) && (this.transcript_id_colnum === -1))
                 this.transcript_id_colnum = i;
+            else
+                this.labels.push(this.samples[i]);
         }
 
         if (this.transcript_id_colnum === -1)
@@ -1496,19 +2671,27 @@ export class SecondaryData {
         this.export = [];
         this.logExport = [];
 
+        let loading_percentage = 0;
+        let loading_msg = `Extracting data for gene '${this.gene}' from heatmap file...`;
+        this.update_loading_msg(loading_msg);
+        this.update_loading_percentage(loading_percentage);
+
         filtered_lines.splice(0, 1);
         this.processFilteredLines(filtered_lines);
 
         while (slice_index !== -1)
         {
+            loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
+            this.update_loading_percentage(loading_percentage);
+
             let arr = await this.filteredLines(slice_index);
             filtered_lines = arr[0];
             slice_index = arr[1];
             this.processFilteredLines(filtered_lines);
-
-            loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-            this.update_loading_percentage(loading_percentage);
         }
+
+        loading_percentage = 100;
+        this.update_loading_percentage(loading_percentage);
 
         if (this.transcripts.length === 0)
         {
@@ -1526,8 +2709,11 @@ export class SecondaryData {
             this.logAverage = Math.log10(this.average + 1);
         }
 
-        this.allIsoforms = JSON.parse(JSON.stringify(this.transcripts)); // store copy of transcripts to allow for manually adding/removing rows
         this.valid = true;
+
+        let properties_to_delete = "file gene error delim transcripts gene_id_colnum transcript_id_colnum samples sum num_nonzerovals transcript_ids".split(' ');
+        for (let property_to_delete of properties_to_delete)
+            delete this[property_to_delete];
     }
 
     update_loading_msg(loading_msg)
@@ -1647,16 +2833,6 @@ export class SecondaryData {
         });
         return text;
     }
-
-    updateTranscriptOrder(transcripts) {
-        /**
-         * Update transcript order after reordering / removing / adding isoforms.
-         * Only one property holds this here, so simple to update this property.
-         * 
-         * @param {Array<string>} transcripts: list of transcripts 
-         */
-        this.transcripts = transcripts;
-    }
 }
 
 /**
@@ -1670,35 +2846,28 @@ export class CanonData {
      */
     constructor(jsonData)
     {
+        let transcript_id = jsonData.id;
+        let strand = jsonData.Exon[0].strand > 0 ? '+' : '-';
+        let is_forward_strand = (strand === '+');
+
         // Enumerate all exons of each transcript and store coordinates and strand
-        this.transcripts = {};
-        this.transcripts[jsonData.id] = {};
-        for (let i = 0; i < jsonData.Exon.length; ++i) {
-            this.transcripts[jsonData.id][i] = [jsonData.Exon[i].start, jsonData.Exon[i].end];
-        }
-        this.transcripts[jsonData.id].strand = jsonData.Exon[0].strand > 0 ? '+' : '-';
+        let transcript_info = {};
+        transcript_info.exons = [];
+        transcript_info.strand = strand;
 
-        // Store canonical transcript as an Isoform object
-        this.isoformList = [new Isoform(jsonData.id, this.transcripts[jsonData.id])];
-        this.orfs = [];
+        for (let exon of jsonData.Exon)
+            transcript_info.exons.push([exon.start, exon.end]);
 
-        // let exonCount = this.isoformList[0].exonRanges.length;
-        // this.minExons = (exonCount < primaryMinExons) ? exonCount : primaryMinExons;
-        
+        this.isoformList = [new Isoform(transcript_id, transcript_info)];
+
         // Build metagene
         this.mergedRanges = mergeRanges(this.isoformList);
-        this.minExons = this.mergedRanges.length;
-        
+
         // Store other data
-        this.gene = jsonData.Parent;
-        this.start = this.isoformList[0].strand == '+' ? 
-            this.mergedRanges[0][0] : 
-            this.mergedRanges[this.mergedRanges.length - 1][1];
-        this.end = this.isoformList[0].strand == '+' ? 
-            this.mergedRanges[this.mergedRanges.length - 1][1] : 
-            this.mergedRanges[0][0];
+        this.start = (is_forward_strand) ? this.mergedRanges[0][0] : this.mergedRanges[this.mergedRanges.length - 1][1];
+        this.end = (is_forward_strand) ? this.mergedRanges[this.mergedRanges.length - 1][1] : this.mergedRanges[0][0];
         this.width = Math.abs(this.end - this.start);
-        this.strand = jsonData.strand > 0 ? '+' : '-';
+        this.strand = strand;
         this.display = jsonData.display_name;
     }
 }
@@ -1710,48 +2879,47 @@ export class ProteinData
      * Create a protein data instance with data from InterPro
      * @param {string} accession protein accession taken from Pfam
      */
-    constructor([metadata_json, features_json, domains_json], accession, canon_data)
+    constructor([metadata_json, features_json, domains_json], canon_data)
     {
-        this.labels = {"canonical": accession, "isoform": accession};
-        this.ready = false;
         this.domainMap = {};
         this.motifMap = {};
         this.strand = canon_data.strand;
-        this.reversed = this.strand === '+' ? false : true;
-        this.C2GDomain = [];
+        this.reversed = (this.strand !== '+');
 
-        this.orf = [];
+        let C2GDomain = [];
+        let C2GRange = [];
+
+        let orf = [];
         if (canon_data.orf)
-            this.orf = JSON.parse(JSON.stringify(canon_data.orf));
+            orf = JSON.parse(JSON.stringify(canon_data.orf));
 
         this.json = {"markups": [], "motifs": []};
         this.readMetadata(metadata_json);
         this.readFeatures(features_json);
         this.readDomains(domains_json);
-        this.id = this.json.metadata.identifier;
 
-        this.C2GDomain = [];
-        this.C2GRange = [];
         let cdsPosition = 0;
-        for (let exon of this.orf)
+        for (let exon of orf)
         {
-            if (this.reversed) exon.reverse();
+            if (this.reversed)
+                exon.reverse();
+
             let exonLength = Math.abs(exon[1] - exon[0]);
-            this.C2GDomain.push(cdsPosition);
+            C2GDomain.push(cdsPosition);
             cdsPosition += exonLength;
-            this.C2GDomain.push(cdsPosition);
+            C2GDomain.push(cdsPosition);
             cdsPosition += 1;
-            this.C2GRange.push(exon[0]);
-            this.C2GRange.push(exon[1]);
+            C2GRange.push(exon[0]);
+            C2GRange.push(exon[1]);
         }
-        this.C2GMap = d3.scaleLinear().domain(this.C2GDomain).range(this.C2GRange); // CDS to Genome
-        this.P2CMap = (coord) => ([3 * (coord - 1), 3 * coord - 1]); // Protein to CDS: 3 nt for each aa
 
         this.originalData = JSON.parse(JSON.stringify(this.json));
         this.reversedData = JSON.parse(JSON.stringify(this.json));
-
         this.reverseData();
-        this.getMap();
+
+        let C2GMap = d3.scaleLinear().domain(C2GDomain).range(C2GRange); // CDS to Genome
+        let P2CMap = (coord) => ([3 * (coord - 1), 3 * coord - 1]); // Protein to CDS: 3 nt for each aa
+        this.getMap(C2GMap, P2CMap);
     }
 
     readMetadata(metadata_json)
@@ -1911,7 +3079,7 @@ export class ProteinData
         }
     }
 
-    getMap()
+    getMap(C2GMap, P2CMap)
     {
         for (let region of this.originalData.regions)
         {
@@ -1920,8 +3088,8 @@ export class ProteinData
             let region_key = `${region.metadata.database}_${start}_${end}`;
 
             this.domainMap[region_key] = {};
-            this.domainMap[region_key][start] = this.C2GMap(this.P2CMap(start)[0]);
-            this.domainMap[region_key][end] = this.C2GMap(this.P2CMap(end)[1]);
+            this.domainMap[region_key][start] = C2GMap(P2CMap(start)[0]);
+            this.domainMap[region_key][end] = C2GMap(P2CMap(end)[1]);
         }
 
         for (let motif of this.originalData.motifs)
@@ -1931,8 +3099,8 @@ export class ProteinData
             let motif_key = `${motif.metadata.type}_${start}_${end}`;
 
             this.motifMap[motif_key] = {};
-            this.motifMap[motif_key][start] = this.C2GMap(this.P2CMap(start)[0]);
-            this.motifMap[motif_key][end] = this.C2GMap(this.P2CMap(end)[1]);
+            this.motifMap[motif_key][start] = C2GMap(P2CMap(start)[0]);
+            this.motifMap[motif_key][end] = C2GMap(P2CMap(end)[1]);
         }
     }
 }
@@ -1962,7 +3130,7 @@ class GFF3Line
         let range_begin = parseInt(line[3]);
         let range_end = parseInt(line[4]);
         let strand = line[6].trim();
-        if (isNaN(range_begin) || isNaN(range_end) || ((strand !== '+') && (strand !== '-')))
+        if (isNaN(range_begin) || isNaN(range_end) || (range_begin > range_end) || ((strand !== '+') && (strand !== '-')))
         {
             this.valid = false;
             return;
@@ -1976,7 +3144,7 @@ class GFF3Line
         this.attributes = {};
 
         // reconstruct attributed column as JSON
-        let info = line[8].split(';'); 
+        let info = line[8].split(';');
 
         for (let entry of info)
         {
@@ -2031,7 +3199,7 @@ class GTFLine
         let range_begin = parseInt(line[3]);
         let range_end = parseInt(line[4]);
         let strand = line[6].trim();
-        if (isNaN(range_begin) || isNaN(range_end) || ((strand !== '+') && (strand !== '-')))
+        if (isNaN(range_begin) || isNaN(range_end) || (range_begin > range_end) || ((strand !== '+') && (strand !== '-')))
         {
             this.valid = false;
             return;
@@ -2046,7 +3214,7 @@ class GTFLine
         this.attributes = {};
 
         // reconstruct attributed column as JSON
-        let info = line[8].split(';'); 
+        let info = line[8].split(';');
 
         for (let entry of info)
         {
@@ -2059,6 +3227,94 @@ class GTFLine
 
             let attribute_name = entry[0].toLowerCase();
             let attribute_val = entry[1].replace(/"/g, '');
+            this.attributes[attribute_name] = attribute_val;
+        }
+    }
+}
+
+/**
+ * Class to represent a line of the combined annotations GTF file from GenomeProt
+ */
+class GenomeProtGTFLine
+{
+    /**
+     * Create a GenomeProtGTFLine instance
+     * 
+     * @param {string} dataString line of the combined annotations GTF file in string format
+     */
+    constructor(dataString)
+    {
+        this.valid = true;
+
+        // extract data from input
+        let line = dataString.split('\t');
+        if (line.length < 9)
+        {
+            this.valid = false;
+            return;
+        }
+
+        let range_begin = parseInt(line[3]);
+        let range_end = parseInt(line[4]);
+        let strand = line[6].trim();
+        if (isNaN(range_begin) || isNaN(range_end) || (range_begin > range_end) || ((strand !== '+') && (strand !== '-')))
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.chromosome = line[0].trim();
+
+        // Only consider lines where the source is "custom" or "Bambu"
+        // If the source is "custom", the feature must be either "exon" or "CDS"
+        // Otherwise, the feature must be either "exon" or "transcript"
+
+        // custom +       exon = Peptide genomic range
+        // custom +        CDS = CDS of a transcript annotated with the peptide ID
+        //  Bambu + transcript = Transcript genomic range
+        //  Bambu +       exon = Transcript exon genomic range
+
+        this.source = line[1].trim();
+        if (this.source !== "custom" && this.source !== "Bambu")
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.feature = line[2].trim();
+        if ((this.source === "custom" && (this.feature !== "exon" && this.feature !==        "CDS")) ||
+            (this.source ===  "Bambu" && (this.feature !== "exon" && this.feature !== "transcript")))
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.range = [range_begin, range_end];
+        this.strand = strand;
+        this.attributes = {};
+
+        // reconstruct attributed column as JSON
+        let info = line[8].split(';');
+
+        let allowed_attributes = ["peptide", "accession", "transcript_id", "gene_id",
+                                  "pid", "transcript_biotype", "peptide_ids_gene", "peptide_ids_orf", "peptide_ids_transcript", "orf_type", "localisation",
+                                  "gene_identified", "transcript_identified", "orf_identified",
+                                  "gene_name", "exon_number", "group_id",
+                                  "marker_gene", "p_val_adj", "avg_log2fc", "pct.1", "pct.2", "cluster", "against"];
+        for (let entry of info)
+        {
+            if (entry.length <= 1)
+                continue;
+
+            entry = entry.trim().replace(/\r/g, '').split(" ");
+            if (entry.length < 2)
+                continue;
+
+            let attribute_name = entry[0].toLowerCase();
+            let attribute_val = entry[1].replace(/"/g, '');
+            if (allowed_attributes.indexOf(attribute_name) === -1)
+                continue;
+
             this.attributes[attribute_name] = attribute_val;
         }
     }
@@ -2265,6 +3521,141 @@ class MinimalBEDLine
 }
 
 /**
+ * Class to represent a line of a BED12 file used to store peptide data
+ */
+class PeptideBEDLine
+{
+    /**
+     * Create a PeptideBEDLine instance
+     * 
+     * @param {string} dataString line of a peptide BED file in string format
+     */
+    constructor(dataString)
+    {
+        this.valid = true;
+
+        // extract data from input
+        let line = dataString.split('\t');
+        if (line.length !== 12)
+        {
+            this.valid = false;
+            return;
+        }
+
+        let start = parseInt(line[1]) + 1;
+        let end = parseInt(line[2]);
+        let blockCount = parseInt(line[9]);
+        if (isNaN(start) || isNaN(end) || isNaN(blockCount) || (blockCount === 0) || (start >= end))
+        {
+            this.valid = false;
+            return;
+        }
+
+        // Extract the transcript ID and peptide sequence
+        let split_column = line[3].split('|', 2);
+        if (split_column.length !== 2)
+            split_column = line[3].split('_', 2);
+
+        if (split_column.length !== 2)
+        {
+            this.valid = false;
+            return;
+        }
+
+        // this.chromosome = line[0];
+        this.start = start;
+        this.end = end;
+        this.transcript = split_column[0].split('.')[0].trim();
+        this.peptide = split_column[1].trim();
+
+        // Reject lines containing empty transcripts and peptides
+        if ((this.transcript.length === 0) || (this.peptide.length === 0))
+        {
+            this.valid = false;
+            return;
+        }
+
+        this.blockCount = blockCount;
+        this.blockSizes = this.buildList(line[10]);
+        this.blockStarts = this.buildList(line[11]);
+
+        // The number of block lengths and number of block starting positions must be equal to the number of blocks
+        if ((blockCount !== this.blockSizes.length) || (blockCount !== this.blockStarts.length))
+            this.valid = false;
+    }
+
+    buildList(values)
+    {
+        let vals = values.split(',');
+        let output = [];
+        for (let val of vals)
+        {
+            let intVal = parseInt(val);
+            if (Number.isInteger(intVal))
+                output.push(intVal);
+        }
+        return output;
+    }
+}
+
+/**
+ * Class to represent a line of a BED12 file used to store peptide data
+ */
+class PeptideReducedBEDLine
+{
+    /**
+     * Create a PeptideBEDLine instance
+     * 
+     * @param {string} dataString line of a peptide BED file in string format
+     * @param {Number} num_columns number of columns in the line; there should be only 6 to 9 lines
+     */
+    constructor(dataString, num_columns)
+    {
+        this.valid = true;
+
+        // extract data from input
+        let line = dataString.split('\t');
+        if (line.length !== num_columns)
+        {
+            this.valid = false;
+            return;
+        }
+
+        let start = parseInt(line[1]) + 1;
+        let end = parseInt(line[2]);
+        if (isNaN(start) || isNaN(end) || (start >= end))
+        {
+            this.valid = false;
+            return;
+        }
+
+        // Extract the transcript ID and peptide sequence
+        let split_column = line[3].split('|', 2);
+        if (split_column.length !== 2)
+            split_column = line[3].split('_', 2);
+
+        if (split_column.length !== 2)
+        {
+            this.valid = false;
+            return;
+        }
+
+        // this.chromosome = line[0];
+        this.start = start;
+        this.end = end;
+        this.transcript = split_column[0].split('.')[0].trim();
+        this.peptide = split_column[1].trim();
+
+        // Reject lines containing empty transcripts and peptides
+        if ((this.transcript.length === 0) || (this.peptide.length === 0))
+        {
+            this.valid = false;
+            return;
+        }
+    }
+}
+
+/**
  * Class to represent a line of a BED file used to store RNA modification sites data
  */
 class RNAModifSitesBEDLine
@@ -2319,28 +3710,86 @@ class Isoform {
      * @param {object} exons enumeration of exons storing coordinates and strand
      */
     constructor(label, exons) {
-        // Store data
         this.transcriptID = label;
-        this.exons = {}
-        for (let key of Object.keys(exons)) {
-            key = parseInt(key);
-            if (!isNaN(key)) {
-                this.exons[key] = exons[key];
-            }
-        }
         this.strand = exons.strand;
-        this.exonRanges = [];
-        for (let value of Object.values(this.exons)) {
-            this.exonRanges.push(value);
+        let is_forward_strand = (this.strand === '+');
+
+        this.exonRanges = JSON.parse(JSON.stringify(exons.exons));
+        this.exonRanges.sort((exon0, exon1) => exon0[0] - exon1[0]);
+
+        // Ensure there is no overlap between exon ranges
+        while (true)
+        {
+            let is_overlapping = false;
+
+            for (let i = 0; i < this.exonRanges.length - 1; ++i)
+            {
+                let exon0 = this.exonRanges[i];
+                let exon1 = this.exonRanges[i + 1];
+                let merged = union(exon0, exon1);
+                if (merged.length !== 0)
+                {
+                    is_overlapping = true;
+                    this.exonRanges.splice(i, 1);
+                    this.exonRanges[i] = merged;
+                    break;
+                }
+            }
+
+            if (!is_overlapping)
+                break;
         }
-        this.start = this.strand == '+' ? this.exonRanges[0][0] : this.exonRanges[this.exonRanges.length - 1][1];
-        this.end = this.strand == '+' ? this.exonRanges[this.exonRanges.length - 1][1] : this.exonRanges[0][0];
+
+        if (!is_forward_strand)
+            this.exonRanges.reverse();
+
+        // TODO: In the future, avoid using union() so that it's possible to identify and visualize overlapping ORFs within an isoform
+        this.user_orf = [];
+        if (exons.user_orf && (exons.user_orf.length !== 0))
+        {
+            this.user_orf = JSON.parse(JSON.stringify(exons.user_orf));
+            this.user_orf.sort((exon0, exon1) => exon0[0] - exon1[0]);
+
+            // Ensure there is no overlap between user ORF ranges
+            while (true)
+            {
+                let is_overlapping = false;
+
+                for (let i = 0; i < this.user_orf.length - 1; ++i)
+                {
+                    let orf0 = this.user_orf[i];
+                    let orf1 = this.user_orf[i + 1];
+                    let merged = union(orf0, orf1);
+                    if (merged.length !== 0)
+                    {
+                        is_overlapping = true;
+                        this.user_orf.splice(i, 1);
+                        this.user_orf[i] = merged;
+                        break;
+                    }
+                }
+
+                if (!is_overlapping)
+                    break;
+            }
+
+            if (!is_forward_strand)
+                this.user_orf.reverse();
+        }
+
+        // Store other data
+        this.start = is_forward_strand ? this.exonRanges[0][0] : this.exonRanges[this.exonRanges.length - 1][0];
+        this.end = is_forward_strand ? this.exonRanges[this.exonRanges.length - 1][1] : this.exonRanges[0][1];
         this.length = Math.abs(this.end - this.start);
         this.orf = [];
 
-        this.user_orf = [];
-        if (exons.user_orf && (exons.user_orf.length !== 0))
-            this.user_orf = JSON.parse(JSON.stringify(exons.user_orf));
+        // Only applicable for GenomeProt data
+        this.accessions = [];
+        if (exons.accessions)
+        {
+            this.accessions = JSON.parse(JSON.stringify(exons.accessions));
+            this.accessions.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
+        }
     }
 }
 
@@ -2419,18 +3868,15 @@ export class OtherIsoformData
             }
 
             this.transcripts[transcript_id] = {};
+            this.transcripts[transcript_id].exons = [];
+            this.transcripts[transcript_id].strand = this.strand;
+
             let exons = transcript.Exon;
-            if (strand === '-')
+            if (this.strand === '-')
                 exons.reverse();
 
-            for (let i = 0; i < exons.length; ++i)
-            {
-                let exon = exons[i];
-                let exon_start = exon.start;
-                let exon_end = exon.end;
-                this.transcripts[transcript_id][i] = [exon_start, exon_end];
-            }
-            this.transcripts[transcript_id].strand = this.strand;
+            for (let exon of exons)
+                this.transcripts[transcript_id].exons.push([exon.start, exon.end]);
         }
 
         this.transcriptOrder = prioritiseKnownTranscripts(Object.keys(JSON.parse(JSON.stringify(this.transcripts))));
@@ -2466,9 +3912,7 @@ export function calculateSplicedRegions(isoformList)
     // Determine all spliced regions and store them in a dictionary in the form of 'string([start1, end1]), string([start2, end2]), ...'
     for (let isoform of isoformList)
     {
-        let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
-        exon_ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
-
+        let exon_ranges = isoform.exonRanges;
         for (let i = 0; i < exon_ranges.length - 1; ++i)
         {
             let exon0 = exon_ranges[i];
@@ -2536,9 +3980,7 @@ export function calculateSplicedRegions(isoformList)
         // the spliced region is non-constitutive
         for (let isoform of isoformList)
         {
-            let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
-            exon_ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
-
+            let exon_ranges = isoform.exonRanges;
             for (let i = 0; i < exon_ranges.length; ++i)
             {
                 let exon = exon_ranges[i];
@@ -2653,10 +4095,8 @@ export function calculateSplicedRegions(isoformList)
             let overlap = intersection(isoform_range, [spliced_region_start, spliced_region_end]);
             if ((overlap.length !== 0) && (overlap[0] === spliced_region_start) && (overlap[1] === spliced_region_end))
             {
-                let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
-                exon_ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
-
                 let is_spliced_region_in_transcript = false;
+                let exon_ranges = isoform.exonRanges;
                 for (let i = 0; i < exon_ranges.length - 1; ++i)
                 {
                     let exon0 = exon_ranges[i];
@@ -2780,28 +4220,30 @@ export function calculateRelativeHeightsAll(spliced_regions)
  * @returns {Array<Array<number>>} List of coordinates for exonic regions in the metagene
  */
 export function mergeRanges(isoformList) {
-    let temp = [],
-    exons = [],
-    merged = [];
+    let temp = [], exons = [], merged = [];
 
     // extract all exons from isoforms
-    for (let isoform of isoformList) {
-        for (let exon of isoform.exonRanges) {
-            if (exons.length == 0 || !checkInclusion(exon, exons)) exons.push(exon);
-        }
-    }
+    for (let isoform of isoformList)
+        for (let exon of isoform.exonRanges)
+            if (exons.length == 0 || !checkInclusion(exon, exons))
+                exons.push(exon);
 
     // compute unions between exon pairs and store in temporary list
-    for (let exon of exons) {
-        if (temp.length == 0) {
+    for (let exon of exons)
+    {
+        if (temp.length == 0)
             temp.push(exon);
-        } else {
-            for (let i = 0; i < temp.length; ++i) {
+        else
+        {
+            for (let i = 0; i < temp.length; ++i)
+            {
                 let currentUnion = union(temp[i], exon);
-                if (currentUnion.length != 0) {
+                if (currentUnion.length != 0)
+                {
                     temp.splice(i, 1);
                     exon = currentUnion;
-                    i = -1; continue;
+                    i = -1;
+                    continue;
                 }
             }
             temp.push(exon);
@@ -2809,10 +4251,10 @@ export function mergeRanges(isoformList) {
     }
 
     // collect all unique coordinate pairs from temporary list, sort and return
-    for (let i = 0; i < temp.length; ++i) {
-        let exon = temp[i];
-        if (!checkInclusion(exon, merged)) merged.push(exon);
-    }
+    for (let exon of temp)
+        if (!checkInclusion(exon, merged))
+            merged.push(exon);
+
     merged.sort((range1, range2) => (range1[0] - range2[0]));
     return merged;
 }
@@ -2826,16 +4268,11 @@ export function mergeRanges(isoformList) {
  */
 function union(exon1, exon2)
 {
-    let start1 = exon1[0], 
-    start2 = exon2[0],
-    end1 = exon1[1],
-    end2 = exon2[1],
-    output = [];
+    let [[start1, end1], [start2, end2]] = [exon1, exon2];
 
-    if (start1 < end2 && start2 < end1) {
-        output = [Math.min(start1, start2), Math.max(end1, end2)];
-    }
-    return output;
+    if (start1 < end2 && start2 < end1)
+        return [Math.min(start1, start2), Math.max(end1, end2)];
+    return [];
 }
 
 /**
@@ -2847,16 +4284,12 @@ function union(exon1, exon2)
  */
 function intersection(orf, exon)
 {
-    let orf_start = orf[0], 
-    exon_start = exon[0],
-    orf_end = orf[1],
-    exon_end = exon[1],
-    output = [];
+    let [[orf_start, orf_end], [exon_start, exon_end]] = [orf, exon];
 
     if ((exon_end < orf_start) || (exon_start > orf_end))
-        return output;
+        return [];
 
-    output = [Math.max(orf_start, exon_start), Math.min(orf_end, exon_end)];
+    let output = [Math.max(orf_start, exon_start), Math.min(orf_end, exon_end)];
     if (output[0] === output[1])
         return [];
 
@@ -2871,12 +4304,9 @@ function intersection(orf, exon)
  * @returns {boolean} Boolean value describing inclusion
  */
 function checkInclusion(entry, list) {
-    let output = false;
-    for (let value of list) {
-        if (entry.every((val, index) => val === value[index])) {
-            output = true;
-            break;
-        }
-    }
-    return output;
+    for (let value of list)
+        if (entry.every((val, index) => val === value[index]))
+            return true;
+
+    return false;
 }
