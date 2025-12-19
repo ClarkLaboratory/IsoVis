@@ -283,6 +283,12 @@ export default {
                 let transcripts_identified = JSON.parse(JSON.stringify(peptide_info.transcripts_identified));
                 let orfs_identified = JSON.parse(JSON.stringify(peptide_info.orfs_identified));
 
+                let transcripts_mapped = Object.keys(peptide_info.transcript_info);
+                transcripts_mapped.sort((a, b) => a[0].localeCompare(b[0], "en", {numeric: true, sensitivity: "case"}));
+
+                let orfs_mapped = Object.keys(peptide_info.accession_info);
+                orfs_mapped.sort((a, b) => a[0].localeCompare(b[0], "en", {numeric: true, sensitivity: "case"}));
+
                 let y = (this.is_compact ? 0 : transformation(i)) + (self.peptideHeight - blockHeight * 3 / 4) / 2;
 
                 ctx.fillStyle = "rgb(83,83,83)";
@@ -313,7 +319,7 @@ export default {
                         continue;
 
                     if (!(this.is_compact))
-                        block_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, peptide, x0, x1, j + 1, peptide_blocks.length, peptide_ids_gene, peptide_ids_transcript, peptide_ids_orf, transcripts_identified, orfs_identified, this.currentGene]);
+                        block_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, peptide, x0, x1, j + 1, peptide_blocks.length, peptide_ids_gene, peptide_ids_transcript, peptide_ids_orf, transcripts_identified, orfs_identified, transcripts_mapped, orfs_mapped, this.currentGene]);
                 }
             }
 
@@ -372,8 +378,10 @@ export default {
                 let shown_peptide_id_orf = null;
                 let shown_transcripts_identified = null;
                 let shown_orfs_identified = null;
+                let shown_transcripts_mapped = null;
+                let shown_orfs_mapped = null;
                 let shown_current_gene = null;
-                for (let [x0, x1, y0, y1, peptide_seq, block_start, block_end, block_number, total_blocks, peptide_ids_gene, peptide_ids_transcript, peptide_ids_orf, transcripts_identified, orfs_identified, current_gene] of block_info)
+                for (let [x0, x1, y0, y1, peptide_seq, block_start, block_end, block_number, total_blocks, peptide_ids_gene, peptide_ids_transcript, peptide_ids_orf, transcripts_identified, orfs_identified, transcripts_mapped, orfs_mapped, current_gene] of block_info)
                 {
                     if ((x0 <= x_diff) && (x_diff <= x1) && (y0 <= y_diff) && (y_diff <= y1))
                     {
@@ -387,6 +395,8 @@ export default {
                         shown_peptide_id_orf = peptide_ids_orf;
                         shown_transcripts_identified = transcripts_identified;
                         shown_orfs_identified = orfs_identified;
+                        shown_transcripts_mapped = transcripts_mapped;
+                        shown_orfs_mapped = orfs_mapped;
                         shown_current_gene = current_gene;
 
                         shown_transcripts_identified.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
@@ -412,26 +422,64 @@ export default {
                 let topVal = (clientY - peptide_stack_boundary.top + padding + 5);
 
                 let peptide_mapping_info_text = "";
+                let shown_peptide_mapping_info_text = "";
+                let num_cutoff = 5;
 
                 if (shown_peptide_id_orf)
                 {
                     if (shown_orfs_identified.length > 1)           // This shouldn't happen...
+                    {
                         peptide_mapping_info_text += `Uniquely mapped to ORFs ${shown_orfs_identified.join(", ")}\r\n`;
+                        shown_peptide_mapping_info_text += `Uniquely mapped to ORFs ${shown_orfs_identified.join(", ")}\r\n`;
+                    }
                     else
+                    {
                         peptide_mapping_info_text += `Uniquely mapped to ORF ${shown_orfs_identified[0]}\r\n`;
+                        shown_peptide_mapping_info_text += `Uniquely mapped to ORF ${shown_orfs_identified[0]}\r\n`;
+                    }
+                }
+
+                if (shown_orfs_mapped.length > 1)
+                {
+                    let orfs_mapped_text = shown_orfs_mapped.slice(0, num_cutoff).join(", ");
+                    if (shown_orfs_mapped.length > num_cutoff)
+                        orfs_mapped_text += "...";
+
+                    peptide_mapping_info_text += `ORFs: ${shown_orfs_mapped.join(", ")}\r\n`;
+                    shown_peptide_mapping_info_text += `ORFs: ${orfs_mapped_text}\r\n`;
                 }
 
                 if (shown_peptide_id_transcript)
                 {
                     if (shown_transcripts_identified.length > 1)    // This shouldn't happen...
+                    {
                         peptide_mapping_info_text += `Uniquely mapped to transcripts ${shown_transcripts_identified.join(", ")}\r\n`;
+                        shown_peptide_mapping_info_text += `Uniquely mapped to transcripts ${shown_transcripts_identified.join(", ")}\r\n`;
+                    }
                     else
+                    {
                         peptide_mapping_info_text += `Uniquely mapped to transcript ${shown_transcripts_identified[0]}\r\n`;
+                        shown_peptide_mapping_info_text += `Uniquely mapped to transcript ${shown_transcripts_identified[0]}\r\n`;
+                    }
+                }
+
+                if (shown_transcripts_mapped.length > 1)
+                {
+                    let transcripts_mapped_text = shown_transcripts_mapped.slice(0, num_cutoff).join(", ");
+                    if (shown_transcripts_mapped.length > num_cutoff)
+                        transcripts_mapped_text += "...";
+
+                    peptide_mapping_info_text += `Transcripts: ${shown_transcripts_mapped.join(", ")}\r\n`;
+                    shown_peptide_mapping_info_text += `Transcripts: ${transcripts_mapped_text}\r\n`;
                 }
 
                 if (shown_peptide_id_gene)
+                {
                     peptide_mapping_info_text += `Uniquely mapped to gene ${shown_current_gene}\r\n`;
+                    shown_peptide_mapping_info_text += `Uniquely mapped to gene ${shown_current_gene}\r\n`;
+                }
 
+                let shown_tooltip_text = `Peptide: ${shown_peptide_seq}\r\n${shown_peptide_mapping_info_text}Peptide block #${shown_block_number} / ${shown_total_blocks}\r\nGenomic range: ${shown_block_start} - ${shown_block_end}`;
                 let tooltip_text = `Peptide: ${shown_peptide_seq}\r\n${peptide_mapping_info_text}Peptide block #${shown_block_number} / ${shown_total_blocks}\r\nGenomic range: ${shown_block_start} - ${shown_block_end}`;
                 let event = new CustomEvent("set_peptidegenomeprotstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
@@ -447,7 +495,7 @@ export default {
                         end_text = "";
                 }
 
-                let tooltip_html = tooltip_text.replaceAll("\r\n", "<br>") + end_text;
+                let tooltip_html = shown_tooltip_text.replaceAll("\r\n", "<br>") + end_text;
                 tooltip.html(tooltip_html)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");

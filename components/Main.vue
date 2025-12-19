@@ -249,7 +249,7 @@ Requires mainData object which is used here to update the relevant data other co
     <b-row v-show="!peptide_disabled && show_peptide" class="border-bottom row14">
 
         <!-- Column W.1: Peptide list -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; cursor: move;">
             <draggable v-if="!peptide_compact_mode" v-model="peptideOrder" @start="drag=true" @end="onPeptideEnd">
                 <div v-for="peptide in peptideOrder" :key="peptide" :id="peptide" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                     <!-- Delete button -->
@@ -280,7 +280,7 @@ Requires mainData object which is used here to update the relevant data other co
 
         <!-- Column W.2: Peptide stack -->
         <b-col v-show="mainData && mainData.isoformData && !(mainData.isoformData.is_genomeprot) && show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <PeptideStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :is-genome-prot="mainData.isoformData.is_genomeprot" ref="peptideStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideStack>
+            <PeptideStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :peptide-to-transcripts="peptide_data.peptideToTranscripts" :is-genome-prot="mainData.isoformData.is_genomeprot" ref="peptideStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideStack>
         </b-col>
         <b-col v-show="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <PeptideGenomeProtStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :is-genome-prot="mainData.isoformData.is_genomeprot" :current-gene="mainData.selectedGene" ref="peptideGenomeProtStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideGenomeProtStack>
@@ -355,7 +355,7 @@ Requires mainData object which is used here to update the relevant data other co
     <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom row12">
 
         <!-- Column YB.1: Other isoforms accession list -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; cursor: move;">
             <draggable v-model="other_isoforms_ids" @start="drag=true" @end="onOtherEnd">
                 <div v-for="other_isoform_id in other_isoforms_ids" :key="other_isoform_id" :id="other_isoform_id" style="display: block; height: 51px; line-height: 51px; background-color: white;">
                     <!-- Delete button -->
@@ -420,7 +420,7 @@ Requires mainData object which is used here to update the relevant data other co
     <b-row v-show="!rna_modif_disabled && show_rna_modif" class="border-bottom row17">
 
         <!-- Column W.1: RNA modification site list -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; cursor: move;">
             <draggable v-if="!rna_modif_compact_mode" v-model="siteOrder" @start="drag=true" @end="onSiteEnd">
                 <div v-for="site in siteOrder" :key="site" :id="site" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                     <!-- Delete button -->
@@ -505,7 +505,7 @@ Requires mainData object which is used here to update the relevant data other co
     <b-row class="border-bottom row5">
 
         <!-- Column 5.1: Accession list -->
-        <b-col class="col1 grid-item mx-0 g-0" cols="3" style="text-align: center; white-space: nowrap; overflow: auto;">
+        <b-col class="col1 grid-item mx-0 g-0" cols="3" style="text-align: center; white-space: nowrap; overflow: auto; cursor: move;">
             <draggable v-model="transcriptIds" @start="drag=true" @end="onEnd">
                 <div v-for="transcriptId in transcriptIds" :key="transcriptId" :id="transcriptId" style="display: block; height: 51px; line-height: 51px; background-color: white;">
                     <!-- Delete button -->
@@ -3993,7 +3993,8 @@ export default
                         this.setShowPeptideHeatmap(true);
                     this.peptideOrder = JSON.parse(JSON.stringify(this.mainData.peptideData.peptideOrder));
                     this.allPeptides = JSON.parse(JSON.stringify(this.mainData.peptideData.peptides));
-                    this.peptide_data = {peptideOrder: JSON.parse(JSON.stringify(this.peptideOrder)), peptideInfo: JSON.parse(JSON.stringify(this.mainData.peptideData.peptide_info))};
+                    this.peptide_data = {peptideOrder: JSON.parse(JSON.stringify(this.peptideOrder)), peptideInfo: JSON.parse(JSON.stringify(this.mainData.peptideData.peptide_info)),
+                                                                                                      peptideToTranscripts: JSON.parse(JSON.stringify(this.mainData.peptideData.peptide_to_transcripts))};
                 }
                 else if (this.mainData.isoformData.peptides && (Object.keys(this.mainData.isoformData.peptides).length !== 0))
                 {

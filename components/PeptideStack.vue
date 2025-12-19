@@ -17,7 +17,7 @@ import * as d3 from 'd3';
 import {put_in_svg, rect, line} from "~/assets/svg_utils";
 
 export default {
-    props: ["baseAxis", "peptideOrder", "peptideInfo", "isGenomeProt"],
+    props: ["baseAxis", "peptideOrder", "peptideInfo", "peptideToTranscripts", "isGenomeProt"],
     
     data: () => {
         return {
@@ -184,7 +184,7 @@ export default {
             this.end_drag = -1;
             this.tooltip_text = "";
 
-            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || Object.keys(this.baseAxis).length == 0)
+            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || !this.peptideToTranscripts || Object.keys(this.baseAxis).length == 0)
                 return;
 
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
@@ -277,7 +277,7 @@ export default {
                             continue;
 
                         if (!(this.is_compact))
-                            block_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, peptide, x0, x1, k + 1, peptide_block.length]);
+                            block_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, peptide, x0, x1, k + 1, peptide_block.length, this.peptideToTranscripts[peptide]]);
                     }
                 }
             }
@@ -327,7 +327,8 @@ export default {
                 let shown_block_end = null;
                 let shown_block_number = null;
                 let shown_total_blocks = null;
-                for (let [x0, x1, y0, y1, peptide_seq, block_start, block_end, block_number, total_blocks] of block_info)
+                let shown_transcripts = null;
+                for (let [x0, x1, y0, y1, peptide_seq, block_start, block_end, block_number, total_blocks, transcripts] of block_info)
                 {
                     if ((x0 <= x_diff) && (x_diff <= x1) && (y0 <= y_diff) && (y_diff <= y1))
                     {
@@ -336,6 +337,7 @@ export default {
                         shown_block_end = block_end;
                         shown_block_number = block_number;
                         shown_total_blocks = total_blocks;
+                        shown_transcripts = transcripts;
                         break;
                     }
                 }
@@ -356,11 +358,21 @@ export default {
                 let leftVal = (calculateLeftVal(clientX) - stack_boundary.left + padding + 7);
                 let topVal = (clientY - peptide_stack_boundary.top + padding + 5);
 
-                let tooltip_text = `Peptide: ${shown_peptide_seq}\r\nPeptide block #${shown_block_number} / ${shown_total_blocks}\r\nGenomic range: ${shown_block_start} - ${shown_block_end}`;
+                let num_cutoff = 5;
+
+                let transcripts_text = shown_transcripts.slice(0, num_cutoff).join(", ");
+                if (shown_transcripts.length > num_cutoff)
+                    transcripts_text += "...";
+
+                let shown_transcripts_text = `Transcripts: ${transcripts_text}\r\n`;
+                transcripts_text = `Transcripts: ${shown_transcripts.join(", ")}\r\n`;
+
+                let shown_tooltip_text = `Peptide: ${shown_peptide_seq}\r\n${shown_transcripts_text}Peptide block #${shown_block_number} / ${shown_total_blocks}\r\nGenomic range: ${shown_block_start} - ${shown_block_end}`;
+                let tooltip_text = `Peptide: ${shown_peptide_seq}\r\n${transcripts_text}Peptide block #${shown_block_number} / ${shown_total_blocks}\r\nGenomic range: ${shown_block_start} - ${shown_block_end}`;
                 let event = new CustomEvent("set_peptidestack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
-                let tooltip_html = tooltip_text.replaceAll("\r\n", "<br>") + "<br>(Click on the peptide block to copy the text in this tooltip)<br>";
+                let tooltip_html = shown_tooltip_text.replaceAll("\r\n", "<br>") + "<br>(Click on the peptide block to copy the text in this tooltip)<br>";
                 tooltip.html(tooltip_html)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
@@ -385,7 +397,7 @@ export default {
 
         buildStackSvg(symbol = false)
         {
-            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || Object.keys(this.baseAxis).length == 0)
+            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || !this.peptideToTranscripts || Object.keys(this.baseAxis).length == 0)
             {
                 if (symbol)
                     return [-1, -1, null];

@@ -126,6 +126,7 @@ the exact state of that page from the previous state.
             <b-form-checkbox v-model="unann_orfs" :disabled="no_unann_orfs">Unannotated ORFs with UMPs ({{ !no_unann_orfs ? `${num_unann_orfs}` : "none" }})</b-form-checkbox>
             <b-form-checkbox v-model="uorf_5" :disabled="no_uorf_5">5' uORFs with UMPs ({{ !no_uorf_5 ? `${num_uorf_5}` : "none" }})</b-form-checkbox>
             <b-form-checkbox v-model="dorf_3" :disabled="no_dorf_3">3' dORFs with UMPs ({{ !no_dorf_3 ? `${num_dorf_3}` : "none" }})</b-form-checkbox>
+            <b-form-checkbox v-model="pseudogene" :disabled="no_pseudogene">Pseudogenes with UMPs ({{ !no_pseudogene ? `${num_pseudogene}` : "none" }})</b-form-checkbox>
             <b-form-checkbox v-model="marker" :disabled="no_marker">Marker genes ({{ !no_marker ? `${num_marker}` : "none" }})</b-form-checkbox>
         </b-form-group>
     </b-modal>
@@ -276,6 +277,10 @@ export default
             gene_attributes: {},
             gene_name_attributes: {},
 
+            cached_list_of_all_genes: [],
+            cached_list_of_all_gene_names: [],
+            cached_gene_filters: null,
+
             uniq_map_peptides: false,
             unknome_filter: false,
             lncRNA_peptides: false,
@@ -284,6 +289,7 @@ export default
             unann_orfs: false,
             uorf_5: false,
             dorf_3: false,
+            pseudogene: false,
             marker: false,
 
             no_uniq_map_peptides: false,
@@ -294,6 +300,7 @@ export default
             no_unann_orfs: false,
             no_uorf_5: false,
             no_dorf_3: false,
+            no_pseudogene: false,
             no_marker: false,
 
             num_uniq_map_peptides: 0,
@@ -304,6 +311,7 @@ export default
             num_unann_orfs: 0,
             num_uorf_5: 0,
             num_dorf_3: 0,
+            num_pseudogene: 0,
             num_marker: 0,
 
             unknome_gene_ids: [],
@@ -401,15 +409,13 @@ export default
             this.modal.loading.value = 0;
         },
 
-        clearData()
+        clearGenomeProtGeneCacheAndOptions()
         {
-            this.selectedView = "Welcome";
-            this.enteredGene = null;
-            this.enteredGenomeProtGene = null;
+            this.cached_list_of_all_genes = [];
+            this.cached_list_of_all_gene_names = [];
+            this.cached_gene_filters = null;
 
-            this.geneNameInfo = {};
-            this.gene_attributes = {};
-            this.gene_name_attributes = {};
+            this.enteredGenomeProtGene = null;
 
             this.uniq_map_peptides = false;
             this.unknome_filter = false;
@@ -419,7 +425,17 @@ export default
             this.unann_orfs = false;
             this.uorf_5 = false;
             this.dorf_3 = false;
+            this.pseudogene = false;
             this.marker = false;
+        },
+
+        clearGenomeProtGeneData()
+        {
+            this.clearGenomeProtGeneCacheAndOptions();
+
+            this.geneNameInfo = {};
+            this.gene_attributes = {};
+            this.gene_name_attributes = {};
 
             this.no_uniq_map_peptides = false;
             this.no_unknome_filter = false;
@@ -429,6 +445,7 @@ export default
             this.no_unann_orfs = false;
             this.no_uorf_5 = false;
             this.no_dorf_3 = false;
+            this.no_pseudogene = false;
             this.no_marker = false;
 
             this.num_uniq_map_peptides = 0;
@@ -439,10 +456,20 @@ export default
             this.num_unann_orfs = 0;
             this.num_uorf_5 = 0;
             this.num_dorf_3 = 0;
+            this.num_pseudogene = 0;
             this.num_marker = 0;
 
             this.unknome_gene_ids = [];
             this.unknome_gene_symbols = [];
+        },
+
+        clearData()
+        {
+            this.selectedView = "Welcome";
+
+            this.clearGenomeProtGeneData();
+
+            this.enteredGene = null;
             this.selectedGene = null;
             this.filtered_genes = [];
             this.all_genes = [];
@@ -717,15 +744,13 @@ export default
             let list1_length = list1.length;
             let list2_length = list2.length;
 
-            if ((list1_length === 0) || (list2_length === 0))
-                return [];
-
             let shorter_list = (list1_length < list2_length) ? list1 : list2;
             let  longer_list = (list1_length < list2_length) ? list2 : list1;
 
             let result = [];
+            longer_list = new Set(longer_list);
             for (let elem of shorter_list)
-                if (longer_list.indexOf(elem) !== -1)
+                if (longer_list.has(elem))
                     result.push(elem);
 
             return result;
@@ -749,66 +774,103 @@ export default
             this.options = {};
             this.buildGenomeProtDatalist();
 
-            let list_of_all_genes = this.all_genes;
-            // let list_of_all_gene_names = Object.keys(this.geneNameInfo);
-            let list_of_all_gene_names = this.all_gene_names;
-            let is_any_other_ump_filter_selected = (this.unknome_filter || this.lncRNA_peptides || this.novel_txs || this.novel_txs_distinguished ||
-                                                    this.unann_orfs || this.uorf_5 || this.dorf_3);
-
-            // Create the list of gene IDs and gene names according to the gene filters applied by the user
-
-            // Optimization: If any other UMP filter is selected, then only consider the gene lists for those filters rather than for UMPs only
-            if (is_any_other_ump_filter_selected)
-            {
-                // Go through each filter one by one
-                if (this.unknome_filter)
-                {
-                    list_of_all_genes = JSON.parse(JSON.stringify((this.gene_attributes["unknome_filter"])));
-                    list_of_all_gene_names = JSON.parse(JSON.stringify((this.gene_name_attributes["unknome_filter"])));
-                }
-                if (this.lncRNA_peptides)
-                {
-                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["lncRNA_peptides"]);
-                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["lncRNA_peptides"]);
-                }
-                if (this.novel_txs)
-                {
-                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["novel_txs"]);
-                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["novel_txs"]);
-                }
-                if (this.novel_txs_distinguished)
-                {
-                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["novel_txs_distinguished"]);
-                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["novel_txs_distinguished"]);
-                }
-                if (this.unann_orfs)
-                {
-                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["unann_orfs"]);
-                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["unann_orfs"]);
-                }
-                if (this.uorf_5)
-                {
-                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["uorf_5"]);
-                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["uorf_5"]);
-                }
-                if (this.dorf_3)
-                {
-                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["dorf_3"]);
-                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["dorf_3"]);
-                }
-            }
-            // Otherwise, if just the UMP filter is selected, then use the gene list for that filter
-            else if (this.uniq_map_peptides)
-            {
-                list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["uniq_map_peptides"]);
-                list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["uniq_map_peptides"]);
-            }
-
-            // Filter for marker genes last as they don't have to encode UMPs
+            let gene_filters = "";
+            if (this.uniq_map_peptides)
+                gene_filters += "uniq_map_peptides";
+            if (this.unknome_filter)
+                gene_filters += "unknome_filter";
+            if (this.lncRNA_peptides)
+                gene_filters += "lncRNA_peptides";
+            if (this.novel_txs)
+                gene_filters += "novel_txs";
+            if (this.novel_txs_distinguished)
+                gene_filters += "novel_txs_distinguished";
+            if (this.unann_orfs)
+                gene_filters += "unann_orfs";
+            if (this.uorf_5)
+                gene_filters += "uorf_5";
+            if (this.dorf_3)
+                gene_filters += "dorf_3";
+            if (this.pseudogene)
+                gene_filters += "pseudogene";
             if (this.marker)
+                gene_filters += "marker";
+
+            let list_of_all_genes = this.cached_list_of_all_genes;
+            let list_of_all_gene_names = this.cached_list_of_all_gene_names;
+            if (this.cached_gene_filters !== gene_filters)
             {
-                list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["marker"]);
-                list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["marker"]);
+                this.cached_gene_filters = gene_filters;
+
+                list_of_all_genes = this.all_genes;
+                list_of_all_gene_names = this.all_gene_names;
+
+                let is_any_other_ump_filter_selected = (this.unknome_filter || this.lncRNA_peptides || this.novel_txs || this.novel_txs_distinguished ||
+                                                        this.unann_orfs || this.uorf_5 || this.dorf_3 || this.pseudogene);
+
+                // Create the lists of gene IDs and gene names according to the gene filters applied by the user
+
+                // Optimization: If any other UMP filter is selected, then only consider the gene lists for those filters rather than for UMPs only
+                if (is_any_other_ump_filter_selected)
+                {
+                    // Go through each filter one by one
+                    if (this.unknome_filter)
+                    {
+                        list_of_all_genes = JSON.parse(JSON.stringify((this.gene_attributes["unknome_filter"])));
+                        list_of_all_gene_names = JSON.parse(JSON.stringify((this.gene_name_attributes["unknome_filter"])));
+                    }
+                    if (this.lncRNA_peptides)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["lncRNA_peptides"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["lncRNA_peptides"]);
+                    }
+                    if (this.novel_txs)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["novel_txs"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["novel_txs"]);
+                    }
+                    if (this.novel_txs_distinguished)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["novel_txs_distinguished"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["novel_txs_distinguished"]);
+                    }
+                    if (this.unann_orfs)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["unann_orfs"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["unann_orfs"]);
+                    }
+                    if (this.uorf_5)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["uorf_5"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["uorf_5"]);
+                    }
+                    if (this.dorf_3)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["dorf_3"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["dorf_3"]);
+                    }
+                    if (this.pseudogene)
+                    {
+                        list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["pseudogene"]);
+                        list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["pseudogene"]);
+                    }
+                }
+                // Otherwise, if just the UMP filter is selected, then use the gene list for that filter
+                else if (this.uniq_map_peptides)
+                {
+                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["uniq_map_peptides"]);
+                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["uniq_map_peptides"]);
+                }
+
+                // Filter for marker genes last as they don't have to encode UMPs
+                if (this.marker)
+                {
+                    list_of_all_genes = this.mergeLists(list_of_all_genes, this.gene_attributes["marker"]);
+                    list_of_all_gene_names = this.mergeLists(list_of_all_gene_names, this.gene_name_attributes["marker"]);
+                }
+
+                this.cached_list_of_all_genes = list_of_all_genes;
+                this.cached_list_of_all_gene_names = list_of_all_gene_names;
             }
 
             for (let i = 0; (i < list_of_all_genes.length) && (total_count < max_genes); ++i)
@@ -940,6 +1002,7 @@ export default
                     this.num_unann_orfs = this.gene_attributes["unann_orfs"].length;
                     this.num_uorf_5 = this.gene_attributes["uorf_5"].length;
                     this.num_dorf_3 = this.gene_attributes["dorf_3"].length;
+                    this.num_pseudogene = this.gene_attributes["pseudogene"].length;
                     this.num_marker = this.gene_attributes["marker"].length;
 
                     this.no_uniq_map_peptides = (this.num_uniq_map_peptides === 0) && (this.gene_name_attributes["uniq_map_peptides"].length === 0);
@@ -950,7 +1013,12 @@ export default
                     this.no_unann_orfs = (this.num_unann_orfs === 0) && (this.gene_name_attributes["unann_orfs"].length === 0);
                     this.no_uorf_5 = (this.num_uorf_5 === 0) && (this.gene_name_attributes["uorf_5"].length === 0);
                     this.no_dorf_3 = (this.num_dorf_3 === 0) && (this.gene_name_attributes["dorf_3"].length === 0);
+                    this.no_pseudogene = (this.num_pseudogene === 0) && (this.gene_name_attributes["pseudogene"].length === 0);
                     this.no_marker = (this.num_marker === 0) && (this.gene_name_attributes["marker"].length === 0);
+
+                    this.options = {};
+                    this.buildGenomeProtDatalist();
+                    this.clearGenomeProtGeneCacheAndOptions();
 
                     this.modal.selectGenomeProtGene.show = true;
                 }

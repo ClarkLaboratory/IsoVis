@@ -198,9 +198,24 @@ export class PeptideData {
 
         this.peptides.sort();
 
+        this.peptide_to_transcripts = {};
+
+        for (let peptide of this.peptides)
+            this.peptide_to_transcripts[peptide] = [];
+
+        for (let transcript of Object.keys(this.transcripts))
+            for (let peptide of Object.keys(this.transcripts[transcript]))
+                if (this.peptide_to_transcripts[peptide].indexOf(transcript) === -1)
+                    this.peptide_to_transcripts[peptide].push(transcript);
+
+        for (let peptide of Object.keys(this.peptide_to_transcripts))
+            this.peptide_to_transcripts[peptide].sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
+
         this.no_peptides = (Object.keys(this.transcripts).length === 0) || (this.peptides.length === 0);
         if (this.no_peptides)
             this.warning = "No peptides are mapped to the transcripts of the selected gene. Peptide visualization disabled for this gene.";
+
+        delete this.transcripts;
     }
 
     update_loading_msg(loading_msg)
@@ -318,7 +333,7 @@ export class PeptideData {
             }
 
             if (!isFound)
-                this.transcripts[transcript][peptide].push(peptide_block);
+                this.transcripts[transcript].push(peptide_block);
         }
     }
 
@@ -1249,7 +1264,7 @@ export class PrimaryData {
 
             this.geneNameInfo = {};
 
-            this.gene_attributes = {"uniq_map_peptides": [], "lncRNA_peptides": [], "novel_txs": [], "novel_txs_distinguished": [], "unann_orfs": [], "uorf_5": [], "dorf_3": [], "marker": []};
+            this.gene_attributes = {"uniq_map_peptides": [], "lncRNA_peptides": [], "novel_txs": [], "novel_txs_distinguished": [], "unann_orfs": [], "uorf_5": [], "dorf_3": [], "pseudogene": [], "marker": []};
             this.gene_name_attributes = JSON.parse(JSON.stringify(this.gene_attributes));
             this.markerInfo = {};
 
@@ -2206,38 +2221,57 @@ export class PrimaryData {
                     continue;
 
                 // p_val_adj: Adjusted p-value
-                let p_val_adj = parseFloat(gtf_line.attributes.p_val_adj);
-                if (!Number.isFinite(p_val_adj))
+                let p_val_adj = gtf_line.attributes.p_val_adj;
+                if (!p_val_adj)
+                    continue;
+                p_val_adj = p_val_adj.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if (p_val_adj.some((num) => !Number.isFinite(num)))
+                    continue;
+
+                // The number of p_val_adj, avg_log2fc, pct.1 and pct.2 values should match the number of clusters provided in the first group
+                // EXCEPTION: there are multiple clusters in the first group and only one value for each of the four aforementioned attributes
+                let num_clusters = p_val_adj.length;
+                if (num_clusters === 0)
                     continue;
 
                 // avg_log2fc: log2(fold change of average expression between the two groups)
-                let avg_log2fc = parseFloat(gtf_line.attributes.avg_log2fc);
-                if (!Number.isFinite(avg_log2fc))
+                let avg_log2fc = gtf_line.attributes.avg_log2fc;
+                if (!avg_log2fc)
+                    continue;
+                avg_log2fc = avg_log2fc.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if ((avg_log2fc.length !== num_clusters) || avg_log2fc.some((num) => !Number.isFinite(num)))
                     continue;
 
                 // pct.1: Percentage of cells where the gene is detected in the 1st group
-                let pct1 = parseFloat(gtf_line.attributes["pct.1"]);
-                if (!Number.isFinite(pct1))
+                let pct1 = gtf_line.attributes["pct.1"];
+                if (!pct1)
+                    continue;
+                pct1 = pct1.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if ((pct1.length !== num_clusters) || pct1.some((num) => !Number.isFinite(num)))
                     continue;
 
                 // pct.2: Percentage of cells where the gene is detected in the 2nd group
-                let pct2 = parseFloat(gtf_line.attributes["pct.2"]);
-                if (!Number.isFinite(pct2))
+                let pct2 = gtf_line.attributes["pct.2"];
+                if (!pct2)
+                    continue;
+                pct2 = pct2.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if ((pct2.length !== num_clusters) || pct2.some((num) => !Number.isFinite(num)))
                     continue;
 
                 // cluster: Cluster(s) containing marker gene (1st group)
                 let cluster = gtf_line.attributes.cluster;
                 if (!cluster)
                     continue;
-
                 cluster = cluster.split(',').map((cluster_name) => cluster_name.trim());
-                if (cluster.indexOf('') !== -1)
+                if ((cluster.indexOf('') !== -1) || ((num_clusters > 1) && (cluster.length !== num_clusters)))
                     continue;
 
                 // against: Cluster(s) used for comparison (2nd group)
                 let against = gtf_line.attributes.against;
                 if (against)
                 {
+                    if (num_clusters > 1)
+                        continue;
                     against = against.split(',').map((cluster_name) => cluster_name.trim());
                     if (against.indexOf('') !== -1)
                         continue;
@@ -2288,42 +2322,58 @@ export class PrimaryData {
                 if (gtf_line.attributes.marker_gene !== "TRUE")
                     continue;
 
-                if (gene_id in this.markerInfo)
+                // p_val_adj: Adjusted p-value
+                let p_val_adj = gtf_line.attributes.p_val_adj;
+                if (!p_val_adj)
+                    continue;
+                p_val_adj = p_val_adj.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if (p_val_adj.some((num) => !Number.isFinite(num)))
                     continue;
 
-                // p_val_adj: Adjusted p-value
-                let p_val_adj = parseFloat(gtf_line.attributes.p_val_adj);
-                if (!Number.isFinite(p_val_adj))
+                // The number of p_val_adj, avg_log2fc, pct.1 and pct.2 values should match the number of clusters provided in the first group
+                // EXCEPTION: there are multiple clusters in the first group and only one value for each of the four aforementioned attributes
+                let num_clusters = p_val_adj.length;
+                if (num_clusters === 0)
                     continue;
 
                 // avg_log2fc: log2(fold change of average expression between the two groups)
-                let avg_log2fc = parseFloat(gtf_line.attributes.avg_log2fc);
-                if (!Number.isFinite(avg_log2fc))
+                let avg_log2fc = gtf_line.attributes.avg_log2fc;
+                if (!avg_log2fc)
+                    continue;
+                avg_log2fc = avg_log2fc.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if ((avg_log2fc.length !== num_clusters) || avg_log2fc.some((num) => !Number.isFinite(num)))
                     continue;
 
                 // pct.1: Percentage of cells where the gene is detected in the 1st group
-                let pct1 = parseFloat(gtf_line.attributes["pct.1"]);
-                if (!Number.isFinite(pct1))
+                let pct1 = gtf_line.attributes["pct.1"];
+                if (!pct1)
+                    continue;
+                pct1 = pct1.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if ((pct1.length !== num_clusters) || pct1.some((num) => !Number.isFinite(num)))
                     continue;
 
                 // pct.2: Percentage of cells where the gene is detected in the 2nd group
-                let pct2 = parseFloat(gtf_line.attributes["pct.2"]);
-                if (!Number.isFinite(pct2))
+                let pct2 = gtf_line.attributes["pct.2"];
+                if (!pct2)
+                    continue;
+                pct2 = pct2.split(',').map((num_str) => parseFloat(num_str.trim()));
+                if ((pct2.length !== num_clusters) || pct2.some((num) => !Number.isFinite(num)))
                     continue;
 
                 // cluster: Cluster(s) containing marker gene (1st group)
                 let cluster = gtf_line.attributes.cluster;
                 if (!cluster)
                     continue;
-
                 cluster = cluster.split(',').map((cluster_name) => cluster_name.trim());
-                if (cluster.indexOf('') !== -1)
+                if ((cluster.indexOf('') !== -1) || ((num_clusters > 1) && (cluster.length !== num_clusters)))
                     continue;
 
                 // against: Cluster(s) used for comparison (2nd group)
                 let against = gtf_line.attributes.against;
                 if (against)
                 {
+                    if (num_clusters > 1)
+                        continue;
                     against = against.split(',').map((cluster_name) => cluster_name.trim());
                     if (against.indexOf('') !== -1)
                         continue;
@@ -2386,6 +2436,14 @@ export class PrimaryData {
                     if ((gene_name !== '') && (this.gene_name_attributes.novel_txs_distinguished.indexOf(gene_name) === -1))
                         this.gene_name_attributes.novel_txs_distinguished.push(gene_name);
                 }
+            }
+            // Pseudogenes with UMPs
+            else if (transcript_biotype.indexOf("pseudogene") !== -1)
+            {
+                if (this.gene_attributes.pseudogene.indexOf(gene_id) === -1)
+                    this.gene_attributes.pseudogene.push(gene_id);
+                if ((gene_name !== '') && (this.gene_name_attributes.pseudogene.indexOf(gene_name) === -1))
+                    this.gene_name_attributes.pseudogene.push(gene_name);
             }
 
             // Unannotated ORFs with UMPs
@@ -3226,7 +3284,9 @@ class GTFLine
                 continue;
 
             let attribute_name = entry[0].toLowerCase();
-            let attribute_val = entry[1].replace(/"/g, '');
+
+            entry.shift();
+            let attribute_val = entry.join(' ').replace(/"/g, '').trim();
             this.attributes[attribute_name] = attribute_val;
         }
     }
@@ -3311,10 +3371,11 @@ class GenomeProtGTFLine
                 continue;
 
             let attribute_name = entry[0].toLowerCase();
-            let attribute_val = entry[1].replace(/"/g, '');
             if (allowed_attributes.indexOf(attribute_name) === -1)
                 continue;
 
+            entry.shift();
+            let attribute_val = entry.join(' ').replace(/"/g, '').trim();
             this.attributes[attribute_name] = attribute_val;
         }
     }
