@@ -1171,9 +1171,9 @@ export class PrimaryData {
             return;
         }
 
-        if (file.size > 2147483648)
+        if (file.size > 3221225472)
         {
-            this.error = "Stack file size should be less than 2 GB.";
+            this.error = "Stack file size should be less than 3 GB.";
             return;
         }
 
@@ -2649,9 +2649,9 @@ export class SecondaryData {
             return;
         }
 
-        if (file.size > 2147483648)
+        if (file.size > 3221225472)
         {
-            this.error = "Heatmap file size should be less than 2 GB.";
+            this.error = "Heatmap file size should be less than 3 GB.";
             return;
         }
 

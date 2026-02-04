@@ -73,9 +73,9 @@ the exact state of that page from the previous state.
             <b-link href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form @submit="handleFileUpload" @submit.stop.prevent inline>
-            <em><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 2 GB)</em>
+            <em><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 3 GB)</em>
             <b-form-file v-model="modal.uploadData.stackFile" no-drop accept=".gtf, .gff, .gff2, .gff3, .bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
-            <em class="mt-3"><b>Heatmap data</b> file (.csv/.tsv/.txt) (optional, max. 2 GB)</em>
+            <em class="mt-3"><b>Heatmap data</b> file (.csv/.tsv/.txt) (optional, max. 3 GB)</em>
             <b-form-file v-model="modal.uploadData.heatmapFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
             <em class="mt-3" v-show="is_show_peptide_upload_options"><b>Peptide data</b> file (.bed) (optional; ignored if a GenomeProt annotation file was uploaded as <b>stack data</b>; max. 500 MB)</em>
             <b-form-file v-show="is_show_peptide_upload_options" v-model="modal.uploadData.peptideFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
@@ -142,7 +142,7 @@ the exact state of that page from the previous state.
             <b-link href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form inline>
-            <em><b>Heatmap data</b> file (.csv/.txt) (max. 2 GB)</em> 
+            <em><b>Heatmap data</b> file (.csv/.txt) (max. 3 GB)</em>
             <b-form-file v-model="modal.heatmapUploadData.heatmapFile" no-drop accept=".csv, .txt"></b-form-file>
         </b-form>
         <b-form inline class="float-right mt-3">
