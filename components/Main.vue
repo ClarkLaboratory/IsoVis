@@ -1612,7 +1612,7 @@ export default
                     let peptide_highlight_legend_text = "Uniquely map to" + "  " + "ORF >" + "  " + "Gene";
                     let text_metrics = text_metrics_canvas_ctx.measureText(peptide_highlight_legend_text);
                     let peptide_highlight_legend_text_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
-                    let peptide_highlight_legend_text_width = text_metrics.width + 16 * 3;
+                    let peptide_highlight_legend_text_width = text_metrics.width + 16 * 2;
                     let peptide_highlight_legend_elems = "";
 
                     peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline("Uniquely map to ", x - peptide_highlight_legend_text_width / 2, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
@@ -1966,7 +1966,7 @@ export default
             if (!this.peptide_disabled && this.show_peptide && this.mainData.isoformData.is_genomeprot && this.show_stack)
             {
                 let shown_text = "Uniquely map to" + "  " + "ORF >" + "  " + "Gene";
-                let peptide_highlight_legend_line_width = text_width_canvas_ctx.measureText(shown_text).width + 16 * 3;
+                let peptide_highlight_legend_line_width = text_width_canvas_ctx.measureText(shown_text).width + 16 * 2;
                 longest_text_width = Math.max(longest_text_width, peptide_highlight_legend_line_width);
             }
 
