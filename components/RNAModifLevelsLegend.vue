@@ -7,13 +7,11 @@
 Component to render an RNA modification levels legend plot, based on rnaModifLevelData which must be supplied as input.
 
 <template>
-<div>
-    <div id="RNALevelsLegendDiv">
-        <p>RNA modification levels legend</p>
-    </div>
+<div id="RNALevelsLegendDiv">
+    <p>RNA modification levels legend</p>
 </div>
 </template>
-        
+
 <script>
 import * as d3 from 'd3';
 import {put_in_svg, rect, line, heatmap_legend_text, linear_gradient, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
@@ -39,7 +37,7 @@ export default {
             let el = document.getElementById("heatmapDiv");
             if (!(el && this.rnaModifLevelData)) return;
 
-            let samples = this.rnaModifLevelData.labels;
+            let samples = this.rnaModifLevelData.labelOrder;
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
@@ -177,7 +175,7 @@ export default {
                 if (val === undefined)
                     return "NaN";
                 val = Number.isInteger(val) ? val.toFixed() : val.toFixed(2);
-                if (val.length > 1 && val.split('.')[1] == '00')
+                if (val.length > 1 && val.split('.')[1] === "00")
                     val = val.split('.')[0];
                 return val;
             }
@@ -236,7 +234,7 @@ export default {
                 return "";
             }
 
-            let samples = this.rnaModifLevelData.labels;
+            let samples = this.rnaModifLevelData.labelOrder;
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
@@ -296,7 +294,7 @@ export default {
                 if (val === undefined)
                     return "NaN";
                 val = Number.isInteger(val) ? val.toFixed() : val.toFixed(2);
-                if (val.length > 1 && val.split('.')[1] == '00')
+                if (val.length > 1 && val.split('.')[1] === "00")
                     val = val.split('.')[0];
                 return val;
             }

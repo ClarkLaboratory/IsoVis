@@ -10,24 +10,225 @@
 import * as d3 from 'd3';   // used for its scaling functions
 
 /**
- * Move known isoforms to top of list.
- * 
- * @param {Array<string>} transcripts: list of transcripts ["ENST00000375793","9037411c-8329-4d13-bcdb-5545a1acfb34",...]
- * @returns {Array<string>} reordered list of transcripts
+ * Update the message to be displayed in the loading data popup.
+ *
+ * @param {String} loading_msg the message to display
  */
-export function prioritiseKnownTranscripts(transcripts)
+function update_loading_msg(loading_msg)
 {
-    let orderedList = [];
-    // One loop to pick up ENS transcripts, and another to pick up the others
-    for (let transcript of transcripts) if (transcript.indexOf('ENS') === 0) orderedList.push(transcript);
-    for (let transcript of transcripts) if (transcript.indexOf('ENS') !== 0) orderedList.push(transcript);
-    return orderedList;
+    let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
+    document.dispatchEvent(event);
 }
 
-export class PeptideData {
+/**
+ * Update the fill percentage of the loading bar in the loading data popup.
+ *
+ * @param {Number} loading_percentage the fill percentage of the loading bar
+ */
+function update_loading_percentage(loading_percentage)
+{
+    let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
+    document.dispatchEvent(event);
+}
+
+/**
+ * Return a chunk of text from an opened file.
+ *
+ * @param {File} file the opened file to read from
+ * @param {Number} start the index of the first byte of the file to read from
+ * @param {Number} end the index after the last byte of the file to read to
+ * @returns {String} the chunk of text read from the file
+ */
+async function getFileChunk(file, start, end)
+{
+    let slice = file.slice(start, end);
+    let text = await slice.text().then(
+        res => res
+    ).catch(err =>
+    {
+        console.log("Error parsing file!");
+        console.log(err);
+    });
+    return text;
+}
+
+/**
+ * Return filtered lines from a stack data file and the next index of the file to read from.
+ *
+ * @param {File} file the stack data file to read from
+ * @param {Number} slice_index the index of the first byte of the file to read from
+ * @param {String} needle a string that must be present in filtered lines
+ * @param {Boolean} is_case_insensitive whether the line filtering is case-insensitive
+ * @returns {[Array<String>, Number]} the filtered lines and the next index of the file to read from
+ */
+async function filteredStackLines(file, slice_index, needle = '', is_case_insensitive = false)
+{
+    let chunk_size = 5242880; // 5 MB
+
+    let text = await getFileChunk(file, slice_index, slice_index + chunk_size);
+    let next_slice_index = -1;
+
+    if (text.length === chunk_size)
+    {
+        // FIXME: Make this code chunk size independent: A newline must exist for it to work
+        let last_newline_index = text.lastIndexOf('\n');
+        next_slice_index = slice_index + last_newline_index + 1;
+        text = text.substring(0, last_newline_index);
+    }
+
+    text = text.replace(/\r/g, '');
+    let lines = text.split('\n');
+    let filtered_lines = [];
+
+    let needle_to_search = (!needle ? '' : needle);
+    if (is_case_insensitive)
+        needle_to_search = needle_to_search.toUpperCase();
+
+    for (let i = 0; i < lines.length; ++i)
+    {
+        let line = lines[i];
+
+        // Ignore empty lines and comments
+        if ((line === "") || (line[0] === '#'))
+            continue;
+
+        // Performing a case insensitive search?
+        let temp_line = line;
+        if (is_case_insensitive)
+            temp_line = temp_line.toUpperCase();
+
+        if (!needle_to_search || (temp_line.indexOf(needle_to_search) !== -1))
+            filtered_lines.push(line);
+    }
+
+    return [filtered_lines, next_slice_index];
+}
+
+/**
+ * Return filtered lines from a heatmap data file and the next index of the file to read from.
+ *
+ * @param {File} file the heatmap data file to read from
+ * @param {Number} slice_index the index of the first byte of the file to read from
+ * @param {Array<String>} needles an array of strings where at least one must be present in filtered lines
+ * @param {Boolean} get_samples if true, extract the first line of the file and consider it to represent sample labels
+ * @param {String?} modif_sites_gene if set, find lines containing this string and assume the file contains RNA modification sites heatmap data
+ * @returns {[Array<String>, Number]} the filtered lines and the next index of the file to read from
+ */
+async function filteredHeatmapLines(file, slice_index, needles = [], get_samples = false, modif_sites_gene = null)
+{
+    let chunk_size = 5242880; // 5 MB
+
+    let text = await getFileChunk(file, slice_index, slice_index + chunk_size);
+    let next_slice_index = -1;
+
+    if (text.length === chunk_size)
+    {
+        // FIXME: Make this code chunk size independent: A newline must exist for it to work
+        let last_newline_index = text.lastIndexOf('\n');
+        next_slice_index = slice_index + last_newline_index + 1;
+        text = text.substring(0, last_newline_index);
+    }
+
+    text = text.replace(/("|\r)/g, '');
+    let lines = text.split('\n');
+    let filtered_lines = [];
+
+    let first_line_found = !get_samples;
+    for (let i = 0; i < lines.length; ++i)
+    {
+        let line = lines[i];
+
+        // Ignore empty lines
+        if (line === "")
+            continue;
+
+        // Looking for the sample names of the heatmap data file?
+        if (!first_line_found)
+        {
+            filtered_lines.push(line);
+            first_line_found = true;
+            continue;
+        }
+
+        // Process non-RNA modification sites heatmap data
+        if (!modif_sites_gene)
+        {
+            for (let j = 0; j < needles.length; ++j)
+            {
+                if (line.indexOf(needles[j]) !== -1)
+                {
+                    filtered_lines.push(line);
+                    break;
+                }
+            }
+        }
+        // Process RNA modification sites heatmap data
+        else
+        {
+            if (line.indexOf(modif_sites_gene) === -1)
+                continue;
+
+            for (let j = 0; j < needles.length; ++j)
+            {
+                if (line.indexOf(needles[j] - 1) !== -1)
+                {
+                    filtered_lines.push(line);
+                    break;
+                }
+            }
+        }
+    }
+
+    return [filtered_lines, next_slice_index];
+}
+
+/**
+ * Return a list of integers from a BED file list column (i.e. blockSizes or blockStarts).
+ *
+ * @param {String} values the list column
+ * @returns {Array<Number>} list of integers from the column
+ */
+function buildBEDList(values)
+{
+    let vals = values.split(',');
+    let output = [];
+    for (let i = 0; i < vals.length; ++i)
+    {
+        let intVal = parseInt(vals[i]);
+        if (Number.isInteger(intVal))
+            output.push(intVal);
+    }
+    return output;
+}
+
+/**
+ * Return a reordered list of transcripts where known ones (with the 'ENS' prefix) come before novel ones.
+ *
+ * @param {Array<String>} transcripts list of transcripts
+ * @returns {Array<String>} reordered list of transcripts
+ */
+function prioritiseKnownTranscripts(transcripts)
+{
+    let ens_transcripts = [];
+    let non_ens_transcripts = [];
+
+    for (let i = 0; i < transcripts.length; ++i)
+    {
+        let transcript = transcripts[i];
+        if (transcript.indexOf("ENS") === 0)
+            ens_transcripts.push(transcript);
+        else
+            non_ens_transcripts.push(transcript);
+    }
+
+    return ens_transcripts.concat(non_ens_transcripts);
+}
+
+export class PeptideData
+{
     /**
      * Create a peptide data instance
-     * 
+     *
      * @param {string} file the input file
      * @param {Array<string>} transcript_ids an array of transcript IDs for the gene to be visualized
      */
@@ -63,7 +264,8 @@ export class PeptideData {
             return;
         }
 
-        if (filename.indexOf('.') === -1)
+        let filename_dot_index = filename.lastIndexOf('.');
+        if (filename_dot_index === -1)
         {
             this.error = "Peptide data file does not contain a file extension. Please specify the correct file extension in its filename.";
             return;
@@ -73,6 +275,7 @@ export class PeptideData {
         this.is_reduced_bed = false;
         this.num_reduced_bed_columns = -1;
 
+        filename = filename.toLowerCase();
         if (filename.endsWith(".bed12"))
             this.filetype = "BED";
         else if (filename.endsWith(".bed"))
@@ -82,8 +285,7 @@ export class PeptideData {
         }
         else
         {
-            let last_dot_index = filename.lastIndexOf('.');
-            let file_extension = filename.substring(last_dot_index + 1);
+            let file_extension = filename.substring(filename_dot_index + 1);
 
             // Is this a reduced BED file? (BED4 to BED9)
             let valid_column_numbers = [4, 5, 6, 7, 8, 9];
@@ -111,7 +313,7 @@ export class PeptideData {
             let slice_index = 0;
             while (slice_index !== -1)
             {
-                let arr = await this.filteredLines(slice_index);
+                let arr = await filteredStackLines(this.file, slice_index);
                 let filtered_lines = arr[0];
                 slice_index = arr[1];
 
@@ -155,12 +357,12 @@ export class PeptideData {
         let parser_type = this.filetype;
         let loading_msg = `Getting peptides from ${this.filetype} file...`;
 
-        this.update_loading_msg(loading_msg);
+        update_loading_msg(loading_msg);
 
         let slice_index = 0;
         while (slice_index !== -1)
         {
-            let arr = await this.filteredLines(slice_index);
+            let arr = await filteredStackLines(this.file, slice_index);
             let filtered_lines = arr[0];
             slice_index = arr[1];
 
@@ -174,7 +376,7 @@ export class PeptideData {
                     this.peptidesFromBED(filtered_lines);
             }
 
-            this.update_loading_percentage(loading_percentage);
+            update_loading_percentage(loading_percentage);
         }
 
         if ((parser_type === "BED") && this.is_reduced_bed)
@@ -218,23 +420,11 @@ export class PeptideData {
         delete this.transcripts;
     }
 
-    update_loading_msg(loading_msg)
-    {
-        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
-        document.dispatchEvent(event);
-    }
-
-    update_loading_percentage(loading_percentage)
-    {
-        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
-        document.dispatchEvent(event);
-    }
-
     peptidesFromBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new PeptideBEDLine(raw_line);
+            let line = new PeptideBEDLine(lines[line_index]);
             if (!(line.valid))
                 continue;
 
@@ -292,9 +482,9 @@ export class PeptideData {
 
     peptidesFromReducedBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new PeptideReducedBEDLine(raw_line, this.num_reduced_bed_columns);
+            let line = new PeptideReducedBEDLine(lines[line_index], this.num_reduced_bed_columns);
             if (!(line.valid))
                 continue;
 
@@ -336,56 +526,10 @@ export class PeptideData {
                 this.transcripts[transcript].push(peptide_block);
         }
     }
-
-    async filteredLines(slice_index)
-    {
-        let chunk_size = 5242880; // 5 MB
-
-        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
-        let next_slice_index = -1;
-
-        if (text.length === chunk_size)
-        {
-            // FIXME: Make this code chunk size independent: A newline must exist for it to work
-            let last_newline_index = text.lastIndexOf('\n');
-            next_slice_index = slice_index + last_newline_index + 1;
-            text = text.substring(0, last_newline_index);
-        }
-
-        text = text.replace(/\r/g, '');
-        let raw_lines = text.split('\n');
-        let filtered_lines = [];
-
-        for (let i = 0; i < raw_lines.length; ++i)
-        {
-            let line = raw_lines[i];
-
-            // Ignore empty lines and comments
-            if ((line === "") || (line[0] === '#'))
-                continue;
-
-            filtered_lines.push(line);
-        }
-
-        return [filtered_lines, next_slice_index];
-    }
-
-    async getFileChunk(start, end)
-    {
-        let file = this.file;
-        let slice = file.slice(start, end);
-        let text = await slice.text().then(
-            res => res
-        ).catch(err =>
-        {
-            console.log("Error parsing file!");
-            console.log(err);
-        });
-        return text;
-    }
 }
 
-export class PeptideCountsData {
+export class PeptideCountsData
+{
     /**
      * Create a peptide counts data instance
      *
@@ -431,41 +575,55 @@ export class PeptideCountsData {
         }
 
         // Determine delimiter
+        filename = filename.toLowerCase();
         if (filename.endsWith(".csv"))
             this.delim = ',';
         else if (filename.endsWith(".tsv") || filename.endsWith(".txt"))
             this.delim = '\t';
         else
         {
-            this.error = "Invalid peptide counts file extension.";
+            this.error = "Invalid peptide counts file extension. Please upload a CSV (comma-separated values) or tab-separated text (TSV / TXT) file.";
             return;
         }
 
         let slice_index = 0;
         let filtered_lines = [];
-        let arr = await this.filteredLines(slice_index, true);
+        let arr = await filteredHeatmapLines(this.file, slice_index, this.peptides, true);
 
         filtered_lines = arr[0];
         slice_index = arr[1];
 
         if (filtered_lines.length === 0)
         {
-            this.error = "No relevant data lines found in peptide counts file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
+            this.error = "No relevant data lines found in the peptide counts file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
             return;
         }
 
         let first_line = filtered_lines[0];
-        this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+        this.samples = first_line.split(this.delim).map((sample) => sample.trim());
+
         if (this.samples.length < 2)
         {
-            this.error = "First line of peptide counts file has less than 2 data columns. The file must have at least 2 data columns.";
+            this.error = "The first line of the peptide counts file has less than 2 data columns. The file must have at least 2 data columns.";
+            return;
+        }
+
+        if (this.samples.some((sample) => sample.length === 0))
+        {
+            this.error = "Empty column name found in the peptide counts file. Please ensure all column names provided contain at least one non-whitespace character.";
+            return;
+        }
+
+        if (new Set(this.samples.map((sample) => sample.toLowerCase())).size !== this.samples.length)
+        {
+            this.error = "Duplicate column names found in the peptide counts file. Please ensure all column names provided are unique.";
             return;
         }
 
         let forbidden_column_names = ["1/k0", "1/k0", "all mapped proteins", "all mapped genes", "average.missed.tryptic.cleavages", "average.peptide.charge", "average.peptide.length", "best.fr.mz", "best.fr.mz.delta", "channel", "channel.evidence", "channel.l", "channel.q.value", "corr", "cscore", "decoy", "decoy.cscore", "decoy.evidence", "delta", "delta", "description", "empirical.quality", "evidence", "exclude.from.quant", "excludefromassay", "file.name", "filename", "first.protein.description", "fragment.charge", "fragment.correlations", "fragment.info", "fragment.loss.type", "fragment.quant.corrected", "fragment.quant.raw", "fragment.series.number", "fragment.sum", "fragment.type", "fragmentcharge", "fragmentlosstype", "fragmentseriesnumber", "fragmenttype", "fullunimodpeptidename", "fwhm", "fwhm.rt", "fwhm.scans", "gene", "gene.names", "genes", "genes.maxlfq", "genes.maxlfq.quality", "genes.maxlfq.unique", "genes.maxlfq.unique.quality", "genes.normalised", "genes.quantity", "genes.topn", "gg.q.value", "global.peptidoform.q.value", "global.pg.q.value", "global.q.value", "intensities", "ion.mobility", "irt", "label.ratio", "lib.peptidoform.q.value", "lib.pg.q.value", "lib.ptm.site.confidence", "lib.q.value", "libraryintensity", "m/z", "mass.evidence", "median.mass.acc.ms1", "median.mass.acc.ms1.corrected", "median.mass.acc.ms2", "median.mass.acc.ms2.corrected", "median.rt.prediction.acc", "modification", "modified.sequence", "modifiedpeptide", "ms.level", "ms1.apex.area", "ms1.apex.mz.delta", "ms1.area", "ms1.normalised", "ms1.profile.corr", "ms1.signal", "ms1.total.signal.after", "ms1.total.signal.before", "ms2.scan", "ms2.scan", "ms2.signal", "n.proteotypic.sequences", "n.sequences", "normalisation.factor", "normalisation.instability", "normalisation.noise", "peptidegrouplabel", "peptidesequence", "peptidoform.q.value", "pg.maxlfq", "pg.maxlfq.quality", "pg.normalised", "pg.pep", "pg.q.value", "pg.quantity", "pg.topn", "pgqvalue", "precursor.charge", "precursor.id", "precursor.lib.index", "precursor.mz", "precursor.normalised", "precursor.quantity", "precursorcharge", "precursormz", "precursors.identified", "predicted.iim", "predicted.im", "predicted.irt", "predicted.rt", "probability", "product.mz", "productmz", "protein", "protein.group", "protein.id", "protein.ids", "protein.index.in.group", "protein.name", "protein.names", "protein.q.value", "protein.sites", "proteingroup", "proteinname", "proteins.identified", "proteotypic", "ptm.site.confidence", "q.value", "quantity.quality", "qvalue", "relative.intensity", "residue", "retention.times", "rt.start", "rt.stop", "run", "run.index", "sequence", "site", "site.occupancy.probabilities", "theoretical.mz", "total.quantity", "translated.q.value", "uniprotid", "window.high", "window.low"];
 
-        this.labels = [];
         this.peptide_sequence_colnum = -1;
+        this.labels = [];
 
         for (let i = 0; i < this.samples.length; ++i)
         {
@@ -482,6 +640,8 @@ export class PeptideCountsData {
             return;
         }
 
+        this.labelOrder = JSON.parse(JSON.stringify(this.labels));
+
         // Prepare attributes
         this.maxValue = NaN; // min/max/avg values for colour scheme & legend
         this.minValue = NaN;
@@ -493,8 +653,8 @@ export class PeptideCountsData {
 
         let loading_percentage = 0;
         let loading_msg = "Getting peptide counts...";
-        this.update_loading_msg(loading_msg);
-        this.update_loading_percentage(loading_percentage);
+        update_loading_msg(loading_msg);
+        update_loading_percentage(loading_percentage);
 
         filtered_lines.splice(0, 1);
         this.processFilteredLines(filtered_lines);
@@ -502,16 +662,16 @@ export class PeptideCountsData {
         while (slice_index !== -1)
         {
             loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-            this.update_loading_percentage(loading_percentage);
+            update_loading_percentage(loading_percentage);
 
-            let arr = await this.filteredLines(slice_index);
+            let arr = await filteredHeatmapLines(this.file, slice_index, this.peptides);
             filtered_lines = arr[0];
             slice_index = arr[1];
             this.processFilteredLines(filtered_lines);
         }
 
         loading_percentage = 100;
-        this.update_loading_percentage(loading_percentage);
+        update_loading_percentage(loading_percentage);
 
         this.valid = true;
 
@@ -523,69 +683,8 @@ export class PeptideCountsData {
             if (this.num_nonzerovals === 0)
                 this.num_nonzerovals = 1;
 
-            this.average = this.sum / this.num_nonzerovals;                 // calculate averages
+            this.average = this.sum / this.num_nonzerovals; // calculate averages
         }
-    }
-
-    update_loading_msg(loading_msg)
-    {
-        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
-        document.dispatchEvent(event);
-    }
-
-    update_loading_percentage(loading_percentage)
-    {
-        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
-        document.dispatchEvent(event);
-    }
-
-    async filteredLines(slice_index, get_samples = false)
-    {
-        let chunk_size = 5242880; // 5 MB
-
-        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
-        let next_slice_index = -1;
-
-        if (text.length === chunk_size)
-        {
-            // FIXME: Make this code chunk size independent: A newline must exist for it to work
-            let last_newline_index = text.lastIndexOf('\n');
-            next_slice_index = slice_index + last_newline_index + 1;
-            text = text.substring(0, last_newline_index);
-        }
-
-        text = text.replace(/\r/g, '');
-        let raw_lines = text.split('\n');
-        let filtered_lines = [];
-
-        let first_line_found = !get_samples;
-        for (let i = 0; i < raw_lines.length; ++i)
-        {
-            let line = raw_lines[i];
-
-            // Ignore empty lines
-            if (line === "")
-                continue;
-
-            if (!first_line_found)
-            {
-                filtered_lines.push(line);
-                first_line_found = true;
-                continue;
-            }
-
-            // Find all lines that contain the peptides being searched for
-            for (let peptide of this.peptides)
-            {
-                if (line.indexOf(peptide) !== -1)
-                {
-                    filtered_lines.push(line);
-                    break;
-                }
-            }
-        }
-
-        return [filtered_lines, next_slice_index];
     }
 
     processFilteredLines(filtered_lines)
@@ -593,7 +692,7 @@ export class PeptideCountsData {
         for (let i = 0; i < filtered_lines.length; ++i)
         {
             // Clean up text and separate values
-            let entries = filtered_lines[i].replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+            let entries = filtered_lines[i].split(this.delim);
             if (entries.length !== this.samples.length)
                 continue;
 
@@ -604,11 +703,10 @@ export class PeptideCountsData {
             for (let j = 0; j < this.samples.length; ++j)
             {
                 let sample = this.samples[j];
-                if (this.labels.indexOf(sample) === -1)
+                if (this.labels.indexOf(sample.toLowerCase()) === -1)
                     continue;
 
                 let value = parseFloat(entries[j]);
-
                 if (value)
                 {
                     this.sum += value;
@@ -628,26 +726,13 @@ export class PeptideCountsData {
             }
         }
     }
-
-    async getFileChunk(start, end)
-    {
-        let file = this.file;
-        let slice = file.slice(start, end);
-        let text = await slice.text().then(
-            res => res
-        ).catch(err =>
-        {
-            console.log("Error parsing file!");
-            console.log(err);
-        });
-        return text;
-    }
 }
 
-export class RNAModifSitesData {
+export class RNAModifSitesData
+{
     /**
      * Create an RNA modification sites data instance
-     * 
+     *
      * @param {string} file the input file
      * @param {string} gene the ID of the gene to be visualized
      */
@@ -683,7 +768,8 @@ export class RNAModifSitesData {
             return;
         }
 
-        if (filename.indexOf('.') === -1)
+        let filename_dot_index = filename.lastIndexOf('.');
+        if (filename_dot_index === -1)
         {
             this.error = "RNA modification sites data file does not contain a file extension. Please specify the correct file extension in its filename.";
             return;
@@ -692,6 +778,7 @@ export class RNAModifSitesData {
         this.is_bed_type_unknown = false;
         this.num_bed_columns = -1;
 
+        filename = filename.toLowerCase();
         if (filename.endsWith(".bed"))
         {
             this.filetype = "BED";
@@ -699,8 +786,7 @@ export class RNAModifSitesData {
         }
         else
         {
-            let last_dot_index = filename.lastIndexOf('.');
-            let file_extension = filename.substring(last_dot_index + 1);
+            let file_extension = filename.substring(filename_dot_index + 1);
 
             let valid_column_numbers = [4, 5, 6, 7, 8, 9, 12];
             for (let valid_column_number of valid_column_numbers)
@@ -726,7 +812,7 @@ export class RNAModifSitesData {
             let slice_index = 0;
             while (slice_index !== -1)
             {
-                let arr = await this.filteredLines(slice_index);
+                let arr = await filteredStackLines(this.file, slice_index, this.gene);
                 let filtered_lines = arr[0];
                 slice_index = arr[1];
 
@@ -758,12 +844,12 @@ export class RNAModifSitesData {
         let parser_type = this.filetype;
         let loading_msg = `Getting RNA modification sites from ${this.filetype} file...`;
 
-        this.update_loading_msg(loading_msg);
+        update_loading_msg(loading_msg);
 
         let slice_index = 0;
         while (slice_index !== -1)
         {
-            let arr = await this.filteredLines(slice_index);
+            let arr = await filteredStackLines(this.file, slice_index, this.gene);
             let filtered_lines = arr[0];
             slice_index = arr[1];
 
@@ -772,35 +858,23 @@ export class RNAModifSitesData {
             if (parser_type === "BED")
                 this.sitesFromBED(filtered_lines);
 
-            this.update_loading_percentage(loading_percentage);
+            update_loading_percentage(loading_percentage);
         }
 
         this.valid = true;
         this.allSites.sort((a, b) => a - b);
         this.siteOrder = JSON.parse(JSON.stringify(this.allSites));
 
-        this.no_sites = (Object.keys(this.allSites).length === 0);
+        this.no_sites = (this.allSites.length === 0);
         if (this.no_sites)
             this.warning = "No RNA modification sites found for the selected gene. RNA modification site visualization disabled for this gene.";
     }
 
-    update_loading_msg(loading_msg)
-    {
-        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
-        document.dispatchEvent(event);
-    }
-
-    update_loading_percentage(loading_percentage)
-    {
-        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
-        document.dispatchEvent(event);
-    }
-
     sitesFromBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new RNAModifSitesBEDLine(raw_line, this.num_bed_columns);
+            let line = new RNAModifSitesBEDLine(lines[line_index], this.num_bed_columns);
             if (!(line.valid))
                 continue;
 
@@ -813,57 +887,10 @@ export class RNAModifSitesData {
                 this.allSites.push(start);
         }
     }
-
-    async filteredLines(slice_index)
-    {
-        let chunk_size = 5242880; // 5 MB
-
-        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
-        let next_slice_index = -1;
-
-        if (text.length === chunk_size)
-        {
-            // FIXME: Make this code chunk size independent: A newline must exist for it to work
-            let last_newline_index = text.lastIndexOf('\n');
-            next_slice_index = slice_index + last_newline_index + 1;
-            text = text.substring(0, last_newline_index);
-        }
-
-        text = text.replace(/\r/g, '');
-        let raw_lines = text.split('\n');
-        let filtered_lines = [];
-
-        for (let i = 0; i < raw_lines.length; ++i)
-        {
-            let line = raw_lines[i];
-
-            // Ignore empty lines and comments
-            if ((line === "") || (line[0] === '#'))
-                continue;
-
-            if (line.indexOf(this.gene) !== -1)
-                filtered_lines.push(line);
-        }
-
-        return [filtered_lines, next_slice_index];
-    }
-
-    async getFileChunk(start, end)
-    {
-        let file = this.file;
-        let slice = file.slice(start, end);
-        let text = await slice.text().then(
-            res => res
-        ).catch(err =>
-        {
-            console.log("Error parsing file!");
-            console.log(err);
-        });
-        return text;
-    }
 }
 
-export class RNAModifSitesLevelData {
+export class RNAModifSitesLevelData
+{
     /**
      * Create an RNA modification level data instance
      *
@@ -911,34 +938,48 @@ export class RNAModifSitesLevelData {
         }
 
         // Determine delimiter
+        filename = filename.toLowerCase();
         if (filename.endsWith(".csv"))
             this.delim = ',';
         else if (filename.endsWith(".tsv") || filename.endsWith(".txt"))
             this.delim = '\t';
         else
         {
-            this.error = "Invalid RNA modification level file extension.";
+            this.error = "Invalid RNA modification level file extension. Please upload a CSV (comma-separated values) or tab-separated text (TSV / TXT) file.";
             return;
         }
 
         let slice_index = 0;
         let filtered_lines = [];
-        let arr = await this.filteredLines(slice_index, true);
+        let arr = await filteredHeatmapLines(this.file, slice_index, this.sites, true, this.gene);
 
         filtered_lines = arr[0];
         slice_index = arr[1];
 
         if (filtered_lines.length === 0)
         {
-            this.error = "No relevant data lines found in RNA modification level file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
+            this.error = "No relevant data lines found in the RNA modification level file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
             return;
         }
 
         let first_line = filtered_lines[0];
-        this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+        this.samples = first_line.split(this.delim).map((sample) => sample.trim());
+
         if (this.samples.length < 3)
         {
-            this.error = "First line of RNA modification level file has less than 3 data columns. The file must have at least 3 data columns.";
+            this.error = "The first line of the RNA modification level file has less than 3 data columns. The file must have at least 3 data columns.";
+            return;
+        }
+
+        if (this.samples.some((sample) => sample.length === 0))
+        {
+            this.error = "Empty column name found in the RNA modification level file. Please ensure all column names provided contain at least one non-whitespace character.";
+            return;
+        }
+
+        if (new Set(this.samples.map((sample) => sample.toLowerCase())).size !== this.samples.length)
+        {
+            this.error = "Duplicate column names found in the RNA modification level file. Please ensure all column names provided are unique.";
             return;
         }
 
@@ -969,6 +1010,8 @@ export class RNAModifSitesLevelData {
             return;
         }
 
+        this.labelOrder = JSON.parse(JSON.stringify(this.labels));
+
         // Prepare attributes
         this.maxValue = NaN; // min/max/avg values for colour scheme & legend
         this.minValue = NaN;
@@ -980,8 +1023,8 @@ export class RNAModifSitesLevelData {
 
         let loading_percentage = 0;
         let loading_msg = "Getting RNA modification levels...";
-        this.update_loading_msg(loading_msg);
-        this.update_loading_percentage(loading_percentage);
+        update_loading_msg(loading_msg);
+        update_loading_percentage(loading_percentage);
 
         filtered_lines.splice(0, 1);
         this.processFilteredLines(filtered_lines);
@@ -989,16 +1032,16 @@ export class RNAModifSitesLevelData {
         while (slice_index !== -1)
         {
             loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-            this.update_loading_percentage(loading_percentage);
+            update_loading_percentage(loading_percentage);
 
-            let arr = await this.filteredLines(slice_index);
+            let arr = await filteredHeatmapLines(this.file, slice_index, this.sites, false, this.gene);
             filtered_lines = arr[0];
             slice_index = arr[1];
             this.processFilteredLines(filtered_lines);
         }
 
         loading_percentage = 100;
-        this.update_loading_percentage(loading_percentage);
+        update_loading_percentage(loading_percentage);
 
         this.valid = true;
 
@@ -1010,73 +1053,8 @@ export class RNAModifSitesLevelData {
             if (this.num_nonzerovals === 0)
                 this.num_nonzerovals = 1;
 
-            this.average = this.sum / this.num_nonzerovals;                 // calculate averages
+            this.average = this.sum / this.num_nonzerovals; // calculate averages
         }
-    }
-
-    update_loading_msg(loading_msg)
-    {
-        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
-        document.dispatchEvent(event);
-    }
-
-    update_loading_percentage(loading_percentage)
-    {
-        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
-        document.dispatchEvent(event);
-    }
-
-    async filteredLines(slice_index, get_samples = false)
-    {
-        let chunk_size = 5242880; // 5 MB
-
-        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
-        let next_slice_index = -1;
-
-        if (text.length === chunk_size)
-        {
-            // FIXME: Make this code chunk size independent: A newline must exist for it to work
-            let last_newline_index = text.lastIndexOf('\n');
-            next_slice_index = slice_index + last_newline_index + 1;
-            text = text.substring(0, last_newline_index);
-        }
-
-        text = text.replace(/\r/g, '');
-        let raw_lines = text.split('\n');
-        let filtered_lines = [];
-
-        let first_line_found = !get_samples;
-        for (let i = 0; i < raw_lines.length; ++i)
-        {
-            let line = raw_lines[i];
-
-            // Ignore empty lines
-            if (line === "")
-                continue;
-
-            if (!first_line_found)
-            {
-                filtered_lines.push(line);
-                first_line_found = true;
-                continue;
-            }
-
-            // Find all lines that contain the gene being searched for
-            if (line.indexOf(this.gene) === -1)
-                continue;
-
-            // Only consider sites identified from the RNA modification sites data file
-            for (let site of this.sites)
-            {
-                if (line.indexOf((site - 1).toString()) !== -1) // Deal with BED file coordinates being 0-based instead of 1-based
-                {
-                    filtered_lines.push(line);
-                    break;
-                }
-            }
-        }
-
-        return [filtered_lines, next_slice_index];
     }
 
     processFilteredLines(filtered_lines)
@@ -1084,7 +1062,7 @@ export class RNAModifSitesLevelData {
         for (let i = 0; i < filtered_lines.length; ++i)
         {
             // Clean up text and separate values
-            let entries = filtered_lines[i].replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+            let entries = filtered_lines[i].split(this.delim);
             if (entries.length !== this.samples.length)
                 continue;
 
@@ -1093,7 +1071,7 @@ export class RNAModifSitesLevelData {
                 continue;
 
             let site = parseInt(entries[this.location_colnum]) + 1; // Deal with BED coordinates being 0-based instead of 1-based
-            if (isNaN(site) || (site < 0) || (this.sites.indexOf(site) === -1))
+            if (isNaN(site) || (site <= 1) || (this.sites.indexOf(site) === -1))
                 continue;
 
             for (let j = 0; j < this.samples.length; ++j)
@@ -1123,26 +1101,16 @@ export class RNAModifSitesLevelData {
             }
         }
     }
-
-    async getFileChunk(start, end)
-    {
-        let file = this.file;
-        let slice = file.slice(start, end);
-        let text = await slice.text().then(
-            res => res
-        ).catch(err =>
-        {
-            console.log("Error parsing file!");
-            console.log(err);
-        });
-        return text;
-    }
 }
 
-export class PrimaryData {
+/**
+ * Class for representing primary (stack) data
+ */
+export class PrimaryData
+{
     /**
      * Create a primary data instance
-     * 
+     *
      * @param {string} file the input file
      * @param {string} gene ID for the gene of interest
      * @param {string} species the species the data came from
@@ -1184,7 +1152,8 @@ export class PrimaryData {
             return;
         }
 
-        if (filename.indexOf('.') === -1)
+        let filename_dot_index = filename.lastIndexOf('.');
+        if (filename_dot_index === -1)
         {
             this.error = "Stack file does not contain a file extension. Please specify the correct file extension in its filename.";
             return;
@@ -1195,6 +1164,7 @@ export class PrimaryData {
         this.is_minimal_bed = false;
         this.num_reduced_bed_columns = -1;
 
+        filename = filename.toLowerCase();
         if (filename.endsWith(".gff3"))
             this.filetype = "GFF3";
         else if (filename.endsWith(".gff") || filename.endsWith(".gff2") || filename.endsWith(".gtf"))
@@ -1208,8 +1178,7 @@ export class PrimaryData {
         }
         else
         {
-            let last_dot_index = filename.lastIndexOf('.');
-            let file_extension = filename.substring(last_dot_index + 1);
+            let file_extension = filename.substring(filename_dot_index + 1);
 
             // Is this a reduced BED file? (BED6 to BED9)
             let valid_column_numbers = [6, 7, 8, 9];
@@ -1245,7 +1214,7 @@ export class PrimaryData {
         }
 
         let genomeprot_comment = "##GenomeProt";
-        let first_line = await this.getFileChunk(0, genomeprot_comment.length);
+        let first_line = await getFileChunk(this.file, 0, genomeprot_comment.length);
 
         // Parse the file differently if it's a combined annotations GTF file from GenomeProt
         if (first_line === genomeprot_comment && this.filetype === "GTF")
@@ -1258,14 +1227,20 @@ export class PrimaryData {
             this.chromosome = "";
             this.gene_label = "";
 
-            this.geneInfo = {};
+            this.genes = new Set();
             if (gene)
-                this.geneInfo[gene] = null;
+                this.genes.add(gene);
 
             this.geneNameInfo = {};
 
-            this.gene_attributes = {"uniq_map_peptides": [], "lncRNA_peptides": [], "novel_txs": [], "novel_txs_distinguished": [], "unann_orfs": [], "uorf_5": [], "dorf_3": [], "pseudogene": [], "marker": []};
-            this.gene_name_attributes = JSON.parse(JSON.stringify(this.gene_attributes));
+            this.gene_attributes = {};
+            this.gene_name_attributes = {};
+            let keys = ["uniq_map_peptides", "lncRNA_peptides", "novel_txs", "novel_txs_distinguished", "unann_orfs", "uorf_5", "dorf_3", "pseudogene", "marker"];
+            for (let key of keys)
+            {
+                this.gene_attributes[key] = new Set();
+                this.gene_name_attributes[key] = new Set();
+            }
             this.markerInfo = {};
 
             let first_parser_type = null;
@@ -1286,12 +1261,12 @@ export class PrimaryData {
             else
                 loading_msg = `Getting peptides, transcripts and ORFs of gene '${this.gene}' from GenomeProt combined annotations ${this.filetype} file...`;
 
-            this.update_loading_msg(loading_msg);
+            update_loading_msg(loading_msg);
 
             let slice_index = 0;
             while (slice_index !== -1)
             {
-                let arr = await this.filteredLines(slice_index);
+                let arr = await filteredStackLines(this.file, slice_index, this.gene, true);
                 let filtered_lines = arr[0];
                 slice_index = arr[1];
 
@@ -1302,19 +1277,20 @@ export class PrimaryData {
                 else if (first_parser_type === "e_GTF")
                     this.featuresFromGenomeProtGTF(filtered_lines);
 
-                this.update_loading_percentage(loading_percentage);
+                update_loading_percentage(loading_percentage);
+            }
+            for (let key of keys)
+            {
+                this.gene_attributes[key].delete('');
+                this.gene_name_attributes[key].delete('');
+                this.gene_attributes[key] = Array.from(this.gene_attributes[key]);
+                this.gene_name_attributes[key] = Array.from(this.gene_name_attributes[key]);
             }
 
-            this.genes = Object.keys(this.geneInfo);
+            this.genes = Array.from(this.genes);
+
             if (this.genes.length > 1)
             {
-                // this.genes.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
-                // for (let key of Object.keys(this.gene_attributes))
-                // {
-                //     this.gene_attributes[key].sort();
-                //     this.gene_name_attributes[key].sort();
-                // }
-
                 this.valid = true;  // More than one gene found in the file; let the user pick one to visualize
                 return;
             }
@@ -1330,19 +1306,19 @@ export class PrimaryData {
             if (second_parser_type)
             {
                 loading_msg = `Getting peptides, transcripts and ORFs of gene '${this.gene}' from GenomeProt combined annotations ${this.filetype} file...`;
-                this.update_loading_msg(loading_msg);
+                update_loading_msg(loading_msg);
 
                 let slice_index = 0;
                 while (slice_index !== -1)
                 {
-                    let arr = await this.filteredLines(slice_index);
+                    let arr = await filteredStackLines(this.file, slice_index, this.gene, true);
                     let filtered_lines = arr[0];
                     slice_index = arr[1];
 
                     let loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
 
                     this.featuresFromGenomeProtGTF(filtered_lines);
-                    this.update_loading_percentage(loading_percentage);
+                    update_loading_percentage(loading_percentage);
                 }
             }
 
@@ -1353,7 +1329,7 @@ export class PrimaryData {
             }
 
             if (Object.keys(this.peptides).length === 0)
-                this.warning = "GenomeProt combined annotations file contains the searched gene ID but does not contain any mapped peptides.";
+                this.warning = "GenomeProt combined annotations file contains the searched gene ID but does not contain any peptides mapped to it.";
 
             this.transcriptOrder = prioritiseKnownTranscripts(Object.keys(JSON.parse(JSON.stringify(this.transcripts)))); // store row order to allow for manual reordering
 
@@ -1378,6 +1354,12 @@ export class PrimaryData {
                     break;
             }
 
+            if (this.transcriptOrder.length === 0)
+            {
+                this.error = "GenomeProt combined annotations file contains the searched gene ID but does not contain any of its transcripts.";
+                return;
+            }
+
             // Store lists of all transcripts and ORFs the peptides uniquely map to
             this.transcripts_identified = [];
             this.orfs_identified = [];
@@ -1396,10 +1378,19 @@ export class PrimaryData {
                         this.orfs_identified.push(orf_identified);
             }
 
+            // Sort the regions of each ORF by ascending region starts
+            for (let accession of Object.keys(this.orfs))
+                this.orfs[accession].sort((block0, block1) => block0[0] - block1[0]);
+
             // build isoform objects from transcript data and save in list
             this.isoformList = [];
-            for (let i=0; i<this.transcriptOrder.length; ++i)
-                this.isoformList.push(new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]]));
+            for (let i = 0; i < this.transcriptOrder.length; ++i)
+                this.isoformList.push(new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]], this.orfs));
+
+            // Sort the regions of each ORF by descending region starts if the gene is not on the forward strand
+            if (this.strand !== '+')
+                for (let accession of Object.keys(this.orfs))
+                    this.orfs[accession].reverse();
 
             this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList)); // keep a copy to allow for manually adding/removing rows
 
@@ -1407,11 +1398,11 @@ export class PrimaryData {
 
             // extra information about the gene
             this.gene = gene;
-            this.start = this.isoformList[0].strand === '+' ? 
-                this.mergedRanges[0][0] : 
+            this.start = this.isoformList[0].strand === '+' ?
+                this.mergedRanges[0][0] :
                 this.mergedRanges[this.mergedRanges.length - 1][1];
-            this.end = this.isoformList[0].strand === '+' ? 
-                this.mergedRanges[this.mergedRanges.length - 1][1] : 
+            this.end = this.isoformList[0].strand === '+' ?
+                this.mergedRanges[this.mergedRanges.length - 1][1] :
                 this.mergedRanges[0][0];
             this.width = Math.abs(this.end - this.start);
             this.strand = this.isoformList[0].strand;
@@ -1423,14 +1414,6 @@ export class PrimaryData {
                 this.peptides[peptide_sequence].ranges.sort((exon0, exon1) => exon0[0] - exon1[0]);
                 if (this.strand !== '+')
                     this.peptides[peptide_sequence].ranges.reverse();
-            }
-
-            // Sort the regions of each ORF by ascending / descending region starts according to the gene's strandedness
-            for (let accession of Object.keys(this.orfs))
-            {
-                this.orfs[accession].sort((block0, block1) => block0[0] - block1[0]);
-                if (this.strand !== '+')
-                    this.orfs[accession].reverse();
             }
 
             this.valid = true; // data parsed correctly and ready for visualization
@@ -1446,7 +1429,7 @@ export class PrimaryData {
             let slice_index = 0;
             while (slice_index !== -1)
             {
-                let arr = await this.filteredLines(slice_index);
+                let arr = await filteredStackLines(this.file, slice_index, this.gene, true);
                 let filtered_lines = arr[0];
                 slice_index = arr[1];
 
@@ -1494,9 +1477,9 @@ export class PrimaryData {
         this.transcripts = {};
         this.chromosome = "";
 
-        this.geneInfo = {};
+        this.genes = new Set();
         if (gene)
-            this.geneInfo[gene] = null;
+            this.genes.add(gene);
 
         let first_parser_type = null;
         let second_parser_type = null;
@@ -1516,12 +1499,12 @@ export class PrimaryData {
         else
             loading_msg = `Getting isoform exons of gene '${this.gene}' from ${this.filetype} file...`;
 
-        this.update_loading_msg(loading_msg);
+        update_loading_msg(loading_msg);
 
         let slice_index = 0;
         while (slice_index !== -1)
         {
-            let arr = await this.filteredLines(slice_index);
+            let arr = await filteredStackLines(this.file, slice_index, this.gene, true);
             let filtered_lines = arr[0];
             slice_index = arr[1];
 
@@ -1554,13 +1537,12 @@ export class PrimaryData {
                     this.exonsFromBED(filtered_lines);
             }
 
-            this.update_loading_percentage(loading_percentage);
+            update_loading_percentage(loading_percentage);
         }
 
-        this.genes = Object.keys(this.geneInfo);
+        this.genes = Array.from(this.genes);
         if (this.genes.length > 1)
         {
-            // this.genes.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
             this.valid = true;  // More than one gene found in the file; let the user pick one to visualize
             return;
         }
@@ -1576,12 +1558,12 @@ export class PrimaryData {
         if (second_parser_type)
         {
             loading_msg = `Getting isoform exons of gene '${this.gene}' from ${this.filetype} file...`;
-            this.update_loading_msg(loading_msg);
+            update_loading_msg(loading_msg);
 
             let slice_index = 0;
             while (slice_index !== -1)
             {
-                let arr = await this.filteredLines(slice_index);
+                let arr = await filteredStackLines(this.file, slice_index, this.gene, true);
                 let filtered_lines = arr[0];
                 slice_index = arr[1];
 
@@ -1601,9 +1583,15 @@ export class PrimaryData {
                         this.exonsFromBED(filtered_lines);
                 }
 
-                this.update_loading_percentage(loading_percentage);
+                update_loading_percentage(loading_percentage);
             }
         }
+
+        // Remove transcripts that have a coding sequence but no exons
+        let loaded_transcripts = Object.keys(this.transcripts);
+        for (let loaded_transcript of loaded_transcripts)
+            if (!(this.transcripts[loaded_transcript].exons) || (this.transcripts[loaded_transcript].exons.length === 0))
+                this.transcripts[loaded_transcript] = null;
 
         if (Object.keys(this.transcripts).length === 0)
         {
@@ -1627,39 +1615,27 @@ export class PrimaryData {
 
         // extra information about the gene
         this.gene = gene;
-        this.start = this.isoformList[0].strand === '+' ? 
-            this.mergedRanges[0][0] : 
+        this.start = this.isoformList[0].strand === '+' ?
+            this.mergedRanges[0][0] :
             this.mergedRanges[this.mergedRanges.length - 1][1];
-        this.end = this.isoformList[0].strand === '+' ? 
-            this.mergedRanges[this.mergedRanges.length - 1][1] : 
+        this.end = this.isoformList[0].strand === '+' ?
+            this.mergedRanges[this.mergedRanges.length - 1][1] :
             this.mergedRanges[0][0];
         this.width = Math.abs(this.end - this.start);
         this.strand = this.isoformList[0].strand;
 
         this.valid = true; // data parsed correctly and ready for visualization
 
-        let properties_to_delete = "file gene error is_use_grch37 is_bed_type_unknown is_reduced_bed is_minimal_bed num_reduced_bed_columns filetype geneInfo species".split(' ');
+        let properties_to_delete = "file gene error is_use_grch37 is_bed_type_unknown is_reduced_bed is_minimal_bed num_reduced_bed_columns filetype species".split(' ');
         for (let property_to_delete of properties_to_delete)
             delete this[property_to_delete];
     }
 
-    update_loading_msg(loading_msg)
-    {
-        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
-        document.dispatchEvent(event);
-    }
-
-    update_loading_percentage(loading_percentage)
-    {
-        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
-        document.dispatchEvent(event);
-    }
-
     exonsFromGFF3(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new GFF3Line(raw_line);
+            let line = new GFF3Line(lines[line_index]);
             if (!(line.valid) || (line.feature !== "exon" && line.feature !== "CDS"))
                 continue;
 
@@ -1704,20 +1680,24 @@ export class PrimaryData {
             }
             else
             {
-                // The transcript must be defined before its CDS
                 if (!(transcript in this.transcripts))
-                    continue;
-
-                this.transcripts[transcript].user_orf.push(line.range);
+                {
+                    this.transcripts[transcript] = {};
+                    this.transcripts[transcript].user_orf = [line.range];
+                    this.transcripts[transcript].exons = [];
+                    this.transcripts[transcript].strand = line.strand;
+                }
+                else
+                    this.transcripts[transcript].user_orf.push(line.range);
             }
         }
     }
 
     exonsFromGTF(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new GTFLine(raw_line);
+            let line = new GTFLine(lines[line_index]);
             if (!(line.valid) || (line.feature !== "exon" && line.feature !== "CDS"))
                 continue;
 
@@ -1766,20 +1746,24 @@ export class PrimaryData {
             }
             else
             {
-                // The transcript must be defined before its CDS
                 if (!(transcript in this.transcripts))
-                    continue;
-
-                this.transcripts[transcript].user_orf.push(line.range);
+                {
+                    this.transcripts[transcript] = {};
+                    this.transcripts[transcript].user_orf = [line.range];
+                    this.transcripts[transcript].exons = [];
+                    this.transcripts[transcript].strand = line.strand;
+                }
+                else
+                    this.transcripts[transcript].user_orf.push(line.range);
             }
         }
     }
 
     exonsFromBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new BEDLine(raw_line);
+            let line = new BEDLine(lines[line_index]);
             if (!(line.valid))
                 continue;
 
@@ -1837,9 +1821,9 @@ export class PrimaryData {
 
     exonsFromReducedBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new ReducedBEDLine(raw_line, this.num_reduced_bed_columns);
+            let line = new ReducedBEDLine(lines[line_index], this.num_reduced_bed_columns);
             if (!(line.valid))
                 continue;
 
@@ -1898,9 +1882,9 @@ export class PrimaryData {
     {
         let gene_strand = "";
 
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new MinimalBEDLine(raw_line, this.num_reduced_bed_columns);
+            let line = new MinimalBEDLine(lines[line_index], this.num_reduced_bed_columns);
             if (!(line.valid))
                 continue;
 
@@ -1940,8 +1924,8 @@ export class PrimaryData {
 
                 // Look up the gene's strandedness on Ensembl
                 let loading_msg = `Determining strandedness of gene '${gene_name}'...`;
-                this.update_loading_msg(loading_msg);
-                this.update_loading_percentage(0);
+                update_loading_msg(loading_msg);
+                update_loading_percentage(0);
 
                 gene_strand = await this.getGeneStrand(gene_name);
                 if (gene_strand === "Unknown")
@@ -1966,9 +1950,9 @@ export class PrimaryData {
 
     genesFromGFF3(lines)
     {
-        for (let line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let gff3_line = new GFF3Line(line);
+            let gff3_line = new GFF3Line(lines[line_index]);
             if (!(gff3_line.valid))
                 continue;
 
@@ -1976,21 +1960,20 @@ export class PrimaryData {
             if (!gene_name)
                 continue;
 
-            let dot_index = gene_name.indexOf('.');
-            if (dot_index !== -1)
-                gene_name = gene_name.substring(0, dot_index);
+            let period_index = gene_name.indexOf('.');
+            if (period_index !== -1)
+                gene_name = gene_name.substring(0, period_index);
 
             gene_name = gene_name.toUpperCase();
-            if (!(gene_name in this.geneInfo))
-                this.geneInfo[gene_name] = null;
+            this.genes.add(gene_name);
         }
     }
 
     genesFromGTF(lines)
     {
-        for (let line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let gtf_line = new GTFLine(line);
+            let gtf_line = new GTFLine(lines[line_index]);
             if (!(gtf_line.valid))
                 continue;
 
@@ -2006,16 +1989,15 @@ export class PrimaryData {
             }
 
             gene_name = gene_name.toUpperCase();
-            if (!(gene_name in this.geneInfo))
-                this.geneInfo[gene_name] = null;
+            this.genes.add(gene_name);
         }
     }
 
     featuresFromGenomeProtGTF(lines)
     {
-        for (let line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let gtf_line = new GenomeProtGTFLine(line);
+            let gtf_line = new GenomeProtGTFLine(lines[line_index]);
             if (!(gtf_line.valid))
                 continue;
 
@@ -2038,7 +2020,7 @@ export class PrimaryData {
             // Only extract information for peptides, CDS regions and exons
             let is_peptide = (gtf_line.source === "custom") && (gtf_line.feature === "exon");
             let is_cds = (gtf_line.source === "custom") && (gtf_line.feature === "CDS");
-            let is_exon = (gtf_line.source === "Bambu") && (gtf_line.feature === "exon");
+            let is_exon = (gtf_line.source !== "custom") && (gtf_line.feature === "exon");
 
             if (!(is_peptide || is_cds || is_exon))
                 continue;
@@ -2224,7 +2206,7 @@ export class PrimaryData {
                 let p_val_adj = gtf_line.attributes.p_val_adj;
                 if (!p_val_adj)
                     continue;
-                p_val_adj = p_val_adj.split(',').map((num_str) => parseFloat(num_str.trim()));
+                p_val_adj = p_val_adj.split(',').map((num_str) => parseFloat(num_str));
                 if (p_val_adj.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2238,7 +2220,7 @@ export class PrimaryData {
                 let avg_log2fc = gtf_line.attributes.avg_log2fc;
                 if (!avg_log2fc)
                     continue;
-                avg_log2fc = avg_log2fc.split(',').map((num_str) => parseFloat(num_str.trim()));
+                avg_log2fc = avg_log2fc.split(',').map((num_str) => parseFloat(num_str));
                 if ((avg_log2fc.length !== num_clusters) || avg_log2fc.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2246,7 +2228,7 @@ export class PrimaryData {
                 let pct1 = gtf_line.attributes["pct.1"];
                 if (!pct1)
                     continue;
-                pct1 = pct1.split(',').map((num_str) => parseFloat(num_str.trim()));
+                pct1 = pct1.split(',').map((num_str) => parseFloat(num_str));
                 if ((pct1.length !== num_clusters) || pct1.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2254,7 +2236,7 @@ export class PrimaryData {
                 let pct2 = gtf_line.attributes["pct.2"];
                 if (!pct2)
                     continue;
-                pct2 = pct2.split(',').map((num_str) => parseFloat(num_str.trim()));
+                pct2 = pct2.split(',').map((num_str) => parseFloat(num_str));
                 if ((pct2.length !== num_clusters) || pct2.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2288,9 +2270,9 @@ export class PrimaryData {
 
     genesFromGenomeProtGTF(lines)
     {
-        for (let line of lines)
+        for (let i = 0; i < lines.length; ++i)
         {
-            let gtf_line = new GenomeProtGTFLine(line);
+            let gtf_line = new GenomeProtGTFLine(lines[i]);
             if (!(gtf_line.valid))
                 continue;
 
@@ -2303,8 +2285,7 @@ export class PrimaryData {
                 gene_id = gene_id.substring(0, period_index);
 
             gene_id = gene_id.toUpperCase();
-            if (!(gene_id in this.geneInfo))
-                this.geneInfo[gene_id] = null;
+            this.genes.add(gene_id);
 
             let gene_name = gtf_line.attributes.gene_name;
             if ((!gene_name) || (gene_name === gene_id))
@@ -2315,7 +2296,7 @@ export class PrimaryData {
                 this.geneNameInfo[gene_name].push(gene_id);
 
             // Information for marker genes is stored in a GTF line for an isoform exon
-            let is_exon = (gtf_line.source === "Bambu") && (gtf_line.feature === "exon");
+            let is_exon = (gtf_line.source !== "custom") && (gtf_line.feature === "exon");
             if (is_exon)
             {
                 // All marker genes must contain a 'marker_gene' attribute with the value 'TRUE'
@@ -2326,7 +2307,7 @@ export class PrimaryData {
                 let p_val_adj = gtf_line.attributes.p_val_adj;
                 if (!p_val_adj)
                     continue;
-                p_val_adj = p_val_adj.split(',').map((num_str) => parseFloat(num_str.trim()));
+                p_val_adj = p_val_adj.split(',').map((num_str) => parseFloat(num_str));
                 if (p_val_adj.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2340,7 +2321,7 @@ export class PrimaryData {
                 let avg_log2fc = gtf_line.attributes.avg_log2fc;
                 if (!avg_log2fc)
                     continue;
-                avg_log2fc = avg_log2fc.split(',').map((num_str) => parseFloat(num_str.trim()));
+                avg_log2fc = avg_log2fc.split(',').map((num_str) => parseFloat(num_str));
                 if ((avg_log2fc.length !== num_clusters) || avg_log2fc.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2348,7 +2329,7 @@ export class PrimaryData {
                 let pct1 = gtf_line.attributes["pct.1"];
                 if (!pct1)
                     continue;
-                pct1 = pct1.split(',').map((num_str) => parseFloat(num_str.trim()));
+                pct1 = pct1.split(',').map((num_str) => parseFloat(num_str));
                 if ((pct1.length !== num_clusters) || pct1.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2356,7 +2337,7 @@ export class PrimaryData {
                 let pct2 = gtf_line.attributes["pct.2"];
                 if (!pct2)
                     continue;
-                pct2 = pct2.split(',').map((num_str) => parseFloat(num_str.trim()));
+                pct2 = pct2.split(',').map((num_str) => parseFloat(num_str));
                 if ((pct2.length !== num_clusters) || pct2.some((num) => !Number.isFinite(num)))
                     continue;
 
@@ -2379,10 +2360,8 @@ export class PrimaryData {
                         continue;
                 }
 
-                if (this.gene_attributes.marker.indexOf(gene_id) === -1)
-                    this.gene_attributes.marker.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.marker.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.marker.push(gene_name);
+                this.gene_attributes.marker.add(gene_id);
+                this.gene_name_attributes.marker.add(gene_name);
 
                 continue;
             }
@@ -2407,78 +2386,62 @@ export class PrimaryData {
             let localisation = gtf_line.attributes.localisation;
 
             // ORFs with UMPs
-            if (this.gene_attributes.uniq_map_peptides.indexOf(gene_id) === -1)
-                this.gene_attributes.uniq_map_peptides.push(gene_id);
-            if ((gene_name !== '') && (this.gene_name_attributes.uniq_map_peptides.indexOf(gene_name) === -1))
-                this.gene_name_attributes.uniq_map_peptides.push(gene_name);
+            this.gene_attributes.uniq_map_peptides.add(gene_id);
+            this.gene_name_attributes.uniq_map_peptides.add(gene_name);
 
             // Long non-coding RNAs with UMPs
             if (transcript_biotype === "lncRNA")
             {
-                if (this.gene_attributes.lncRNA_peptides.indexOf(gene_id) === -1)
-                    this.gene_attributes.lncRNA_peptides.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.lncRNA_peptides.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.lncRNA_peptides.push(gene_name);
+                this.gene_attributes.lncRNA_peptides.add(gene_id);
+                this.gene_name_attributes.lncRNA_peptides.add(gene_name);
             }
             // Novel transcript isoforms with UMPs
             else if (transcript_biotype === "novel")
             {
-                if (this.gene_attributes.novel_txs.indexOf(gene_id) === -1)
-                    this.gene_attributes.novel_txs.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.novel_txs.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.novel_txs.push(gene_name);
+                this.gene_attributes.novel_txs.add(gene_id);
+                this.gene_name_attributes.novel_txs.add(gene_name);
 
                 // Novel transcript isoforms distinguished by UMPs
                 if (peptide_ids_transcript)
                 {
-                    if (this.gene_attributes.novel_txs_distinguished.indexOf(gene_id) === -1)
-                        this.gene_attributes.novel_txs_distinguished.push(gene_id);
-                    if ((gene_name !== '') && (this.gene_name_attributes.novel_txs_distinguished.indexOf(gene_name) === -1))
-                        this.gene_name_attributes.novel_txs_distinguished.push(gene_name);
+                    this.gene_attributes.novel_txs_distinguished.add(gene_id);
+                    this.gene_name_attributes.novel_txs_distinguished.add(gene_name);
                 }
             }
             // Pseudogenes with UMPs
             else if (transcript_biotype.indexOf("pseudogene") !== -1)
             {
-                if (this.gene_attributes.pseudogene.indexOf(gene_id) === -1)
-                    this.gene_attributes.pseudogene.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.pseudogene.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.pseudogene.push(gene_name);
+                this.gene_attributes.pseudogene.add(gene_id);
+                this.gene_name_attributes.pseudogene.add(gene_name);
             }
 
             // Unannotated ORFs with UMPs
             if (orf_type === "unannotated")
             {
-                if (this.gene_attributes.unann_orfs.indexOf(gene_id) === -1)
-                    this.gene_attributes.unann_orfs.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.unann_orfs.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.unann_orfs.push(gene_name);
+                this.gene_attributes.unann_orfs.add(gene_id);
+                this.gene_name_attributes.unann_orfs.add(gene_name);
             }
 
             // 5' uORFs with UMPs
             if (localisation === "5UTR")
             {
-                if (this.gene_attributes.uorf_5.indexOf(gene_id) === -1)
-                    this.gene_attributes.uorf_5.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.uorf_5.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.uorf_5.push(gene_name);
+                this.gene_attributes.uorf_5.add(gene_id);
+                this.gene_name_attributes.uorf_5.add(gene_name);
             }
             // 3' dORFs with UMPs
             else if (localisation === "3UTR")
             {
-                if (this.gene_attributes.dorf_3.indexOf(gene_id) === -1)
-                    this.gene_attributes.dorf_3.push(gene_id);
-                if ((gene_name !== '') && (this.gene_name_attributes.dorf_3.indexOf(gene_name) === -1))
-                    this.gene_name_attributes.dorf_3.push(gene_name);
+                this.gene_attributes.dorf_3.add(gene_id);
+                this.gene_name_attributes.dorf_3.add(gene_name);
             }
         }
     }
 
     genesFromBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new BEDLine(raw_line);
+            let line = new BEDLine(lines[line_index]);
             if (!(line.valid))
                 continue;
 
@@ -2487,16 +2450,15 @@ export class PrimaryData {
                 continue;
 
             gene = gene.toUpperCase();
-            if (!(gene in this.geneInfo))
-                this.geneInfo[gene] = null;
+            this.genes.add(gene);
         }
     }
 
     genesFromReducedBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new ReducedBEDLine(raw_line, this.num_reduced_bed_columns);
+            let line = new ReducedBEDLine(lines[line_index], this.num_reduced_bed_columns);
             if (!(line.valid))
                 continue;
 
@@ -2505,16 +2467,15 @@ export class PrimaryData {
                 continue;
 
             gene = gene.toUpperCase();
-            if (!(gene in this.geneInfo))
-                this.geneInfo[gene] = null;
+            this.genes.add(gene);
         }
     }
 
     genesFromMinimalBED(lines)
     {
-        for (let raw_line of lines)
+        for (let line_index = 0; line_index < lines.length; ++line_index)
         {
-            let line = new MinimalBEDLine(raw_line, this.num_reduced_bed_columns);
+            let line = new MinimalBEDLine(lines[line_index], this.num_reduced_bed_columns);
             if (!(line.valid))
                 continue;
 
@@ -2523,81 +2484,13 @@ export class PrimaryData {
                 continue;
 
             gene = gene.toUpperCase();
-            if (!(gene in this.geneInfo))
-                this.geneInfo[gene] = null;
+            this.genes.add(gene);
         }
-    }
-
-    async filteredLines(slice_index)
-    {
-        let chunk_size = 5242880; // 5 MB
-        let gene_to_search = this.gene;
-
-        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
-        let next_slice_index = -1;
-
-        if (text.length === chunk_size)
-        {
-            // FIXME: Make this code chunk size independent: A newline must exist for it to work
-            let last_newline_index = text.lastIndexOf('\n');
-            next_slice_index = slice_index + last_newline_index + 1;
-            text = text.substring(0, last_newline_index);
-        }
-
-        text = text.replace(/\r/g, '');
-        let raw_lines = text.split('\n');
-        let filtered_lines = [];
-
-        if (gene_to_search === null)
-        {
-            for (let i = 0; i < raw_lines.length; ++i)
-            {
-                let line = raw_lines[i];
-
-                // Ignore empty lines and comments
-                if ((line === "") || (line[0] === '#'))
-                    continue;
-
-                filtered_lines.push(line);
-            }
-        }
-        else
-        {
-            let uppercase_gene_to_search = gene_to_search.toUpperCase();
-            for (let i = 0; i < raw_lines.length; ++i)
-            {
-                let line = raw_lines[i];
-
-                // Ignore empty lines and comments
-                if ((line === "") || (line[0] === '#'))
-                    continue;
-
-                // Find all lines that contain the gene being searched for
-                if (line.toUpperCase().indexOf(uppercase_gene_to_search) !== -1)
-                    filtered_lines.push(line);
-            }
-        }
-
-        return [filtered_lines, next_slice_index];
-    }
-
-    async getFileChunk(start, end)
-    {
-        let file = this.file;
-        let slice = file.slice(start, end);
-        let text = await slice.text().then(
-            res => res
-        ).catch(err =>
-        {
-            console.log("Error parsing file!");
-            console.log(err);
-        });
-        return text;
     }
 
     async getGeneStrand(gene_name)
     {
-        let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_name}?species=${this.species}&content-type=application/json`;
+        let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_name}?species=${encodeURIComponent(this.species)}&content-type=application/json`;
         let response = await this.fetchJSON(url);
         if (!response || response.error || !response.strand)
             return "Unknown";
@@ -2621,18 +2514,20 @@ export class PrimaryData {
 }
 
 /**
- * Class for representing secondary data
+ * Class for representing secondary (heatmap) data
  */
-export class SecondaryData {
+export class SecondaryData
+{
     /**
      * Create a secondary data instance
-     * 
+     *
      * @param {string} file the input file
      * @param {string} gene ID for the gene of interest
      * @param {string} transcript_ids transcript IDs for the gene of interest
      */
-    constructor(file, gene, transcript_ids) {
-        this.valid = false;
+    constructor(file, gene, transcript_ids)
+    {
+        this.valid = false; // set to true at the end
         this.error = "";
         this.warning = "";
         this.file = file;
@@ -2663,6 +2558,7 @@ export class SecondaryData {
         }
 
         // Determine delimiter
+        filename = filename.toLowerCase();
         if (filename.endsWith(".csv"))
             this.delim = ',';
         else if (filename.endsWith(".tsv") || filename.endsWith(".txt"))
@@ -2675,22 +2571,35 @@ export class SecondaryData {
 
         let slice_index = 0;
         let filtered_lines = [];
-        let arr = await this.filteredLines(slice_index, true);
-        
+        let arr = await filteredHeatmapLines(this.file, slice_index, this.transcript_ids, true);
+
         filtered_lines = arr[0];
         slice_index = arr[1];
 
         if (filtered_lines.length === 0)
         {
-            this.error = "No relevant data lines found in heatmap file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
+            this.error = "No relevant data lines found in the heatmap file. Check if it contains data for the gene being visualized or if its formatting is incorrect.";
             return;
         }
 
         let first_line = filtered_lines[0];
-        this.samples = first_line.replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+        this.samples = first_line.split(this.delim).map((sample) => sample.trim());
+
         if (this.samples.length < 2)
         {
-            this.error = "The first line of heatmap file has less than 2 data columns. The file must have at least 2 data columns.";
+            this.error = "The first line of the heatmap file has less than 2 data columns. The file must have at least 2 data columns.";
+            return;
+        }
+
+        if (this.samples.some((sample) => sample.length === 0))
+        {
+            this.error = "Empty column name found in the heatmap file. Please ensure all column names provided contain at least one non-whitespace character.";
+            return;
+        }
+
+        if (new Set(this.samples.map((sample) => sample.toLowerCase())).size !== this.samples.length)
+        {
+            this.error = "Duplicate column names found in the heatmap file. Please ensure all column names provided are unique.";
             return;
         }
 
@@ -2715,6 +2624,8 @@ export class SecondaryData {
             return;
         }
 
+        this.labelOrder = JSON.parse(JSON.stringify(this.labels));
+
         // Prepare attributes
         this.transcripts = [];
 
@@ -2731,8 +2642,8 @@ export class SecondaryData {
 
         let loading_percentage = 0;
         let loading_msg = `Extracting data for gene '${this.gene}' from heatmap file...`;
-        this.update_loading_msg(loading_msg);
-        this.update_loading_percentage(loading_percentage);
+        update_loading_msg(loading_msg);
+        update_loading_percentage(loading_percentage);
 
         filtered_lines.splice(0, 1);
         this.processFilteredLines(filtered_lines);
@@ -2740,16 +2651,16 @@ export class SecondaryData {
         while (slice_index !== -1)
         {
             loading_percentage = (slice_index !== -1) ? parseFloat((slice_index * 100 / file.size).toFixed(2)) : 100;
-            this.update_loading_percentage(loading_percentage);
+            update_loading_percentage(loading_percentage);
 
-            let arr = await this.filteredLines(slice_index);
+            let arr = await filteredHeatmapLines(this.file, slice_index, this.transcript_ids);
             filtered_lines = arr[0];
             slice_index = arr[1];
             this.processFilteredLines(filtered_lines);
         }
 
         loading_percentage = 100;
-        this.update_loading_percentage(loading_percentage);
+        update_loading_percentage(loading_percentage);
 
         if (this.transcripts.length === 0)
         {
@@ -2774,73 +2685,12 @@ export class SecondaryData {
             delete this[property_to_delete];
     }
 
-    update_loading_msg(loading_msg)
-    {
-        let event = new CustomEvent("update_loading_msg", {detail: loading_msg});
-        document.dispatchEvent(event);
-    }
-
-    update_loading_percentage(loading_percentage)
-    {
-        let event = new CustomEvent("update_loading_percentage", {detail: loading_percentage});
-        document.dispatchEvent(event);
-    }
-
-    async filteredLines(slice_index, get_samples = false)
-    {
-        let chunk_size = 5242880; // 5 MB
-
-        let text = await this.getFileChunk(slice_index, slice_index + chunk_size);
-        let next_slice_index = -1;
-
-        if (text.length === chunk_size)
-        {
-            // FIXME: Make this code chunk size independent: A newline must exist for it to work
-            let last_newline_index = text.lastIndexOf('\n');
-            next_slice_index = slice_index + last_newline_index + 1;
-            text = text.substring(0, last_newline_index);
-        }
-
-        text = text.replace(/\r/g, '');
-        let raw_lines = text.split('\n');
-        let filtered_lines = [];
-
-        let first_line_found = !get_samples;
-        for (let i = 0; i < raw_lines.length; ++i)
-        {
-            let line = raw_lines[i];
-
-            // Ignore empty lines
-            if (line === "")
-                continue;
-
-            if (!first_line_found)
-            {
-                filtered_lines.push(line);
-                first_line_found = true;
-                continue;
-            }
-
-            // Find all lines that contain the transcript IDs being searched for
-            for (let transcript_id of this.transcript_ids)
-            {
-                if (line.indexOf(transcript_id) !== -1)
-                {
-                    filtered_lines.push(line);
-                    break;
-                }
-            }
-        }
-
-        return [filtered_lines, next_slice_index];
-    }
-
     processFilteredLines(filtered_lines)
     {
         for (let i = 0; i < filtered_lines.length; ++i)
         {
             // Clean up text and separate values
-            let entries = filtered_lines[i].replace(/"/g, '').replace(/\r/g, '').split(this.delim);
+            let entries = filtered_lines[i].split(this.delim);
             if (entries.length !== this.samples.length)
                 continue;
 
@@ -2877,26 +2727,13 @@ export class SecondaryData {
             }
         }
     }
-
-    async getFileChunk(start, end)
-    {
-        let file = this.file;
-        let slice = file.slice(start, end);
-        let text = await slice.text().then(
-            res => res
-        ).catch(err =>
-        {
-            console.log("Error parsing file!");
-            console.log(err);
-        });
-        return text;
-    }
 }
 
 /**
- * Class for representing canon data
+ * Class for representing canonical transcript data
  */
-export class CanonData {
+export class CanonData
+{
     /**
      * Create a canon data instance
      * jsonData object format determined by ensembl: https://rest.ensembl.org/lookup/id/{geneID}?expand=1;content-type=application/json
@@ -2930,7 +2767,9 @@ export class CanonData {
     }
 }
 
-// Class for representing protein data
+/**
+ * Class for representing protein data
+ */
 export class ProteinData
 {
     /**
@@ -3075,7 +2914,7 @@ export class ProteinData
 
                         for (let fragment of entry_protein_location.fragments)
                         {
-                            let region_obj = 
+                            let region_obj =
                             {
                                 "display": true,
                                 "colour": "#4a1c83",
@@ -3170,54 +3009,48 @@ class GFF3Line
 {
     /**
      * Create a GFF3Line instance
-     * 
+     *
      * @param {string} dataString line of a GFF3 file in string format
      */
     constructor(dataString)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
-        let line = dataString.trim().split('\t');        
-        if (line.length < 9)
-        {
-            this.valid = false;
+        let line = dataString.split('\t');
+        if (line.length !== 9)
             return;
-        }
 
         let range_begin = parseInt(line[3]);
         let range_end = parseInt(line[4]);
-        let strand = line[6].trim();
+        let strand = line[6];
         if (isNaN(range_begin) || isNaN(range_end) || (range_begin > range_end) || ((strand !== '+') && (strand !== '-')))
-        {
-            this.valid = false;
             return;
-        }
 
         this.chromosome = line[0].trim();
-        this.feature = line[2].trim();
+        this.feature = line[2];
         this.range = [range_begin, range_end];
         this.strand = strand;
-        //this.frame = line[7];
         this.attributes = {};
 
         // reconstruct attributed column as JSON
         let info = line[8].split(';');
 
-        for (let entry of info)
+        for (let entry_index = 0; entry_index < info.length; ++entry_index)
         {
+            let entry = info[entry_index];
             if (entry.length <= 1)
                 continue;
 
-            entry = entry.trim().replace(/\r/g, '').split('=');
+            entry = entry.trim().split('=');
             if (entry.length !== 2)
                 continue;
 
             let attribute_name = decodeURI(entry[0]).trim().toLowerCase();
-            let attribute_val = decodeURI(entry[1]);
-
             if (attribute_name.length === 0)
                 continue;
+
+            let attribute_val = decodeURI(entry[1]);
 
             // If this is the last attribute, there could be a comment following it that needs to be removed
             let comment_index = attribute_val.indexOf('#');
@@ -3229,6 +3062,8 @@ class GFF3Line
 
             this.attributes[attribute_name] = attribute_val;
         }
+
+        this.valid = true;
     }
 }
 
@@ -3239,47 +3074,41 @@ class GTFLine
 {
     /**
      * Create a GTFLine instance
-     * 
+     *
      * @param {string} dataString line of a GTF file in string format
      */
     constructor(dataString)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
-        if (line.length < 9)
-        {
-            this.valid = false;
+        if (line.length !== 9)
             return;
-        }
 
         let range_begin = parseInt(line[3]);
         let range_end = parseInt(line[4]);
-        let strand = line[6].trim();
+        let strand = line[6];
         if (isNaN(range_begin) || isNaN(range_end) || (range_begin > range_end) || ((strand !== '+') && (strand !== '-')))
-        {
-            this.valid = false;
             return;
-        }
 
         this.chromosome = line[0].trim();
         this.isStringTie = (line[1].toLowerCase().indexOf("stringtie") !== -1);
-        this.feature = line[2].trim();
+        this.feature = line[2];
         this.range = [range_begin, range_end];
         this.strand = strand;
-        //this.frame = line[7];
         this.attributes = {};
 
         // reconstruct attributed column as JSON
         let info = line[8].split(';');
 
-        for (let entry of info)
+        for (let entry_index = 0; entry_index < info.length; ++entry_index)
         {
+            let entry = info[entry_index];
             if (entry.length <= 1)
                 continue;
 
-            entry = entry.trim().replace(/\r/g, '').split(" ");
+            entry = entry.trim().split(' ');
             if (entry.length < 2)
                 continue;
 
@@ -3289,6 +3118,8 @@ class GTFLine
             let attribute_val = entry.join(' ').replace(/"/g, '').trim();
             this.attributes[attribute_name] = attribute_val;
         }
+
+        this.valid = true;
     }
 }
 
@@ -3299,33 +3130,27 @@ class GenomeProtGTFLine
 {
     /**
      * Create a GenomeProtGTFLine instance
-     * 
+     *
      * @param {string} dataString line of the combined annotations GTF file in string format
      */
     constructor(dataString)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
-        if (line.length < 9)
-        {
-            this.valid = false;
+        if (line.length !== 9)
             return;
-        }
 
         let range_begin = parseInt(line[3]);
         let range_end = parseInt(line[4]);
-        let strand = line[6].trim();
+        let strand = line[6];
         if (isNaN(range_begin) || isNaN(range_end) || (range_begin > range_end) || ((strand !== '+') && (strand !== '-')))
-        {
-            this.valid = false;
             return;
-        }
 
         this.chromosome = line[0].trim();
 
-        // Only consider lines where the source is "custom" or "Bambu"
+        // Only consider lines where the source is "custom" or another word that is not "custom" (e.g. "Bambu")
         // If the source is "custom", the feature must be either "exon" or "CDS"
         // Otherwise, the feature must be either "exon" or "transcript"
 
@@ -3334,20 +3159,12 @@ class GenomeProtGTFLine
         //  Bambu + transcript = Transcript genomic range
         //  Bambu +       exon = Transcript exon genomic range
 
-        this.source = line[1].trim();
-        if (this.source !== "custom" && this.source !== "Bambu")
-        {
-            this.valid = false;
-            return;
-        }
+        this.source = line[1];
 
-        this.feature = line[2].trim();
+        this.feature = line[2];
         if ((this.source === "custom" && (this.feature !== "exon" && this.feature !==        "CDS")) ||
-            (this.source ===  "Bambu" && (this.feature !== "exon" && this.feature !== "transcript")))
-        {
-            this.valid = false;
+            (this.source !== "custom" && (this.feature !== "exon" && this.feature !== "transcript")))
             return;
-        }
 
         this.range = [range_begin, range_end];
         this.strand = strand;
@@ -3361,12 +3178,14 @@ class GenomeProtGTFLine
                                   "gene_identified", "transcript_identified", "orf_identified",
                                   "gene_name", "exon_number", "group_id",
                                   "marker_gene", "p_val_adj", "avg_log2fc", "pct.1", "pct.2", "cluster", "against"];
-        for (let entry of info)
+
+        for (let i = 0; i < info.length; ++i)
         {
+            let entry = info[i];
             if (entry.length <= 1)
                 continue;
 
-            entry = entry.trim().replace(/\r/g, '').split(" ");
+            entry = entry.trim().split(' ');
             if (entry.length < 2)
                 continue;
 
@@ -3378,6 +3197,8 @@ class GenomeProtGTFLine
             let attribute_val = entry.join(' ').replace(/"/g, '').trim();
             this.attributes[attribute_name] = attribute_val;
         }
+
+        this.valid = true;
     }
 }
 
@@ -3393,44 +3214,36 @@ class BEDLine
      */
     constructor(dataString)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
         if (line.length !== 12)
-        {
-            this.valid = false;
             return;
-        }
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
         let orf_start = parseInt(line[6]) + 1;
         let orf_end = parseInt(line[7]);
         let blockCount = parseInt(line[9]);
-        let strand = line[5].trim();
-        if (isNaN(start) || isNaN(end) || isNaN(blockCount) || (blockCount === 0) || ((strand !== '+') && (strand !== '-')))
-        {
-            this.valid = false;
+        let strand = line[5];
+        if (isNaN(start) || isNaN(end) || (start > end) || isNaN(blockCount) || (blockCount === 0) || ((strand !== '+') && (strand !== '-')))
             return;
-        }
 
         // Extract the gene ID and transcript ID
         let split_column = line[3].split('|', 2);
         if (split_column.length !== 2)
-            split_column = line[3].split('_', 2);
-
-        if (split_column.length !== 2)
         {
-            this.valid = false;
-            return;
+            split_column = line[3].split('_', 2);
+            if (split_column.length !== 2)
+                return;
         }
 
-        this.chromosome = line[0];
+        this.chromosome = line[0].trim();
         this.start = start;
         this.end = end;
 
-        if (!isNaN(orf_start) && !isNaN(orf_end) && (orf_start < orf_end))
+        if (!isNaN(orf_start) && !isNaN(orf_end) && (orf_start <= orf_end))
         {
             this.orf_start = orf_start;
             this.orf_end = orf_end;
@@ -3441,25 +3254,14 @@ class BEDLine
         this.strand = strand;
 
         this.blockCount = blockCount;
-        this.blockSizes = this.buildList(line[10]);
-        this.blockStarts = this.buildList(line[11]);
+        this.blockSizes = buildBEDList(line[10]);
+        this.blockStarts = buildBEDList(line[11]);
 
         // The number of block lengths and number of block starting positions must be equal to the number of blocks
         if ((blockCount !== this.blockSizes.length) || (blockCount !== this.blockStarts.length))
-            this.valid = false;
-    }
+            return;
 
-    buildList(values)
-    {
-        let vals = values.split(',');
-        let output = [];
-        for (let val of vals)
-        {
-            let intVal = parseInt(val);
-            if (Number.isInteger(intVal))
-                output.push(intVal);
-        }
-        return output;
+        this.valid = true;
     }
 }
 
@@ -3478,31 +3280,25 @@ class ReducedBEDLine
      */
     constructor(dataString, num_columns)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
         if (line.length !== num_columns)
-        {
-            this.valid = false;
             return;
-        }
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
-        let strand = line[5].trim();
-        if (isNaN(start) || isNaN(end) || ((strand !== '+') && (strand !== '-')))
-        {
-            this.valid = false;
+        let strand = line[5];
+        if (isNaN(start) || isNaN(end) || (start > end) || ((strand !== '+') && (strand !== '-')))
             return;
-        }
 
         // If both the thick start and thick end columns are included, check them
         if (num_columns >= 8)
         {
             let orf_start = parseInt(line[6]) + 1;
             let orf_end = parseInt(line[7]);
-            if (!isNaN(orf_start) && !isNaN(orf_end) && (orf_start < orf_end))
+            if (!isNaN(orf_start) && !isNaN(orf_end) && (orf_start <= orf_end))
             {
                 this.orf_start = orf_start;
                 this.orf_end = orf_end;
@@ -3512,20 +3308,20 @@ class ReducedBEDLine
         // Extract the gene ID and transcript ID
         let split_column = line[3].split('|', 2);
         if (split_column.length !== 2)
-            split_column = line[3].split('_', 2);
-
-        if (split_column.length !== 2)
         {
-            this.valid = false;
-            return;
+            split_column = line[3].split('_', 2);
+            if (split_column.length !== 2)
+                return;
         }
 
-        this.chromosome = line[0];
+        this.chromosome = line[0].trim();
         this.start = start;         // The exon start
         this.end = end;             // The exon end
         this.gene = split_column[1].split('.')[0].trim();
         this.transcript = split_column[0].split('.')[0].trim();
         this.strand = strand;
+
+        this.valid = true;
     }
 }
 
@@ -3544,40 +3340,34 @@ class MinimalBEDLine
      */
     constructor(dataString, num_columns)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
         if (line.length !== num_columns)
-        {
-            this.valid = false;
             return;
-        }
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
-        if (isNaN(start) || isNaN(end))
-        {
-            this.valid = false;
+        if (isNaN(start) || isNaN(end) || (start > end))
             return;
-        }
 
         // Extract the gene ID and transcript ID
         let split_column = line[3].split('|', 2);
         if (split_column.length !== 2)
-            split_column = line[3].split('_', 2);
-
-        if (split_column.length !== 2)
         {
-            this.valid = false;
-            return;
+            split_column = line[3].split('_', 2);
+            if (split_column.length !== 2)
+                return;
         }
 
-        this.chromosome = line[0];
+        this.chromosome = line[0].trim();
         this.start = start;         // The exon start
         this.end = end;             // The exon end
         this.gene = split_column[1].split('.')[0].trim();
         this.transcript = split_column[0].split('.')[0].trim();
+
+        this.valid = true;
     }
 }
 
@@ -3588,42 +3378,33 @@ class PeptideBEDLine
 {
     /**
      * Create a PeptideBEDLine instance
-     * 
+     *
      * @param {string} dataString line of a peptide BED file in string format
      */
     constructor(dataString)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
         if (line.length !== 12)
-        {
-            this.valid = false;
             return;
-        }
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
         let blockCount = parseInt(line[9]);
-        if (isNaN(start) || isNaN(end) || isNaN(blockCount) || (blockCount === 0) || (start >= end))
-        {
-            this.valid = false;
+        if (isNaN(start) || isNaN(end) || (start > end) || isNaN(blockCount) || (blockCount === 0))
             return;
-        }
 
         // Extract the transcript ID and peptide sequence
         let split_column = line[3].split('|', 2);
         if (split_column.length !== 2)
-            split_column = line[3].split('_', 2);
-
-        if (split_column.length !== 2)
         {
-            this.valid = false;
-            return;
+            split_column = line[3].split('_', 2);
+            if (split_column.length !== 2)
+                return;
         }
 
-        // this.chromosome = line[0];
         this.start = start;
         this.end = end;
         this.transcript = split_column[0].split('.')[0].trim();
@@ -3631,31 +3412,17 @@ class PeptideBEDLine
 
         // Reject lines containing empty transcripts and peptides
         if ((this.transcript.length === 0) || (this.peptide.length === 0))
-        {
-            this.valid = false;
             return;
-        }
 
         this.blockCount = blockCount;
-        this.blockSizes = this.buildList(line[10]);
-        this.blockStarts = this.buildList(line[11]);
+        this.blockSizes = buildBEDList(line[10]);
+        this.blockStarts = buildBEDList(line[11]);
 
         // The number of block lengths and number of block starting positions must be equal to the number of blocks
         if ((blockCount !== this.blockSizes.length) || (blockCount !== this.blockStarts.length))
-            this.valid = false;
-    }
+            return;
 
-    buildList(values)
-    {
-        let vals = values.split(',');
-        let output = [];
-        for (let val of vals)
-        {
-            let intVal = parseInt(val);
-            if (Number.isInteger(intVal))
-                output.push(intVal);
-        }
-        return output;
+        this.valid = true;
     }
 }
 
@@ -3666,42 +3433,33 @@ class PeptideReducedBEDLine
 {
     /**
      * Create a PeptideBEDLine instance
-     * 
+     *
      * @param {string} dataString line of a peptide BED file in string format
      * @param {Number} num_columns number of columns in the line; there should be only 6 to 9 lines
      */
     constructor(dataString, num_columns)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
         if (line.length !== num_columns)
-        {
-            this.valid = false;
             return;
-        }
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
-        if (isNaN(start) || isNaN(end) || (start >= end))
-        {
-            this.valid = false;
+        if (isNaN(start) || isNaN(end) || (start > end))
             return;
-        }
 
         // Extract the transcript ID and peptide sequence
         let split_column = line[3].split('|', 2);
         if (split_column.length !== 2)
-            split_column = line[3].split('_', 2);
-
-        if (split_column.length !== 2)
         {
-            this.valid = false;
-            return;
+            split_column = line[3].split('_', 2);
+            if (split_column.length !== 2)
+                return;
         }
 
-        // this.chromosome = line[0];
         this.start = start;
         this.end = end;
         this.transcript = split_column[0].split('.')[0].trim();
@@ -3709,10 +3467,9 @@ class PeptideReducedBEDLine
 
         // Reject lines containing empty transcripts and peptides
         if ((this.transcript.length === 0) || (this.peptide.length === 0))
-        {
-            this.valid = false;
             return;
-        }
+
+        this.valid = true;
     }
 }
 
@@ -3723,29 +3480,23 @@ class RNAModifSitesBEDLine
 {
     /**
      * Create a RNAModifSitesBEDLine instance
-     * 
+     *
      * @param {string} dataString line of an RNA modification sites BED file in string format
      * @param {Number} num_columns number of columns in the BED file
      */
     constructor(dataString, num_columns)
     {
-        this.valid = true;
+        this.valid = false;
 
         // extract data from input
         let line = dataString.split('\t');
         if (line.length !== num_columns)
-        {
-            this.valid = false;
             return;
-        }
 
         let start = parseInt(line[1]) + 1;
         let end = parseInt(line[2]);
         if (isNaN(start) || isNaN(end) || (start !== end))
-        {
-            this.valid = false;
             return;
-        }
 
         this.start = start;
         this.end = end;
@@ -3753,24 +3504,26 @@ class RNAModifSitesBEDLine
 
         // Reject lines containing empty genes
         if (this.gene.length === 0)
-        {
-            this.valid = false;
             return;
-        }
+
+        this.valid = true;
     }
 }
 
 /**
  * Class for representing an isoform
  */
-class Isoform {
+class Isoform
+{
     /**
      * Create an isoform instance
-     * 
+     *
      * @param {string} label the Ensembl transcript ID for the isoform
      * @param {object} exons enumeration of exons storing coordinates and strand
+     * @param {object} orfs the regions of all ORFs found encoded in the gene of the isoform
      */
-    constructor(label, exons) {
+    constructor(label, exons, orfs = null)
+    {
         this.transcriptID = label;
         this.strand = exons.strand;
         let is_forward_strand = (this.strand === '+');
@@ -3806,10 +3559,15 @@ class Isoform {
 
         // TODO: In the future, avoid using union() so that it's possible to identify and visualize overlapping ORFs within an isoform
         this.user_orf = [];
+        this.overlapping_orf_regions = [];
         if (exons.user_orf && (exons.user_orf.length !== 0))
         {
             this.user_orf = JSON.parse(JSON.stringify(exons.user_orf));
             this.user_orf.sort((exon0, exon1) => exon0[0] - exon1[0]);
+
+            // Only applicable for non-GenomeProt(SC) data
+            if (!(exons.accessions))
+                this.overlapping_orf_regions = calculate_overlapping_regions(this.user_orf);
 
             // Ensure there is no overlap between user ORF ranges
             while (true)
@@ -3844,12 +3602,26 @@ class Isoform {
         this.length = Math.abs(this.end - this.start);
         this.orf = [];
 
-        // Only applicable for GenomeProt data
+        // Only applicable for GenomeProt(SC) data
         this.accessions = [];
         if (exons.accessions)
         {
             this.accessions = JSON.parse(JSON.stringify(exons.accessions));
             this.accessions.sort((a, b) => a.localeCompare(b, "en", {numeric: true, sensitivity: "case"}));
+
+            if ((this.accessions.length > 1) && orfs && (Object.keys(orfs).length > 1))
+            {
+                let orf_regions = [];
+                for (let accession of this.accessions)
+                    for (let orf_region of orfs[accession])
+                        orf_regions.push(orf_region);
+
+                if (orf_regions.length <= 1)
+                    return;
+
+                orf_regions.sort((block0, block1) => block0[0] - block1[0]);
+                this.overlapping_orf_regions = calculate_overlapping_regions(orf_regions);
+            }
         }
     }
 }
@@ -3867,6 +3639,8 @@ export class OtherIsoformData
         this.start = -1;
         this.end = -1;
 
+        let protein_coding_biotypes = ["IG_C_gene", "IG_D_gene", "IG_J_gene", "IG_V_gene", "TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene", "non_stop_decay", "nonsense_mediated_decay", "protein_coding", "protein_coding_LoF"];
+
         for (let transcript of transcripts)
         {
             if (!transcript.Exon || !transcript.id)
@@ -3875,6 +3649,8 @@ export class OtherIsoformData
             let transcript_id = transcript.id;
             if (all_stack_isoform_ids.indexOf(transcript_id) !== -1)
                 continue;
+
+            let is_protein_coding = (protein_coding_biotypes.indexOf(transcript.biotype) !== -1);
 
             let symbol = transcript.display_name;
             if (!symbol)
@@ -3931,6 +3707,7 @@ export class OtherIsoformData
             this.transcripts[transcript_id] = {};
             this.transcripts[transcript_id].exons = [];
             this.transcripts[transcript_id].strand = this.strand;
+            this.transcripts[transcript_id].is_protein_coding = is_protein_coding;
 
             let exons = transcript.Exon;
             if (this.strand === '-')
@@ -3954,352 +3731,32 @@ export class OtherIsoformData
 }
 
 /**
- * Calculate the set of spliced regions for an isoform set, including whether they appear in all isoforms
- *
- * @param {Array<Isoform>} isoformList List of all isoforms in the set
- * @returns {Array<Array<number>>} List of coordinates for spliced regions in the isoforms and a boolean indicating whether they appear in all isoforms
- */
-export function calculateSplicedRegions(isoformList)
-{
-    let spliced_regions_dict = {};                  // The set of all spliced regions
-    let spliced_region_counts = {};                 // The counts of each spliced region
-    let spliced_regions_from_first_exon = {};       // The set of spliced regions found from the first exon of a transcript
-    let spliced_regions_from_non_first_exon = {};   // The set of spliced regions found from any exon of a transcript other than the first exon
-    let first_exon_boundaries = {};                 // The set of boundaries for the first exon of a transcript
-
-    let is_strand_positive = (isoformList[0].strand === '+');
-    let constitutive_junctions_exist = false;
-
-    // Determine all spliced regions and store them in a dictionary in the form of 'string([start1, end1]), string([start2, end2]), ...'
-    for (let isoform of isoformList)
-    {
-        let exon_ranges = isoform.exonRanges;
-        for (let i = 0; i < exon_ranges.length - 1; ++i)
-        {
-            let exon0 = exon_ranges[i];
-            let exon1 = exon_ranges[i + 1];
-
-            let spliced_region_start = exon0[1];
-            let spliced_region_end = exon1[0];
-
-            let spliced_region = JSON.stringify([spliced_region_start, spliced_region_end]);
-            spliced_regions_dict[spliced_region] = [];
-
-            if ((is_strand_positive && (i !== 0)) || (!is_strand_positive && (i !== exon_ranges.length - 2)))
-                spliced_regions_from_non_first_exon[spliced_region] = [];
-
-            if (spliced_region_counts[spliced_region])
-                spliced_region_counts[spliced_region] += 1;
-            else
-                spliced_region_counts[spliced_region] = 1;
-        }
-
-        if (exon_ranges.length >= 2)
-        {
-            let first_exon_boundary = JSON.parse(JSON.stringify(exon_ranges[0]));
-            let spliced_region_from_first_exon = JSON.stringify([first_exon_boundary[1], exon_ranges[1][0]]);
-            if (!is_strand_positive)
-            {
-                first_exon_boundary = JSON.parse(JSON.stringify(exon_ranges[exon_ranges.length - 1]));
-                spliced_region_from_first_exon = JSON.stringify([exon_ranges[exon_ranges.length - 2][1], first_exon_boundary[0]]);   
-            }
-            first_exon_boundaries[JSON.stringify(first_exon_boundary)] = [];
-            spliced_regions_from_first_exon[spliced_region_from_first_exon] = [];
-        }
-    }
-
-    // We want to return an array of splice junctions with their categorical information
-    let spliced_regions_categorized = [];
-
-    // Determine which spliced regions are constitutive (i.e. used in all loaded transcripts)
-    // Special case: For spliced regions found for the first exon of a transcript, they are non-constitutive if
-    // that exon overlaps with another first exon and they do not share the same end boundaries
-    let alternative_splice_regions = {};
-    let constitutive_splice_regions = {};
-
-    for (let spliced_region of Object.keys(spliced_regions_dict))
-    {
-        let [spliced_region_start, spliced_region_end] = JSON.parse(spliced_region);
-
-        if (alternative_splice_regions[spliced_region] || constitutive_splice_regions[spliced_region])
-            continue;
-
-        let is_constitutive = true;
-
-        // Case 1: If a spliced region is present in all transcripts, it is constitutive
-        if (spliced_region_counts[spliced_region] === isoformList.length)
-        {
-            constitutive_junctions_exist = true;
-            constitutive_splice_regions[spliced_region] = [];
-            continue;
-        }
-
-        // Case 2: 5' splice site not chosen
-        // Case 3: 3' splice site skipped
-        // If the 5' site of the spliced region is contained by an exon (case 2) OR
-        // the spliced region contains the start of an internal exon (case 3),
-        // the spliced region is non-constitutive
-        for (let isoform of isoformList)
-        {
-            let exon_ranges = isoform.exonRanges;
-            for (let i = 0; i < exon_ranges.length; ++i)
-            {
-                let exon = exon_ranges[i];
-
-                // Case 2
-                let five_prime_splice_site = (is_strand_positive) ? spliced_region_start : spliced_region_end;
-                if ((exon[0] < five_prime_splice_site) && (five_prime_splice_site < exon[1]))
-                {
-                    is_constitutive = false;
-                    break;
-                }
-
-                // Case 3
-                let exon_start = (is_strand_positive) ? exon[0] : exon[1];
-                if (((is_strand_positive && i !== 0) || (!is_strand_positive && i !== exon_ranges.length - 1)) &&
-                    ((spliced_region_start < exon_start) && (exon_start < spliced_region_end)))
-                {
-                    is_constitutive = false;
-                    break;
-                }
-            }
-
-            if (!is_constitutive)
-                break;
-        }
-
-        if (!is_constitutive)
-        {
-            alternative_splice_regions[spliced_region] = [];
-            continue;
-        }
-
-        // Case 4: Alternative 3' splice site
-        // If there are other spliced regions with the same 5' site but different 3' site, then
-        // the spliced region itself and those other spliced regions are non-constitutive
-        for (let spliced_region_2 of Object.keys(spliced_regions_dict))
-        {
-            let [spliced_region_start_2, spliced_region_end_2] = JSON.parse(spliced_region_2);
-            if ((spliced_region_start === spliced_region_start_2) && (spliced_region_end === spliced_region_end_2))
-                continue;
-
-            if ((is_strand_positive && (spliced_region_start === spliced_region_start_2) && (spliced_region_end !== spliced_region_end_2)) ||
-                (!is_strand_positive && (spliced_region_end === spliced_region_end_2) && (spliced_region_start !== spliced_region_start_2)))
-            {
-                is_constitutive = false;
-                alternative_splice_regions[spliced_region_2] = [];
-            }
-        }
-
-        if (!is_constitutive)
-        {
-            alternative_splice_regions[spliced_region] = [];
-            continue;
-        }
-
-        // Case 5: If the spliced region comes from the first exon of a transcript but not from a non-first-exon of a different transcript...
-        if (spliced_regions_from_first_exon[spliced_region] && !spliced_regions_from_non_first_exon[spliced_region])
-        {
-            // Find all possible first exons it could have originated from
-            let possible_first_exons = {};
-            for (let first_exon_boundary of Object.keys(first_exon_boundaries))
-            {
-                let [first_exon_start, first_exon_end] = JSON.parse(first_exon_boundary);
-                if ((is_strand_positive && (first_exon_end === spliced_region_start)) || (!is_strand_positive && (first_exon_start === spliced_region_end)))
-                    possible_first_exons[first_exon_boundary] = [];
-            }
-
-            // If one of the first exons the spliced region possibly originated from overlaps with a different first exon but doesn't share the same exon end boundary,
-            // then that spliced region is non-constitutive
-            let is_determined_non_constitutive = false;
-            for (let first_exon_boundary_1 of Object.keys(possible_first_exons))
-            {
-                let [first_exon_start_1, first_exon_end_1] = JSON.parse(first_exon_boundary_1);
-                for (let first_exon_boundary_2 of Object.keys(first_exon_boundaries))
-                {
-                    let [first_exon_start_2, first_exon_end_2] = JSON.parse(first_exon_boundary_2);
-
-                    if ((first_exon_start_1 === first_exon_start_2) && (first_exon_end_1 === first_exon_end_2))
-                        continue;
-
-                    if ((is_strand_positive && (first_exon_end_1 === first_exon_end_2)) || (!is_strand_positive && (first_exon_start_1 === first_exon_start_2)))
-                        continue;
-
-                    let overlap = intersection([first_exon_start_1, first_exon_end_1], [first_exon_start_2, first_exon_end_2]);
-                    if (overlap.length !== 0)
-                    {
-                        is_constitutive = false;
-                        is_determined_non_constitutive = true;
-                        break;
-                    }
-                }
-
-                if (is_determined_non_constitutive)
-                    break;
-            }
-
-            if (!is_constitutive)
-                alternative_splice_regions[spliced_region] = [];
-            else
-            {
-                constitutive_junctions_exist = true;
-                constitutive_splice_regions[spliced_region] = [];
-            }
-
-            continue;
-        }
-
-        // Case 6: If the spliced region is not present in all transcripts that fully overlap with it, the spliced region is non-constitutive
-        for (let isoform of isoformList)
-        {
-            let isoform_range = [Math.min(isoform.start, isoform.end), Math.max(isoform.start, isoform.end)];
-            let overlap = intersection(isoform_range, [spliced_region_start, spliced_region_end]);
-            if ((overlap.length !== 0) && (overlap[0] === spliced_region_start) && (overlap[1] === spliced_region_end))
-            {
-                let is_spliced_region_in_transcript = false;
-                let exon_ranges = isoform.exonRanges;
-                for (let i = 0; i < exon_ranges.length - 1; ++i)
-                {
-                    let exon0 = exon_ranges[i];
-                    let exon1 = exon_ranges[i + 1];
-
-                    if ((exon0[1] === spliced_region_start) && (exon1[0] === spliced_region_end))
-                    {
-                        is_spliced_region_in_transcript = true;
-                        break;
-                    }
-                }
-
-                if (!is_spliced_region_in_transcript)
-                {
-                    is_constitutive = false;
-                    break;
-                }
-            }
-
-            if (!is_constitutive)
-                break;
-        }
-
-        if (is_constitutive)
-        {
-            constitutive_junctions_exist = true;
-            constitutive_splice_regions[spliced_region] = [];
-        }
-        else
-            alternative_splice_regions[spliced_region] = [];
-    }
-
-    for (let spliced_region of Object.keys(spliced_regions_dict))
-    {
-        let [spliced_region_start, spliced_region_end] = JSON.parse(spliced_region);
-
-        if (alternative_splice_regions[spliced_region])
-            spliced_regions_categorized.push([spliced_region_start, spliced_region_end, false]);
-        else
-            spliced_regions_categorized.push([spliced_region_start, spliced_region_end, true]);
-    }
-
-    return [spliced_regions_categorized, constitutive_junctions_exist];
-}
-
-/**
- * Calculate the relative height of each spliced region in the set of spliced regions for an isoform set (excludes constitutive junctions)
- *
- * @param {Array<Isoform>} spliced_regions The set of spliced regions
- * @returns {Array<Array<number>>} A list of decimals, where each is the relative height of the corresponding spliced region 
- */
-export function calculateRelativeHeights(spliced_regions)
-{
-    let relative_heights = [];
-
-    // Strategy to drawing easily distinguishable arcs (taken from JunctionSeq):
-    // For each spliced region, consider the number of spliced regions contained within it ('num_under') and the number outside of it ('num_over')
-    // The lowest arc would be for a spliced region that is contained within all other spliced regions
-    // The highest arc would be for a spliced region that contains all other spliced regions
-
-    for (let [spliced_region_start, spliced_region_end, is_constitutive] of spliced_regions)
-    {
-        if (is_constitutive)
-        {
-            relative_heights.push(-1);
-            continue;
-        }
-
-        let num_under = -1; // -1 is used because we don't count the spliced region itself, we only consider all other spliced regions
-        let num_over = -1;
-
-        for (let [other_spliced_region_start, other_spliced_region_end, other_is_constitutive] of spliced_regions)
-        {
-            if (other_is_constitutive)
-                continue;
-            if ((spliced_region_start <= other_spliced_region_start) && (spliced_region_end >= other_spliced_region_end))
-                num_under += 1;
-            if ((spliced_region_start >= other_spliced_region_start) && (spliced_region_end <= other_spliced_region_end))
-                num_over += 1;
-        }
-
-        relative_heights.push((num_under + 1) / (num_over + num_under + 1));
-    }
-
-    return relative_heights;
-}
-
-/**
- * Calculate the relative height of each spliced region in the set of spliced regions for an isoform set, INCLUDING constitutive junctions
- *
- * @param {Array<Isoform>} spliced_regions The set of spliced regions
- * @returns {Array<Array<number>>} A list of decimals, where each is the relative height of the corresponding spliced region 
- */
-export function calculateRelativeHeightsAll(spliced_regions)
-{
-    let relative_heights = [];
-
-    for (let [spliced_region_start, spliced_region_end] of spliced_regions)
-    {
-        let num_under = -1; // -1 is used because we don't count the spliced region itself, we only consider all other spliced regions
-        let num_over = -1;
-
-        for (let [other_spliced_region_start, other_spliced_region_end] of spliced_regions)
-        {
-            if ((spliced_region_start <= other_spliced_region_start) && (spliced_region_end >= other_spliced_region_end))
-                num_under += 1;
-            if ((spliced_region_start >= other_spliced_region_start) && (spliced_region_end <= other_spliced_region_end))
-                num_over += 1;
-        }
-
-        relative_heights.push((num_under + 1) / (num_over + num_under + 1));
-    }
-
-    return relative_heights;
-}
-
-/**
  * Calculate metagene for an isoform set
- * 
+ *
  * @param {Array<Isoform>} isoformList List of all isoforms in the set
  * @returns {Array<Array<number>>} List of coordinates for exonic regions in the metagene
  */
-export function mergeRanges(isoformList) {
+export function mergeRanges(isoformList)
+{
     let temp = [], exons = [], merged = [];
 
     // extract all exons from isoforms
     for (let isoform of isoformList)
         for (let exon of isoform.exonRanges)
-            if (exons.length == 0 || !checkInclusion(exon, exons))
+            if (exons.length === 0 || !checkInclusion(exon, exons))
                 exons.push(exon);
 
     // compute unions between exon pairs and store in temporary list
     for (let exon of exons)
     {
-        if (temp.length == 0)
+        if (temp.length === 0)
             temp.push(exon);
         else
         {
             for (let i = 0; i < temp.length; ++i)
             {
                 let currentUnion = union(temp[i], exon);
-                if (currentUnion.length != 0)
+                if (currentUnion.length !== 0)
                 {
                     temp.splice(i, 1);
                     exon = currentUnion;
@@ -4322,52 +3779,124 @@ export function mergeRanges(isoformList) {
 
 /**
  * Calculate the union of two overlapping exons
- * 
+ *
  * @param {Array<number>} exon1 The start and end coordinates of the first exon
  * @param {Array<number>} exon2 The start and end coordinates of the second exon
  * @returns {Array<number>} Coordinates of the union (empty if no overlap found)
  */
-function union(exon1, exon2)
+export function union(exon1, exon2)
 {
     let [[start1, end1], [start2, end2]] = [exon1, exon2];
 
-    if (start1 < end2 && start2 < end1)
-        return [Math.min(start1, start2), Math.max(end1, end2)];
-    return [];
+    if ((end2 < start1) || (start2 > end1))
+        return [];
+
+    return [Math.min(start1, start2), Math.max(end1, end2)];
 }
 
 /**
  * Calculate the intersection of between the ORF of a transcript and one of its exons
- * 
+ *
  * @param {Array<number>} orf The start and end coordinates of the ORF
  * @param {Array<number>} exon The start and end coordinates of the exon
  * @returns {Array<number>} Coordinates of the intersection (empty if none found)
  */
-function intersection(orf, exon)
+export function intersection(orf, exon)
 {
     let [[orf_start, orf_end], [exon_start, exon_end]] = [orf, exon];
 
     if ((exon_end < orf_start) || (exon_start > orf_end))
         return [];
 
-    let output = [Math.max(orf_start, exon_start), Math.min(orf_end, exon_end)];
-    if (output[0] === output[1])
-        return [];
-
-    return output;
+    return [Math.max(orf_start, exon_start), Math.min(orf_end, exon_end)];
 }
 
 /**
  * Check if a list has a specified entry in it
- * 
+ *
  * @param {*} entry The entry to search for
  * @param {Array<*>} list The list to search
  * @returns {boolean} Boolean value describing inclusion
  */
-function checkInclusion(entry, list) {
+function checkInclusion(entry, list)
+{
     for (let value of list)
         if (entry.every((val, index) => val === value[index]))
             return true;
 
     return false;
+}
+
+/**
+ * Find overlapping regions in a list of regions sorted by ascending start coordinates
+ *
+ * @param {Array<*>} regions The list of regions (must be sorted by ascending start coordinates)
+ * @returns {Array<*>} The list of overlapping regions
+ */
+function calculate_overlapping_regions(regions)
+{
+    let overlapping_regions = [];
+
+    for (let i = 0; i < regions.length - 1; ++i)
+    {
+        let region0 = regions[i];
+        for (let j = i + 1; j < regions.length; ++j)
+        {
+            let region1 = regions[j];
+            if (region0[1] < region1[0])
+                break;
+
+            let overlapping_region = intersection(region0, region1);
+            if (overlapping_region.length !== 0)
+            {
+                let is_overlapping_region_unique = true;
+                for (let [a, b] of overlapping_regions)
+                {
+                    if ((a === overlapping_region[0]) && (b === overlapping_region[1]))
+                    {
+                        is_overlapping_region_unique = false;
+                        break;
+                    }
+                }
+
+                if (is_overlapping_region_unique)
+                    overlapping_regions.push(overlapping_region);
+            }
+        }
+    }
+
+    while (true)
+    {
+        let new_regions_added = false;
+        overlapping_regions.sort((block0, block1) => block0[0] - block1[0]);
+
+        for (let i = 0; i < overlapping_regions.length - 1; ++i)
+        {
+            let region0 = overlapping_regions[i];
+            for (let j = i + 1; j < overlapping_regions.length; ++j)
+            {
+                let region1 = overlapping_regions[j];
+                if (region0[1] < region1[0])
+                    break;
+
+                let merged_region = union(region0, region1);
+                if (merged_region.length !== 0)
+                {
+                    overlapping_regions.splice(j, 1);
+                    overlapping_regions.splice(i, 1);
+                    overlapping_regions.push(merged_region);
+                    new_regions_added = true;
+                    break;
+                }
+            }
+
+            if (new_regions_added)
+                break;
+        }
+
+        if (!new_regions_added)
+            break;
+    }
+
+    return overlapping_regions;
 }

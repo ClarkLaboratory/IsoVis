@@ -32,9 +32,9 @@
         </b-col>
     </b-row>
     <div class="text-center mt-2">
-        <b-button @click="showClarkLabDataModal" class="m-1">Download demo or Clark Lab data</b-button>
+        <b-button @click="modal.clarkLabData.show = true" class="m-1">Download demo or Clark Lab data</b-button>
         <b-button href="https://github.com/ClarkLaboratory/IsoVis" target="_blank" class="m-1">Source code <b-icon-github aria-hidden="true"></b-icon-github></b-button>
-        <p class="m-2">Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark.<br/>
+        <p class="m-2">Created by Ching Yin Wan, Jack Davis, Jarny Choi and Mike Clark.<br/>
             Publication: <b-link href="https://doi.org/10.1093/nar/gkae343" target="_blank">https://doi.org/10.1093/nar/gkae343</b-link><br/>
             Developed in the<b-link href="https://biomedicalsciences.unimelb.edu.au/sbs-research-groups/anatomy-and-physiology-research/systems-neuroscience/clark-lab" target="_blank">
             Clark Laboratory</b-link>, University of Melbourne.
@@ -42,7 +42,7 @@
         </p><br/>
         <div>
             <b-link href="https://www.stemformatics.org/" target="_blank"><b-img src="~/assets/logos/s4m_logo_square.png" height="60px"></b-img></b-link>
-            <svg class="mx-3" width="10" height="80px"> 
+            <svg class="mx-3" width="10" height="80px">
                 <line x1="5" x2="5" y1="0" y2="80" style="stroke:black;stroke-width:1"></line>
             </svg>
             <b-link href="https://www.unimelb.edu.au/" target="_blank"><b-img src="~/assets/logos/uni_logo_long.png" height="70"></b-img></b-link>
@@ -153,10 +153,6 @@ export default
             link.href = '/' + filename;
             link.download = filename;
             link.click();
-        },
-
-        showClarkLabDataModal() {
-            this.modal.clarkLabData.show = true;
         }
     }
 }

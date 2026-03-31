@@ -9,18 +9,18 @@ Triangles are rendered along the gene length to denote features.
 Requires an instance of BaseAxis as input.
 
 <template>
-<div id="axisDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
+<div id="axisDiv" ref="parentDiv" style="position: relative">
     <p>Strand and Axis visualization</p>
 </div>
 </template>
 
 <script>
 import * as d3 from 'd3';
-import {put_in_svg, dashed_line, polygon, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
+import {line_dashed, put_in_svg, polygon, text, text_centered, text_right_aligned} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "chromosome", "isStrandUnknown", "isStrandednessMismatched"],
-    
+
     data: () => {
         return {
             // dimensions
@@ -87,7 +87,7 @@ export default {
 
         draw_crosshair(client_x)
         {
-            if (!this.baseAxis || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || Object.keys(this.baseAxis).length === 0)
                 return;
 
             let crosshair_canvas = document.getElementById("axisCrosshairCanvas");
@@ -99,7 +99,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -158,7 +158,7 @@ export default {
             this.start_drag = -1;
             this.end_drag = -1;
 
-            if (!this.baseAxis || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || Object.keys(this.baseAxis).length === 0)
                 return;
 
             let chromosome = (this.chromosome) ? this.chromosome + ":" : "";
@@ -182,7 +182,7 @@ export default {
 
             // Add labels
             let left_label = chromosome + self.baseAxis.endpoints()[0];
-            let center_label = ((self.baseAxis.genomeCoords().strand == '+') ? "Forward" : "Reverse") + " strand";
+            let center_label = ((self.baseAxis.genomeCoords().strand === '+') ? "Forward" : "Reverse") + " strand";
             let right_label = chromosome + self.baseAxis.endpoints()[1];
 
             if (this.isStrandUnknown)
@@ -217,7 +217,7 @@ export default {
 
             const tickScale = d3.scaleLinear().domain([0, 100]).range([self.baseAxis.genomeCoords().start, self.baseAxis.genomeCoords().end]);
             let step = self.baseAxis.genomeCoords().width / 100;
-            step *= (self.baseAxis.genomeCoords().strand == '+') ? 1 : -1;
+            step *= (self.baseAxis.genomeCoords().strand === '+') ? 1 : -1;
 
             // function for building triangular ticks
             let coords = (d) =>
@@ -273,7 +273,7 @@ export default {
 
         buildStrandSvg(symbol = false)
         {
-            if (!this.baseAxis || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || Object.keys(this.baseAxis).length === 0)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -294,7 +294,7 @@ export default {
 
             // Add labels
             let left_label = chromosome + self.baseAxis.endpoints()[0];
-            let center_label = ((self.baseAxis.genomeCoords().strand == '+') ? "Forward" : "Reverse") + " strand";
+            let center_label = ((self.baseAxis.genomeCoords().strand === '+') ? "Forward" : "Reverse") + " strand";
             let right_label = chromosome + self.baseAxis.endpoints()[1];
 
             if (this.isStrandUnknown)
@@ -353,7 +353,7 @@ export default {
 
             const tickScale = d3.scaleLinear().domain([0, 100]).range([self.baseAxis.genomeCoords().start, self.baseAxis.genomeCoords().end]);
             let step = self.baseAxis.genomeCoords().width / 100;
-            step *= (self.baseAxis.genomeCoords().strand == '+') ? 1 : -1;
+            step *= (self.baseAxis.genomeCoords().strand === '+') ? 1 : -1;
 
             // function for building triangular ticks
             let coords = (d) =>
@@ -482,7 +482,7 @@ export default {
             }
 
             // Add midline
-            svg += dashed_line(0, svgHeight / 2 + this.margin.top, width, svgHeight / 2 + this.margin.top, "#535353", 1, "4 2");
+            svg += line_dashed(0, svgHeight / 2 + this.margin.top, width, svgHeight / 2 + this.margin.top, "#535353", 1, "4 2");
 
             if (symbol)
                 return [width, height, svg];

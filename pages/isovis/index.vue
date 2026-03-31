@@ -20,18 +20,19 @@ the exact state of that page from the previous state.
         <b-navbar-brand v-if="selectedView=='Main'"><b-link @click="clearData" v-b-tooltip.hover.bottom="'Clear data and return to the home page'" style="color:white">IsoVis</b-link></b-navbar-brand>
         <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
         <b-form-input v-if="selectedView=='Main'" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (e.g. 15720442 - 15727968)" size="sm" style="width: 350px;"></b-form-input>
+        <b-button v-if="selectedView=='Main' && enteredZoom && (enteredZoom.split('-').length === 2) && enteredZoom.split('-')[0].trim().match(/^\d+$/) && enteredZoom.split('-')[1].trim().match(/^\d+$/)" @click="changeZoom" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">></b-button>
         <b-button v-if="selectedView=='Main' && !$refs.componentMain.is_zoom_reset" @click="resetZoom" variant="warning" size="sm" class="ml-2" style="white-space: nowrap;">Reset zoom</b-button>
         <b-collapse id="nav-collapse" is-nav>
             <!-- Right aligned nav items -->
             <b-navbar-nav class="ml-auto">
                 <b-button @click="clearData" v-show="!isMainDataEmpty" variant="danger" size="sm" class="ml-2" style="white-space: nowrap;">Clear data and return to the home page</b-button>
                 <b-button @click="downloadDemo" v-show="(!isMainDataEmpty) && isDemoDataShown" variant="secondary" size="sm" class="ml-2" style="white-space: nowrap;">Download demo data</b-button>
-                <b-button @click="modal.selectGene.show=true" v-show="!isMainDataEmpty && this.mainData.isoformData && !(this.mainData.isoformData.is_genomeprot) && this.all_genes && this.all_genes.length > 1" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">Change selected gene</b-button>
-                <b-button @click="modal.selectGenomeProtGene.show=true" v-show="!isMainDataEmpty && this.mainData.isoformData && this.mainData.isoformData.is_genomeprot && this.all_genes && this.all_genes.length > 1" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">Change selected gene</b-button>
+                <b-button @click="modal.selectGene.show = true" v-show="!isMainDataEmpty && this.mainData.isoformData && !(this.mainData.isoformData.is_genomeprot) && this.all_genes && this.all_genes.length > 1" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">Change selected gene</b-button>
+                <b-button @click="modal.selectGenomeProtGene.show = true" v-show="!isMainDataEmpty && this.mainData.isoformData && this.mainData.isoformData.is_genomeprot && this.all_genes && this.all_genes.length > 1" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">Change selected gene</b-button>
                 <b-dropdown text="About" variant="dark" right class="ml-2">
                     <b-dropdown-item href="about/" target="_blank">About IsoVis</b-dropdown-item>
-                    <b-dropdown-item @click="modal.changelog.show=true">Release notes</b-dropdown-item>
-                    <b-dropdown-item @click="modal.citation.show=true">How to cite us</b-dropdown-item>
+                    <b-dropdown-item @click="modal.changelog.show = true">Release notes</b-dropdown-item>
+                    <b-dropdown-item @click="modal.citation.show = true">How to cite us</b-dropdown-item>
                     <b-dropdown-item href="misc/" target="_blank">Privacy, license and funding</b-dropdown-item>
                 </b-dropdown>
                 <b-dropdown text="Help" variant="dark" right class="ml-2">
@@ -68,85 +69,110 @@ the exact state of that page from the previous state.
     </footer>
 
     <!-- Data upload modal -->
-    <b-modal v-model="modal.uploadData.show" size="md" title="Upload data" hide-footer>
+    <b-modal v-model="modal.uploadData.show" :size="(is_parent_window_genomeprot && !is_parent_window_genomeprotsc) ? 'lg' : 'md'" title="Upload data" hide-footer>
         <p>Upload your own data here to visualize.
-            <b-link href="help_upload/" target="_blank">More info...</b-link>
+            <b-link v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)" href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form @submit="handleFileUpload" @submit.stop.prevent inline>
-            <em><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 3 GB)</em>
-            <b-form-file v-model="modal.uploadData.stackFile" no-drop accept=".gtf, .gff, .gff2, .gff3, .bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
-            <em class="mt-3"><b>Heatmap data</b> file (.csv/.tsv/.txt) (optional, max. 3 GB)</em>
-            <b-form-file v-model="modal.uploadData.heatmapFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
-            <em class="mt-3" v-show="is_show_peptide_upload_options"><b>Peptide data</b> file (.bed) (optional; ignored if a GenomeProt annotation file was uploaded as <b>stack data</b>; max. 500 MB)</em>
-            <b-form-file v-show="is_show_peptide_upload_options" v-model="modal.uploadData.peptideFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
-            <em class="mt-3" v-show="is_show_peptide_upload_options"><b>Peptide counts data</b> file (.csv/.tsv/.txt) (optional, but visualization requires peptide data to have been provided; max. 500 MB)</em>
-            <b-form-file v-show="is_show_peptide_upload_options" v-model="modal.uploadData.peptideCountsFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
-            <em class="mt-3" v-show="is_show_rna_modif_upload_options"><b>RNA modifications data</b> file (.bed) (optional, max. 500 MB)</em>
-            <b-form-file v-show="is_show_rna_modif_upload_options" v-model="modal.uploadData.rnaModifFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
-            <em class="mt-3" v-show="is_show_rna_modif_upload_options"><b>RNA modification level data</b> file (.csv/.tsv/.txt) (optional but requires RNA modifications data file, max. 500 MB)</em>
-            <b-form-file v-show="is_show_rna_modif_upload_options" v-model="modal.uploadData.rnaModifLevelFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
+            <em v-if="is_parent_window_genomeprot && !is_parent_window_genomeprotsc"><b>Transcript data</b> file (combined_annotations.gtf / transcripts_and_ORFs_for_isovis.gtf)<br><b>required</b>, max. 3 GB</em>
+            <em v-else-if="is_parent_window_genomeprot && is_parent_window_genomeprotsc"><b>Transcript data</b> file (combined_annotations.gtf)<br><b>required</b>, max. 3 GB</em>
+            <em v-else-if="is_parent_window_longviewsc"><b>Transcript data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 3 GB)</em>
+            <em v-else><b>Stack data</b> file (.gff/.gtf/.bed) (<b>required</b>, max. 3 GB)</em>
+            <b-form-file v-model="modal.uploadData.stackFile" no-drop :accept="!is_parent_window_genomeprot ? '.gtf, .gff, .gff2, .gff3, .bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12' : '.gtf'"></b-form-file>
+
+            <em class="mt-3" v-if="is_parent_window_genomeprot && !is_parent_window_genomeprotsc"><b>Transcript counts</b> file (bambu_transcript_counts.txt)<br>optional, max. 3 GB</em>
+            <em class="mt-3" v-else-if="is_parent_window_longviewsc"><b>Transcript counts</b> file (.csv/.tsv/.txt) (optional, max. 3 GB)</em>
+            <em class="mt-3" v-else-if="!(is_parent_window_genomeprot && is_parent_window_genomeprotsc)"><b>Heatmap data</b> file (.csv/.tsv/.txt) (optional, max. 3 GB)</em>
+            <b-form-file v-if="!(is_parent_window_genomeprot && is_parent_window_genomeprotsc)" v-model="modal.uploadData.heatmapFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
+
+            <em class="mt-3" v-if="is_show_peptide_upload_options"><b>Peptide data</b> file (.bed) (optional; ignored if a GenomeProt annotation file was uploaded as <b>stack data</b>; max. 500 MB)</em>
+            <em class="mt-3" v-if="is_parent_window_genomeprot && !is_parent_window_genomeprotsc"><b>Peptide mappings</b> file (peptides.bed12)<br>optional; ignored if combined_annotations.gtf was uploaded as <b>transcript data</b>; max. 500 MB</em>
+            <b-form-file v-if="(is_parent_window_genomeprot && !is_parent_window_genomeprotsc) || is_show_peptide_upload_options" v-model="modal.uploadData.peptideFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
+
+            <em class="mt-3" v-if="is_show_peptide_upload_options"><b>Peptide counts data</b> file (.csv/.tsv/.txt) (optional, but visualization requires peptide data to have been provided; max. 500 MB)</em>
+            <em class="mt-3" v-if="is_parent_window_genomeprot && !is_parent_window_genomeprotsc"><b>Peptide intensities</b> file (report.pr_matrix.tsv)<br>optional, but visualization requires <b>peptide mappings</b> to have been provided; max. 500 MB</em>
+            <em class="mt-3" v-else-if="is_parent_window_genomeprot && is_parent_window_genomeprotsc"><b>Peptide intensities</b> file (report.pr_matrix.tsv)<br>optional, max. 500 MB</em>
+            <b-form-file v-if="is_parent_window_genomeprot || is_show_peptide_upload_options" v-model="modal.uploadData.peptideCountsFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
+
+            <em class="mt-3" v-if="is_show_rna_modif_upload_options"><b>RNA modifications data</b> file (.bed) (optional, max. 500 MB)</em>
+            <b-form-file v-if="is_show_rna_modif_upload_options" v-model="modal.uploadData.rnaModifFile" no-drop accept=".bed, .bed4, .bed5, .bed6, .bed7, .bed8, .bed9, .bed12"></b-form-file>
+
+            <em class="mt-3" v-if="is_show_rna_modif_upload_options"><b>RNA modification level data</b> file (.csv/.tsv/.txt) (optional but requires RNA modifications data file, max. 500 MB)</em>
+            <b-form-file v-if="is_show_rna_modif_upload_options" v-model="modal.uploadData.rnaModifLevelFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
+
             <em class="mt-3"><b>Species</b> (default: Homo_sapiens)</em>
             <b-form-input v-model="enteredSpecies" list="acceptedSpecies" class="mb-3" style="width: 100%"></b-form-input>
             <b-form-datalist id="acceptedSpecies">
                 <option v-for="ensemblSpecies in ensemblSpeciesList" :key="ensemblSpecies">{{ ensemblSpecies }}</option>
             </b-form-datalist>
-            <b-form-checkbox v-model="is_show_peptide_upload_options">Show peptide data upload options (beta)</b-form-checkbox>
-            <b-form-checkbox v-model="is_show_rna_modif_upload_options">Show RNA modifications data upload options (beta)</b-form-checkbox>
-            <b-form-checkbox v-model="is_use_grch37">Use GRCh37 (hg19) instead of GRCh38 (hg38)</b-form-checkbox>
+
+            <b-form-checkbox v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)" v-model="is_show_peptide_upload_options">Show peptide data upload options (beta)</b-form-checkbox>
+            <b-form-checkbox v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)" v-model="is_show_rna_modif_upload_options">Show RNA modifications data upload options (beta)</b-form-checkbox>
+            <b-form-checkbox v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)" v-model="is_use_grch37">Use GRCh37 (hg19) instead of GRCh38 (hg38)</b-form-checkbox>
         </b-form>
         <b-form inline class="float-right mt-3">
-            <b-button @click="modal.uploadData.show=false" variant="dark">Cancel</b-button>
+            <b-button @click="modal.uploadData.show = false" variant="dark">Cancel</b-button>
             <b-button @click="handleFileUpload" variant="primary" class="ml-2">Apply</b-button>
         </b-form>
     </b-modal>
 
     <!-- Gene selection modal (non-GenomeProt) -->
-    <b-modal v-model="modal.selectGene.show" size="md" title="Select a gene" hide-footer no-close-on-backdrop no-close-on-esc>
-        <p>More than one gene is found in the stack data file. Please select the gene you would like to visualize.</p>
-        <b-form-group style="margin-bottom: 0px;" description="Start typing either the gene's symbol or ID, then select from the list of genes and press enter.">
-            <b-form-input @keyup="searchGenes" @keyup.enter="checkInput" v-model="enteredGene" list="geneIds" class="mb-3" placeholder="Search (e.g. CACNA1C, ENSG00000116786)..."></b-form-input>
+    <b-modal v-model="modal.selectGene.show" static size="md" title="Select a gene" hide-footer no-close-on-backdrop no-close-on-esc>
+        <p v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)">More than one gene is found in the stack data file. Please select the gene you would like to visualize.</p>
+        <p v-else>More than one gene is found in the transcript data file. Please select the gene you would like to visualize.</p>
+        <b-form @submit="checkInput" @submit.stop.prevent style="display: flex; flex-flow: row nowrap; justify-content: space-evenly; position: relative; align-items: center;">
+            <b-form-input @keyup="searchGenes" @keyup.enter="checkInput" v-model="enteredGene" list="geneIds" class="mr-2 mb-2" placeholder="Search (e.g. CACNA1C, ENSG00000116786)..."></b-form-input>
             <b-form-datalist id="geneIds"></b-form-datalist>
-            <p v-show="no_genes_found"><span style="color: red;">No genes found with your search query.</span> Please change your search query to find genes.</p>
-        </b-form-group>
+            <b-button @click="checkInput" variant="primary" class="mb-2">></b-button>
+        </b-form>
+        <span v-if="mygene_info_loading">Searching for matching gene IDs from mygene.info... <b-spinner variant="dark" type="grow" small></b-spinner></span>
+        <p v-if="no_genes_found"><span style="color: red;">No genes found with your search query.</span> Please change your search query to find genes.</p>
+        <small class="form-text text-muted">Start typing either the gene's symbol or ID. Then, select from the list of genes and either press enter or click '>'.</small>
     </b-modal>
 
     <!-- Gene selection modal (GenomeProt) -->
-    <b-modal v-model="modal.selectGenomeProtGene.show" size="lg" title="Select a gene" hide-footer no-close-on-backdrop no-close-on-esc>
-        <p>More than one gene is found in the stack data file. Please select the gene you would like to visualize.</p>
-        <b-form-group style="margin-bottom: 0px;" description="Start typing either the gene's symbol or ID, then select from the list of genes and press enter.">
-            <b-form-input @keyup="searchGenomeProtGenes" @keyup.enter="checkGenomeProtGeneInput" v-model="enteredGenomeProtGene" list="genomeProtGeneIds" class="mb-3" placeholder="Search (e.g. CACNA1C, ENSG00000116786)..."></b-form-input>
+    <b-modal v-model="modal.selectGenomeProtGene.show" static size="lg" title="Select a gene" hide-footer no-close-on-backdrop no-close-on-esc>
+        <p v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)">More than one gene is found in the stack data file. Please select the gene you would like to visualize.</p>
+        <p v-else>More than one gene is found in the transcript data file. Please select the gene you would like to visualize.</p>
+        <b-form @submit="checkGenomeProtGeneInput" @submit.stop.prevent style="display: flex; flex-flow: row nowrap; justify-content: space-evenly; position: relative; align-items: center;">
+            <b-form-input @keyup="searchGenomeProtGenes" @keyup.enter="checkGenomeProtGeneInput" v-model="enteredGenomeProtGene" list="genomeProtGeneIds" class="mr-2 mb-3" placeholder="Search (e.g. CACNA1C, ENSG00000116786)..."></b-form-input>
             <b-form-datalist id="genomeProtGeneIds"></b-form-datalist>
-            <p v-show="no_genomeprot_genes_found"><span style="color: red;">No genes found with your search query.</span> Please change your search query to find genes.</p>
-            <em class="mt-3">Gene filtering options (ORF = open reading frame, UMP = uniquely mapped peptide):</em>
-            <b-form-checkbox v-model="uniq_map_peptides" :disabled="no_uniq_map_peptides">ORFs with UMPs ({{ !no_uniq_map_peptides ? `${num_uniq_map_peptides}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="unknome_filter" :disabled="no_unknome_filter">ORFs with UMPs from zero-'knownness' Unknome v3 genes (human / mouse / zebrafish / fruit fly) ({{ !no_unknome_filter ? `${num_unknome_filter}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="lncRNA_peptides" :disabled="no_lncRNA_peptides">Long non-coding RNAs with UMPs ({{ !no_lncRNA_peptides ? `${num_lncRNA_peptides}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="novel_txs" :disabled="no_novel_txs">Novel transcript isoforms with UMPs ({{ !no_novel_txs ? `${num_novel_txs}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="novel_txs_distinguished" :disabled="no_novel_txs_distinguished">Novel transcript isoforms distinguished by UMPs ({{ !no_novel_txs_distinguished ? `${num_novel_txs_distinguished}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="unann_orfs" :disabled="no_unann_orfs">Unannotated ORFs with UMPs ({{ !no_unann_orfs ? `${num_unann_orfs}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="uorf_5" :disabled="no_uorf_5">5' uORFs with UMPs ({{ !no_uorf_5 ? `${num_uorf_5}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="dorf_3" :disabled="no_dorf_3">3' dORFs with UMPs ({{ !no_dorf_3 ? `${num_dorf_3}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="pseudogene" :disabled="no_pseudogene">Pseudogenes with UMPs ({{ !no_pseudogene ? `${num_pseudogene}` : "none" }})</b-form-checkbox>
-            <b-form-checkbox v-model="marker" :disabled="no_marker">Marker genes ({{ !no_marker ? `${num_marker}` : "none" }})</b-form-checkbox>
-        </b-form-group>
+            <b-button @click="checkGenomeProtGeneInput" variant="primary" class="mb-3">></b-button>
+        </b-form>
+        <p v-if="no_genomeprot_genes_found"><span style="color: red;">No genes found with your search query.</span> Please change your search query to find genes.</p>
+        <em class="mt-3">Gene filtering options (ORF = open reading frame, UMP = uniquely mapped peptide):</em>
+        <b-form-checkbox v-model="uniq_map_peptides" :disabled="no_uniq_map_peptides">ORFs with UMPs ({{ !no_uniq_map_peptides ? `${num_uniq_map_peptides}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="unknome_filter" :disabled="no_unknome_filter">ORFs with UMPs from zero-'knownness' Unknome v3 genes (human / mouse / zebrafish / fruit fly) ({{ !no_unknome_filter ? `${num_unknome_filter}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="lncRNA_peptides" :disabled="no_lncRNA_peptides">Long non-coding RNAs with UMPs ({{ !no_lncRNA_peptides ? `${num_lncRNA_peptides}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="novel_txs" :disabled="no_novel_txs">Novel transcript isoforms with UMPs ({{ !no_novel_txs ? `${num_novel_txs}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="novel_txs_distinguished" :disabled="no_novel_txs_distinguished">Novel transcript isoforms distinguished by UMPs ({{ !no_novel_txs_distinguished ? `${num_novel_txs_distinguished}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="unann_orfs" :disabled="no_unann_orfs">Unannotated ORFs with UMPs ({{ !no_unann_orfs ? `${num_unann_orfs}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="uorf_5" :disabled="no_uorf_5">5' uORFs with UMPs ({{ !no_uorf_5 ? `${num_uorf_5}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="dorf_3" :disabled="no_dorf_3">3' dORFs with UMPs ({{ !no_dorf_3 ? `${num_dorf_3}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="pseudogene" :disabled="no_pseudogene">Pseudogenes with UMPs ({{ !no_pseudogene ? `${num_pseudogene}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="marker" :disabled="no_marker">Marker genes ({{ !no_marker ? `${num_marker}` : "none" }})</b-form-checkbox>
+        <small class="form-text text-muted">Start typing either the gene's symbol or ID. Then, select from the list of genes and either press enter or click '>'.</small>
     </b-modal>
 
     <!-- No matching gene selected -->
     <b-modal v-model="modal.noMatchingGene.show" size="md" title="No matching gene found" hide-footer>
-        <p>No matching gene found in the stack data file. Please select a gene from the list.</p>
+        <p v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)">No matching gene found in the stack data file. Please select a gene from the list.</p>
+        <p v-else>No matching gene found in the transcript data file. Please select a gene from the list.</p>
     </b-modal>
 
     <!-- Heatmap data upload modal -->
-    <b-modal v-model="modal.heatmapUploadData.show" size="md" title="Upload heatmap data" hide-footer>
+    <b-modal v-model="modal.heatmapUploadData.show" size="md" :title="!(is_parent_window_genomeprot || is_parent_window_longviewsc) ? 'Upload heatmap data' : 'Upload transcript counts'" hide-footer>
         <p>Upload your own data here to visualize.
-            <b-link href="help_upload/" target="_blank">More info...</b-link>
+            <b-link v-if="!(is_parent_window_genomeprot || is_parent_window_longviewsc)" href="help_upload/" target="_blank">More info...</b-link>
         </p>
         <b-form inline>
-            <em><b>Heatmap data</b> file (.csv/.txt) (max. 3 GB)</em>
-            <b-form-file v-model="modal.heatmapUploadData.heatmapFile" no-drop accept=".csv, .txt"></b-form-file>
+            <em v-if="is_parent_window_genomeprot"><b>Transcript counts</b> file (bambu_transcript_counts.txt) (max. 3 GB)</em>
+            <em v-else-if="is_parent_window_longviewsc"><b>Transcript counts</b> file (.csv/.tsv/.txt) (max. 3 GB)</em>
+            <em v-else><b>Heatmap data</b> file (.csv/.tsv/.txt) (max. 3 GB)</em>
+            <b-form-file v-model="modal.heatmapUploadData.heatmapFile" no-drop accept=".csv, .tsv, .txt"></b-form-file>
         </b-form>
         <b-form inline class="float-right mt-3">
-            <b-button @click="modal.heatmapUploadData.show=false" variant="dark">Cancel</b-button>
+            <b-button @click="modal.heatmapUploadData.show = false" variant="dark">Cancel</b-button>
             <b-button @click="handleHeatmapFileUpload" variant="primary" class="ml-2">Apply</b-button>
         </b-form>
     </b-modal>
@@ -178,7 +204,7 @@ the exact state of that page from the previous state.
 
 <script>
 import { PrimaryData, SecondaryData, PeptideData, PeptideCountsData, RNAModifSitesData, RNAModifSitesLevelData } from '~/assets/data_parser';
-import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';
+import { BButton, BCol, BCollapse, BDropdown, BDropdownItem, BForm, BFormDatalist, BFormFile, BFormGroup, BFormInput, BImg, BLink, BModal, BNavbar, BNavbarBrand, BNavbarNav, BNavbarToggle, BProgress, BProgressBar, BRow, BSpinner, BVModalPlugin, VBModal, VBTooltip } from 'bootstrap-vue';
 
 export default
 {
@@ -203,6 +229,7 @@ export default
         BProgress,
         BProgressBar,
         BRow,
+        BSpinner,
         BVModalPlugin
     },
 
@@ -262,13 +289,21 @@ export default
                 }
             },
 
+            is_parent_window_genomeprot: false,
+            is_parent_window_genomeprotsc: false,
+            is_parent_window_longviewsc: false,
+
             filtered_genes: [], // array of genes filtered from the file
             all_genes: [],      // array of all genes found in the file
             all_gene_names: [], // array of all gene names found in the file (for GenomeProt data only)
             selectedGene: null,
             enteredGene: null,
+            prevEnteredGene: null,
             enteredGenomeProtGene: null,
+            prevEnteredGenomeProtGene: null,
             is_changing_gene: false,
+
+            mygene_info_loading: false,
 
             no_genes_found: false,
             no_genomeprot_genes_found: false,
@@ -325,6 +360,7 @@ export default
 
             controller: null,
             options: {},
+            saved_options: [],
 
             versionNumber: '',
             releaseNotes: [],
@@ -365,9 +401,11 @@ export default
         {
             let data = await this.decompressGzippedJSON("/demo_data.json.gz");
 
+            this.all_genes = [];
+
             this.selectedView = 'Main';
             data.secondaryData.transcriptOrder = JSON.parse(JSON.stringify(data.primaryData.transcriptOrder));
-            this.mainData = {isoformData:data.primaryData, heatmapData:data.secondaryData, canonData:data.canonData, 
+            this.mainData = {isoformData:data.primaryData, heatmapData:data.secondaryData, canonData:data.canonData,
                              proteinData:data.proteinData, selectedGene:data.selectedGene, geneLabel:data.geneLabel, demoData:true, species:"Homo_sapiens", is_use_grch37: false};
         },
 
@@ -416,6 +454,10 @@ export default
             this.cached_gene_filters = null;
 
             this.enteredGenomeProtGene = null;
+            this.prevEnteredGenomeProtGene = null;
+            let gene_ids_list = document.getElementById("genomeProtGeneIds");
+            if (gene_ids_list)
+                gene_ids_list.innerHTML = [];
 
             this.uniq_map_peptides = false;
             this.unknome_filter = false;
@@ -470,6 +512,13 @@ export default
             this.clearGenomeProtGeneData();
 
             this.enteredGene = null;
+            this.prevEnteredGene = null;
+            let gene_ids_list = document.getElementById("geneIds");
+            if (gene_ids_list)
+                gene_ids_list.innerHTML = [];
+
+            this.mygene_info_loading = false;
+
             this.selectedGene = null;
             this.filtered_genes = [];
             this.all_genes = [];
@@ -501,7 +550,7 @@ export default
 
         checkInput()
         {
-            let entered_gene = this.enteredGene;
+            let entered_gene = (this.enteredGene || '').trim();
             if (!entered_gene)
                 return;
 
@@ -509,7 +558,10 @@ export default
             {
                 this.selectedGene = entered_gene;
                 this.modal.selectGene.show = false;
-                this.enteredGene = null;
+
+                // Reset the search box results with the first 100 genes from the isoform stack data
+                this.initDatalist();
+
                 this.is_changing_gene = true;
                 this.no_genes_found = false;
                 this.handleFileUpload();
@@ -517,18 +569,20 @@ export default
             else
             {
                 // If the user selected an entry that looks like '<gene symbol> (<gene ID>)', extract the gene ID
-                let left_bracket_index = entered_gene.indexOf('(');
+                let left_bracket_index = entered_gene.lastIndexOf('(');
                 if (left_bracket_index !== -1)
                 {
-                    let right_bracket_index = entered_gene.indexOf(')', left_bracket_index + 1);
-                    if (right_bracket_index !== -1)
-                        entered_gene = entered_gene.substring(left_bracket_index + 1, right_bracket_index);
+                    let right_bracket_index = entered_gene.lastIndexOf(')');
+                    entered_gene = entered_gene.substring(left_bracket_index + 1, (right_bracket_index !== -1) ? right_bracket_index : undefined).trim();
 
                     if (this.all_genes.indexOf(entered_gene) !== -1)
                     {
                         this.selectedGene = entered_gene;
                         this.modal.selectGene.show = false;
-                        this.enteredGene = null;
+
+                        // Reset the search box results with the first 100 genes from the isoform stack data
+                        this.initDatalist();
+
                         this.is_changing_gene = true;
                         this.no_genes_found = false;
                         this.handleFileUpload();
@@ -543,7 +597,7 @@ export default
 
         checkGenomeProtGeneInput()
         {
-            let entered_gene = this.enteredGenomeProtGene;
+            let entered_gene = (this.enteredGenomeProtGene || '').trim();
             if (!entered_gene)
                 return;
 
@@ -551,7 +605,10 @@ export default
             {
                 this.selectedGene = entered_gene;
                 this.modal.selectGenomeProtGene.show = false;
-                this.enteredGenomeProtGene = null;
+
+                // Reset the search box results with the first 100 genes from the isoform stack data
+                this.initGenomeProtDatalist();
+
                 this.is_changing_gene = true;
                 this.no_genomeprot_genes_found = false;
                 this.handleFileUpload();
@@ -559,18 +616,20 @@ export default
             else
             {
                 // If the user selected an entry that looks like '<gene symbol> (<gene ID>)', extract the gene ID
-                let left_bracket_index = entered_gene.indexOf('(');
+                let left_bracket_index = entered_gene.lastIndexOf('(');
                 if (left_bracket_index !== -1)
                 {
-                    let right_bracket_index = entered_gene.indexOf(')', left_bracket_index + 1);
-                    if (right_bracket_index !== -1)
-                        entered_gene = entered_gene.substring(left_bracket_index + 1, right_bracket_index);
+                    let right_bracket_index = entered_gene.lastIndexOf(')');
+                    entered_gene = entered_gene.substring(left_bracket_index + 1, (right_bracket_index !== -1) ? right_bracket_index : undefined).trim();
 
                     if (this.all_genes.indexOf(entered_gene) !== -1)
                     {
                         this.selectedGene = entered_gene;
                         this.modal.selectGenomeProtGene.show = false;
-                        this.enteredGenomeProtGene = null;
+
+                        // Reset the search box results with the first 100 genes from the isoform stack data
+                        this.initGenomeProtDatalist();
+
                         this.is_changing_gene = true;
                         this.no_genomeprot_genes_found = false;
                         this.handleFileUpload();
@@ -585,29 +644,35 @@ export default
 
         buildDatalist(is_update_genes_found = false)
         {
+            let gene_ids_list = document.getElementById("geneIds");
+            if (!gene_ids_list)
+                return;
+
             let gene_ids = Object.keys(this.options);
             let symbol_options = [];
             let id_options = [];
 
+            this.saved_options = [];
             for (let gene_id of gene_ids)
             {
                 let symbol = this.options[gene_id];
                 if (!symbol)
+                {
                     id_options.push(`<option>${gene_id}</option>`);
+                    this.saved_options.push(gene_id.toLowerCase());
+                }
                 else
+                {
                     symbol_options.push(`<option>${symbol} (${gene_id})</option>`);
+                    this.saved_options.push(`${symbol} (${gene_id})`.toLowerCase());
+                }
             }
 
             symbol_options.sort();
             id_options.sort();
 
             // Sorted gene symbol + ID options come first, then sorted gene ID options come later
-            let new_options = symbol_options.concat(id_options);
-
-            let gene_ids_list = document.getElementById("geneIds");
-            if (!gene_ids_list)
-                return;
-
+            let new_options = symbol_options.concat(id_options).join('');
             gene_ids_list.innerHTML = new_options;
 
             if (is_update_genes_found)
@@ -618,29 +683,35 @@ export default
 
         buildGenomeProtDatalist(is_update_genes_found = false)
         {
+            let gene_ids_list = document.getElementById("genomeProtGeneIds");
+            if (!gene_ids_list)
+                return;
+
             let gene_ids = Object.keys(this.options);
             let symbol_options = [];
             let id_options = [];
 
+            this.saved_options = [];
             for (let gene_id of gene_ids)
             {
                 let symbol = this.options[gene_id];
                 if (!symbol)
+                {
                     id_options.push(`<option>${gene_id}</option>`);
+                    this.saved_options.push(gene_id.toLowerCase());
+                }
                 else
+                {
                     symbol_options.push(`<option>${symbol} (${gene_id})</option>`);
+                    this.saved_options.push(`${symbol} (${gene_id})`.toLowerCase());
+                }
             }
 
             symbol_options.sort();
             id_options.sort();
 
             // Sorted gene symbol + ID options come first, then sorted gene ID options come later
-            let new_options = symbol_options.concat(id_options);
-
-            let gene_ids_list = document.getElementById("genomeProtGeneIds");
-            if (!gene_ids_list)
-                return;
-
+            let new_options = symbol_options.concat(id_options).join('');
             gene_ids_list.innerHTML = new_options;
 
             if (is_update_genes_found)
@@ -649,18 +720,96 @@ export default
                 this.no_genomeprot_genes_found = false;
         },
 
+        initDatalist()
+        {
+            let total_count = 0;
+            let max_genes = 100;
+            this.options = {};
+            for (let i = 0; (i < this.all_genes.length) && (total_count < max_genes); ++i)
+            {
+                let gene = this.all_genes[i];
+                this.options[gene] = null;
+                total_count += 1;
+            }
+            this.buildDatalist();
+            this.enteredGene = '';
+            this.prevEnteredGene = '';
+        },
+
+        initGenomeProtDatalist()
+        {
+            let total_count = 0;
+            let max_genes = 100;
+            this.options = {};
+            for (let i = 0; (i < this.all_gene_names.length) && (total_count < max_genes); ++i)
+            {
+                let gene_name = this.all_gene_names[i];
+                // Check if the gene name corresponds to gene ID(s) that are not filtered away
+                let gene_ids_from_name = this.geneNameInfo[gene_name];
+                for (let gene_id_from_name of gene_ids_from_name)
+                {
+                    if (this.all_genes.indexOf(gene_id_from_name) !== -1)
+                    {
+                        this.options[gene_id_from_name] = gene_name;
+                        total_count += 1;
+                        if (total_count === max_genes)
+                            break;
+                    }
+                }
+            }
+            this.clearGenomeProtGeneCacheAndOptions();
+            this.buildGenomeProtDatalist();
+            this.enteredGenomeProtGene = '';
+            this.prevEnteredGenomeProtGene = '';
+        },
+
         // Include at most 100 genes from the genes in the stack data file that begin with the user's input (case-insensitive)
         async searchGenes(key_event)
         {
-            // FIXME: Find a better way to ignore keys that do not affect the user input or detect whether the user input is changed
-            let ignored_keys = ["Enter", "Control", "Meta", "Alt", "Tab", "Shift", "CapsLock", "NumLock", "ContextMenu", "PrintScreen", "Pause", "Break", "Cancel", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
-            if (ignored_keys.indexOf(key_event.key) !== -1)
+            // Chrome-based browsers fire an Event when the user selects a datalist result;
+            // ignore to prevent text on no results being found from appearing
+            if (!(key_event instanceof KeyboardEvent))
                 return;
 
             if (this.enteredGene === null)
                 return;
 
-            let entered_gene = this.enteredGene.toLowerCase();
+            let entered_gene = this.enteredGene.toLowerCase().trim();
+            if (this.prevEnteredGene === entered_gene)
+                return;
+
+            this.prevEnteredGene = entered_gene;
+
+            // Handle the case when the user has inputted '<gene symbol> (<gene ID>)'
+            let left_bracket_index = entered_gene.lastIndexOf('(');
+            let right_bracket_index = entered_gene.lastIndexOf(')');
+            if ((entered_gene !== '') && (left_bracket_index !== -1) && ((right_bracket_index === -1) || (left_bracket_index < right_bracket_index)))
+            {
+                // Check if the input matches any of the datalist options
+                for (let saved_option of this.saved_options)
+                {
+                    if (saved_option.indexOf(entered_gene) !== -1)
+                    {
+                        this.no_genes_found = false;
+                        return;
+                    }
+                }
+
+                // Check if the substring from the left bracket is the same as any of the gene IDs from the stack data
+                let gene_id_substring = entered_gene.substring(left_bracket_index + 1, (right_bracket_index !== -1) ? right_bracket_index : undefined).trim();
+                if (gene_id_substring !== '')
+                {
+                    for (let gene_id of this.all_genes)
+                    {
+                        if (gene_id.toLowerCase() === gene_id_substring)
+                        {
+                            this.no_genes_found = false;
+                            return;
+                        }
+                    }
+                }
+            }
+
             let total_count = 0;
             let max_genes = 100;
 
@@ -686,13 +835,17 @@ export default
             if (this.enteredGene.length < 2)
                 return;
 
+            this.no_genes_found = false;
             this.controller = new AbortController();
             const signal = this.controller.signal;
 
             // Search for Ensembl gene IDs by gene symbol from mygene.info
-            let data = await fetch(`https://mygene.info/v3/query?species=${this.taxon_id}&fields=symbol,ensembl.gene&q=symbol:${this.enteredGene}*`, { signal })
+            // FIXME: Sometimes mygene_info_loading is set to false and no_genes_found is set to true while the current request is ongoing, which creates confusion
+            this.mygene_info_loading = true;
+            let data = await fetch(`https://mygene.info/v3/query?species=${encodeURIComponent(this.taxon_id)}&fields=symbol,ensembl.gene&q=${"symbol:" + encodeURIComponent(this.enteredGene)}*`, { signal })
                 .then(res => res.json())
                 .catch(() => {});
+            this.mygene_info_loading = false;
 
             if (data && data.total > 0)
             {
@@ -759,15 +912,50 @@ export default
         // Include at most 100 genes from the genes in the stack data file that begin with the user's input (case-insensitive)
         searchGenomeProtGenes(key_event)
         {
-            // FIXME: Find a better way to ignore keys that do not affect the user input or detect whether the user input is changed
-            let ignored_keys = ["Enter", "Control", "Meta", "Alt", "Tab", "Shift", "CapsLock", "NumLock", "ContextMenu", "PrintScreen", "Pause", "Break", "Cancel", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12"];
-            if (ignored_keys.indexOf(key_event.key) !== -1)
+            // Chrome-based browsers fire an Event when the user selects a datalist result;
+            // ignore to prevent text on no results being found from appearing
+            if (!(key_event instanceof KeyboardEvent))
                 return;
 
             if (this.enteredGenomeProtGene === null)
                 return;
 
-            let entered_gene = this.enteredGenomeProtGene.toLowerCase();
+            let entered_gene = this.enteredGenomeProtGene.toLowerCase().trim();
+            if (this.prevEnteredGenomeProtGene === entered_gene)
+                return;
+
+            this.prevEnteredGenomeProtGene = entered_gene;
+
+            // Handle the case when the user has inputted '<gene symbol> (<gene ID>)'
+            let left_bracket_index = entered_gene.lastIndexOf('(');
+            let right_bracket_index = entered_gene.lastIndexOf(')');
+            if ((entered_gene !== '') && (left_bracket_index !== -1) && ((right_bracket_index === -1) || (left_bracket_index < right_bracket_index)))
+            {
+                // Check if the input matches any of the datalist options
+                for (let saved_option of this.saved_options)
+                {
+                    if (saved_option.indexOf(entered_gene) !== -1)
+                    {
+                        this.no_genomeprot_genes_found = false;
+                        return;
+                    }
+                }
+
+                // Check if the substring from the left bracket is the same as any of the gene IDs from the stack data
+                let gene_id_substring = entered_gene.substring(left_bracket_index + 1, (right_bracket_index !== -1) ? right_bracket_index : undefined).trim();
+                if (gene_id_substring !== '')
+                {
+                    for (let gene_id of this.all_genes)
+                    {
+                        if (gene_id.toLowerCase() === gene_id_substring)
+                        {
+                            this.no_genomeprot_genes_found = false;
+                            return;
+                        }
+                    }
+                }
+            }
+
             let total_count = 0;
             let max_genes = 100;
 
@@ -909,6 +1097,13 @@ export default
 
         async handleFileUpload()
         {
+            // Whenever the user changes genes, stop ongoing network requests for fetching data from Ensembl and InterPro
+            if (this.is_changing_gene)
+            {
+                this.is_changing_gene = false;
+                this.$refs.componentMain.abortFetches();
+            }
+
             // Check the entered species
             let species = this.enteredSpecies;
             if (!species)
@@ -954,7 +1149,13 @@ export default
             if (!isoformData.valid)
             {
                 this.reset_loading_popup();
-                this.$bvModal.msgBoxOk(isoformData.error);
+                let error_message = isoformData.error;
+                if (this.is_parent_window_genomeprot || this.is_parent_window_longviewsc)
+                    error_message = error_message.replace("isoform stack", "stack")
+                                                 .replace("stack file", "transcript data file")
+                                                 .replace("Stack file", "Transcript data file")
+                                                 .replace("an transcript", "a transcript");
+                this.$bvModal.msgBoxOk(error_message);
                 this.selectedGene = null;
                 this.modal.uploadData.stackFile = null;
                 return;
@@ -977,7 +1178,6 @@ export default
                     this.gene_name_attributes = JSON.parse(JSON.stringify(isoformData.gene_name_attributes));
 
                     this.all_gene_names = Object.keys(this.geneNameInfo);
-                    // this.all_gene_names.sort((a, b) => a.localeCompare(b, "en", {sensitivity: "case"}));
 
                     // Load Unknome gene IDs and symbols
                     await this.getUnknomeGeneIDsAndSymbols(species);
@@ -989,9 +1189,6 @@ export default
                     {
                         this.gene_attributes["unknome_filter"] = this.mergeLists(this.gene_attributes["uniq_map_peptides"], this.unknome_gene_ids);
                         this.gene_name_attributes["unknome_filter"] = this.mergeLists(this.gene_name_attributes["uniq_map_peptides"], this.unknome_gene_symbols);
-
-                        // this.gene_attributes["unknome_filter"].sort((a, b) => a.localeCompare(b, "en", {sensitivity: "case"}));
-                        // this.gene_name_attributes["unknome_filter"].sort((a, b) => a.localeCompare(b, "en", {sensitivity: "case"}));
                     }
 
                     this.num_uniq_map_peptides = this.gene_attributes["uniq_map_peptides"].length;
@@ -1016,14 +1213,16 @@ export default
                     this.no_pseudogene = (this.num_pseudogene === 0) && (this.gene_name_attributes["pseudogene"].length === 0);
                     this.no_marker = (this.num_marker === 0) && (this.gene_name_attributes["marker"].length === 0);
 
-                    this.options = {};
-                    this.buildGenomeProtDatalist();
-                    this.clearGenomeProtGeneCacheAndOptions();
-
+                    // Initialize the search box results with the first 100 genes from the isoform stack data
+                    this.initGenomeProtDatalist();
                     this.modal.selectGenomeProtGene.show = true;
                 }
                 else
+                {
+                    // Initialize the search box results with the first 100 genes from the isoform stack data
+                    this.initDatalist();
                     this.modal.selectGene.show = true;
+                }
                 return;
             }
 
@@ -1084,13 +1283,13 @@ export default
             }
 
             this.reset_loading_popup();
-            // let peptides_of_gene = (peptideData && peptideData.peptides) ? peptideData.peptides : null;
+
             let peptides_of_gene = (peptideData && peptideData.peptides) ? peptideData.peptides : ((isoformData.peptides && (Object.keys(isoformData.peptides).length !== 0)) ? Object.keys(isoformData.peptides) : null);
             peptides_of_gene = JSON.parse(JSON.stringify(peptides_of_gene));
             if (peptides_of_gene)
                 peptides_of_gene.sort();
+
             let peptideCountsData = (pcfile && peptides_of_gene && (peptides_of_gene.length !== 0)) ? new PeptideCountsData(pcfile, peptides_of_gene) : null;
-            // let peptideCountsData = (pcfile && peptides_of_gene && (peptides_of_gene.length !== 0) && !(isoformData.is_genomeprot)) ? new PeptideCountsData(pcfile, peptides_of_gene) : null;
             if (peptideCountsData)
             {
                 await peptideCountsData.parseFile();
@@ -1145,12 +1344,6 @@ export default
 
                 if (rnaModifLevelData.no_sites)
                     rnaModifLevelData = null;
-            }
-
-            if (this.is_changing_gene)
-            {
-                this.is_changing_gene = false;
-                this.$refs.componentMain.abortFetches();
             }
 
             this.mainData = {isoformData:isoformData, heatmapData:heatmapData, peptideData:peptideData, peptideCountsData:peptideCountsData, rnaModifData:rnaModifData, rnaModifLevelData:rnaModifLevelData,
@@ -1229,11 +1422,40 @@ export default
             let date = new Date();
             let year = date.getFullYear();
             return year;
+        },
+
+        listenForToolName(event)
+        {
+            let event_data = event.data;
+            console.log("Received:", event_data);
+
+            if ((typeof(event_data) !== "string") || (!event_data.startsWith("Tool: ")))
+                return;
+
+            let tool_name = event_data.substring("Tool: ".length);
+            if ((tool_name === "GenomeProt") || (tool_name === "GenomeProtSC"))
+            {
+                this.is_parent_window_genomeprot = true;
+                this.is_parent_window_genomeprotsc = (tool_name === "GenomeProtSC");
+                this.$refs.componentMain.hide_upload_heatmap_button = this.is_parent_window_genomeprotsc;
+            }
+            else if (tool_name === "LongViewSC")
+                this.is_parent_window_longviewsc = true;
+            else
+                return;
+
+            window.removeEventListener("message", this.listenForToolName, false);
         }
     },
 
     mounted()
     {
+        if (window.parent !== window)
+        {
+            window.addEventListener("message", this.listenForToolName, false);
+            window.parent.postMessage("Give tool name", document.referrer);
+        }
+
         this.getReleaseNotes();
         this.getSpecies();
         this.getSpeciesToPrefix();

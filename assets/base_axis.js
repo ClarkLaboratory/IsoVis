@@ -11,17 +11,18 @@ import * as d3 from 'd3';
 export class BaseAxis {
     /**
      * A class to manage scaling functionality for the visualization
-     * 
+     *
      * @param {number} width the width of the gene = abs(end - start)
      * @param {number} start the start coordinate of the gene
      * @param {number} end the end coordinate of the gene
      * @param {char} strand the direction of the RNA strand
      * @param {Array<Array<number>>} mergedRanges Union of exon ranges across all isoforms (i.e., the metagene)
      * @param {Array<Array<number, number, boolean>>} spliced_regions Set of spliced regions and whether they appear for all shown isoforms
-     * @param {Array<number>} relative_heights List of relative heights for each spliced region (excluding constitutive ones)
-     * @param {Array<number>} relative_heights_all List of relative heights for each spliced region
+     * @param {Array<number>} relative_heights List of relative heights for each spliced region (alternative junctions only)
+     * @param {Array<number>} relative_heights_constitutive List of relative heights for each spliced region (constitutive junctions only)
+     * @param {Array<number>} relative_heights_all List of relative heights for each spliced region (both alternative and constitutive junctions considered)
      */
-    constructor(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all) {
+    constructor(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_constitutive, relative_heights_all) {
         this.width = width; // genomic width
         this.plotWidth = 700; // screen resolution width
         this.start = start;
@@ -31,6 +32,7 @@ export class BaseAxis {
         this.mergedRanges = mergedRanges; // metagene coordinates
         this.spliced_regions = spliced_regions;
         this.relative_heights = relative_heights;
+        this.relative_heights_constitutive = relative_heights_constitutive;
         this.relative_heights_all = relative_heights_all;
         this.baseDomain = this.start < this.end ? [this.start, this.end] : [this.end, this.start]; // initial domain for genomic scaling function (ordered for genome orientation)
         this.domain = [0, this.width]; // domain in use (switch between base and shrunk)
@@ -60,7 +62,7 @@ export class BaseAxis {
     scale = (x) => {
         /**
          * Function to directly scale gene to screen
-         * 
+         *
          * @param {int} x coordinate to be scaled
          * @returns {int} scaled coordinate
          */
@@ -70,7 +72,7 @@ export class BaseAxis {
     proteinScale = (x) => {
         /**
          * Function to directly scale protein to screen
-         * 
+         *
          * @param {int} x coordinate to be scaled
          * @returns {int} scaled coordinate
          */
@@ -80,7 +82,7 @@ export class BaseAxis {
     setProteinDomain(domain) {
         /**
          * Setter function for the protein domain
-         * 
+         *
          * @param {number[]} domain start and end coordinates for the protein domain
          */
         this.proteinDomain = this.ascending ? domain : domain.reverse();
@@ -98,7 +100,7 @@ export class BaseAxis {
     setPlotWidth = (width) => {
         /**
          * Setter function for the width of the axis
-         * 
+         *
          * @param {int} width the width of the axis
          */
         this.plotWidth = width;
@@ -106,7 +108,7 @@ export class BaseAxis {
         this.updateScale();
     }
 
-    togglenormalization = () => {
+    toggleNormalization = () => {
         this.shrink = !this.shrink;
         this.domain = this.shrink ? this.shrunkDomain : this.baseDomain;
         this.range = this.shrink ? this.shrunkRange : this.baseRange;
@@ -115,7 +117,7 @@ export class BaseAxis {
 
     normalizeIntrons = (shrink) => {
         /**
-         * Set intron normalization and updates axis scales. 
+         * Set intron normalization and updates axis scales.
          * true means introns are shrank, false means expanded out.
          */
         this.shrink = shrink;
@@ -124,11 +126,11 @@ export class BaseAxis {
         this.updateScale();
     }
 
-    reverse = () => { 
+    reverse = () => {
         /**
          * reverses scaling direction and updates axis scales
          */
-        this.ascending = !this.ascending; 
+        this.ascending = !this.ascending;
         this.screenRange.reverse();
         this.updateScale();
     }
@@ -228,7 +230,7 @@ export class BaseAxis {
         } else {
             xPosition -= intronLength;
         }
-        
+
         // Update axis attributes
         this.width = xPosition;
         this.shrunkDomain = d3Domain;
@@ -251,8 +253,8 @@ export class BaseAxis {
         /**
          * Return end point positions as an array
          */
-        let leftEnd = this.genomeCoords().strand == "+" ? this.genomeCoords().start : this.genomeCoords().end;
-        let rightEnd = this.genomeCoords().strand == "+" ? this.genomeCoords().end : this.genomeCoords().start;
+        let leftEnd = this.genomeCoords().strand === "+" ? this.genomeCoords().start : this.genomeCoords().end;
+        let rightEnd = this.genomeCoords().strand === "+" ? this.genomeCoords().end : this.genomeCoords().start;
         let ascending = this.ascending; // can't use this in the next bit
         return [leftEnd, rightEnd].sort(function (a, b) {return ascending ? a - b : b - a;});
     }
@@ -269,24 +271,25 @@ export class BaseAxis {
         }
         return ranges;
     }
-    
+
 }
 
-export function createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all, plotWidth=400) {
+export function createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_constitutive, relative_heights_all, plotWidth = 400) {
     /**
      * Creates and returns a BaseAxis object
-     * 
+     *
      * @param {int} width the width of the axis
      * @param {int} start the start coordinate of the axis
      * @param {int} end the end coordinate of the axis
      * @param {char} strand the direction of the RNA strand
      * @param {Array<Array<number>>} mergedRanges union of exon ranges across all isoforms
      * @param {Array<Array<number, number, boolean>>} spliced_regions Set of spliced regions and whether they appear for all shown isoforms
-     * @param {Array<number>} relative_heights List of relative heights for each spliced region
-     * @param {Array<number>} relative_heights_all List of relative heights for each spliced region
+     * @param {Array<number>} relative_heights List of relative heights for each spliced region (alternative junctions only)
+     * @param {Array<number>} relative_heights_constitutive List of relative heights for each spliced region (constitutive junctions only)
+     * @param {Array<number>} relative_heights_all List of relative heights for each spliced region (both alternative and constitutive junctions considered)
      * @returns {BaseAxis} the axis
      */
-    const axis = new BaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all);
+    const axis = new BaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_constitutive, relative_heights_all);
     axis.calculateShrinkage();
     axis.normalizeIntrons(true); // normalize introns as default
     axis.setPlotWidth(plotWidth);

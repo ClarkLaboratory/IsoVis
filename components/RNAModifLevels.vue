@@ -11,7 +11,7 @@ Component to render an RNA modification levels plot, based on rnaModifLevelData 
     <p class="text-center">RNA modification levels</p>
 </div>
 </template>
-        
+
 <script>
 import * as d3 from 'd3';
 import {put_in_svg, rect} from "~/assets/svg_utils";
@@ -38,7 +38,7 @@ export default {
                 heatmapHigh: '#fde725',
                 invalid: '#c2c2c2'
             };
-            
+
             // Clear target element of content
             d3.select('#RNALevelsDiv').selectAll('*').remove();
 
@@ -59,7 +59,7 @@ export default {
 
             // Labels of row and columns
             let sites = JSON.parse(JSON.stringify(this.siteOrder));
-            let samples = this.rnaModifLevelData.labels;
+            let samples = this.rnaModifLevelData.labelOrder;
 
             let rowCount = sites.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;
@@ -158,6 +158,9 @@ export default {
 
                 let row = Math.floor((y_diff * sites.length) / canvas.height);
                 let col = Math.floor((x_diff * samples.length) / canvas.width);
+                row = Math.min(Math.max(row, 0), sites.length - 1);
+                col = Math.min(Math.max(col, 0), samples.length - 1);
+
                 let site = sites[row];
                 let sample = samples[col];
                 let value = values[row][col];
@@ -206,7 +209,7 @@ export default {
 
             // Labels of row and columns
             let sites = JSON.parse(JSON.stringify(this.siteOrder));
-            let samples = this.rnaModifLevelData.labels;
+            let samples = this.rnaModifLevelData.labelOrder;
 
             let rowCount = sites.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;

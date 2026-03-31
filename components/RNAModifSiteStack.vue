@@ -7,7 +7,7 @@
 Component to render RNA modification site stacks, where each site corresponds to one nucleotide and is shown as a thin rectangle.
 
 <template>
-<div id="RNAModifStackDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
+<div id="RNAModifStackDiv" ref="parentDiv" style="position: relative">
     <p>RNA modification site stack</p>
 </div>
 </template>
@@ -18,13 +18,13 @@ import {put_in_svg, rect} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "siteOrder"],
-    
+
     data: () => {
         return {
             // dimensions
             width: 0,
             padding: 16,
-            siteHeight: 30, // 50
+            siteHeight: 30,
             siteGap: 1,
 
             is_compact: false,
@@ -90,7 +90,7 @@ export default {
                     await navigator.clipboard.writeText(this.tooltip_text);
                     this.set_tooltip_copied(true);
                 }
-                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                // Are we copying the tooltip text from an iframe showing IsoVis?
                 else if (window.parent !== window)
                 {
                     window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
@@ -145,7 +145,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -177,14 +177,14 @@ export default {
                 crosshair_canvas_ctx.fillStyle = old_fillstyle;
             }
         },
-        
+
         // Method to build the stack
         buildStack() {
             this.start_drag = -1;
             this.end_drag = -1;
             this.tooltip_text = "";
 
-            if (!this.baseAxis || !this.siteOrder || (this.siteOrderlength === 0) || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || !this.siteOrder || (this.siteOrderlength === 0) || Object.keys(this.baseAxis).length === 0)
                 return;
 
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
@@ -192,6 +192,7 @@ export default {
 
             let svgHeight = this.groupScale(this.is_compact ? 1 : this.siteOrder.length, this.siteHeight, this.siteGap) - this.siteGap;
             let blockHeight = this.siteHeight / 2;
+            blockHeight += blockHeight % 2;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
@@ -338,7 +339,7 @@ export default {
 
         buildStackSvg(symbol = false)
         {
-            if (!this.baseAxis || !this.siteOrder || (this.siteOrderlength === 0) || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || !this.siteOrder || (this.siteOrderlength === 0) || Object.keys(this.baseAxis).length === 0)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -350,6 +351,7 @@ export default {
 
             let svgHeight = this.groupScale(this.is_compact ? 1 : this.siteOrder.length, this.siteHeight, this.siteGap) - this.siteGap;
             let blockHeight = this.siteHeight / 2;
+            blockHeight += blockHeight % 2;
 
             let canvas_width = Math.ceil(this.width);
             let canvas_height = Math.ceil(svgHeight);

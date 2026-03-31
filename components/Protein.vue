@@ -5,7 +5,7 @@
  */
 
 <template>
-<div id="proteinParent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;" ref="parentDiv">
+<div id="proteinParent" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;" ref="parentDiv">
     <div id="proteinDiv">
         <p>Loading protein diagram...</p>
     </div>
@@ -65,7 +65,7 @@ export default {
                 let coordPair = [{
                     original: start,
                     scaled: data.json.regions[i].start
-                }, 
+                },
                 {
                     original: end,
                     scaled: data.json.regions[i].end
@@ -88,7 +88,7 @@ export default {
                 let coordPair = [{
                     original: start,
                     scaled: data.json.motifs[i].start
-                }, 
+                },
                 {
                     original: end,
                     scaled: data.json.motifs[i].end
@@ -123,7 +123,7 @@ export default {
             if (!el) return;
 
             // compute x scale and scale protein coordinates
-            let xscale = (el.getBoundingClientRect().width - 32) / this.proteinData.originalData.length; 
+            let xscale = (el.getBoundingClientRect().width - 32) / this.proteinData.originalData.length;
             this.updateProteinCoords(xscale);
             const data = this.proteinData.json;
 
@@ -187,7 +187,7 @@ export default {
         },
 
         buildProteinMap() {
-            if (!this.baseAxis) return;
+            if ((!this.baseAxis) || (Object.keys(this.baseAxis).length === 0)) return;
 
             let padding = 16;
             let height = 30;
@@ -241,8 +241,8 @@ export default {
 
                     for (let coord of coords)
                     {
-                        let pair = [coord[0].original, coord[1].original].sort()
-                        if ((pair[0] == points[0]) && (pair[1] == points[1]))
+                        let pair = [coord[0].original, coord[1].original].sort();
+                        if ((pair[0] === points[0]) && (pair[1] === points[1]))
                         {
                             let pt0 = [axis.proteinScale(coord[need_flip ? 1 : 0].scaled), 0];
                             let pt1 = [axis.scale(data.domainMap[region_key][coord[0].original]), height];
@@ -306,8 +306,8 @@ export default {
 
                     for (let coord of coords)
                     {
-                        let pair = [coord[0].original, coord[1].original].sort()
-                        if ((pair[0] == points[0]) && (pair[1] == points[1]))
+                        let pair = [coord[0].original, coord[1].original].sort();
+                        if ((pair[0] === points[0]) && (pair[1] === points[1]))
                         {
                             let pt0 = [axis.proteinScale(coord[need_flip ? 1 : 0].scaled), 0];
                             let pt1 = [axis.scale(data.motifMap[motif_key][coord[0].original]), height];
@@ -422,8 +422,8 @@ export default {
 
                     for (let coord of coords)
                     {
-                        let pair = [coord[0].original, coord[1].original].sort()
-                        if (!((pair[0] == points[0]) && (pair[1] == points[1])))
+                        let pair = [coord[0].original, coord[1].original].sort();
+                        if (!((pair[0] === points[0]) && (pair[1] === points[1])))
                             continue;
 
                         // Shade the region
@@ -462,7 +462,7 @@ export default {
                             side_2 = [[side_2_bottom_x, svg_height], [side_2_top_x, 0]];
 
                         // If one of the bottom X coordinates is invisible, there are 2 cases
-                        if (is_side_1_bottom_x_invisible != is_side_2_bottom_x_invisible)
+                        if (is_side_1_bottom_x_invisible !== is_side_2_bottom_x_invisible)
                         {
                             // Case 1: If the bottom X coordinate for side 1 is invisible, it must be negative
                             if (is_side_1_bottom_x_invisible)
@@ -579,8 +579,8 @@ export default {
 
                     for (let coord of coords)
                     {
-                        let pair = [coord[0].original, coord[1].original].sort()
-                        if (!((pair[0] == points[0]) && (pair[1] == points[1])))
+                        let pair = [coord[0].original, coord[1].original].sort();
+                        if (!((pair[0] === points[0]) && (pair[1] === points[1])))
                             continue;
 
                         // Shade the region
@@ -619,7 +619,7 @@ export default {
                             side_2 = [[side_2_bottom_x, svg_height], [side_2_top_x, 0]];
 
                         // If one of the bottom X coordinates is invisible, there are 2 cases
-                        if (is_side_1_bottom_x_invisible != is_side_2_bottom_x_invisible)
+                        if (is_side_1_bottom_x_invisible !== is_side_2_bottom_x_invisible)
                         {
                             // Case 1: If the bottom X coordinate for side 1 is invisible, it must be negative
                             if (is_side_1_bottom_x_invisible)

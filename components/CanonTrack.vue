@@ -9,7 +9,7 @@ Requires an instance of BaseAxis as input, as well as isoformList object
 which must have 'transcriptID', 'exonRanges' and 'orf' properties.
 
 <template>
-<div id="canonDiv" class="req-crosshair" ref="parentDiv" style="position: relative; min-height: 48px;">
+<div id="canonDiv" ref="parentDiv" style="position: relative; min-height: 48px;">
     <p>Loading canonical transcript stack...</p>
 </div>
 </template>
@@ -20,7 +20,7 @@ import {put_in_svg, rect, line} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "canonData"],
-    
+
     data: () => {
         return {
             // dimensions
@@ -92,7 +92,7 @@ export default {
                     await navigator.clipboard.writeText(this.tooltip_text);
                     this.set_tooltip_copied(true);
                 }
-                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                // Are we copying the tooltip text from an iframe showing IsoVis?
                 else if (window.parent !== window)
                 {
                     window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
@@ -147,7 +147,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -191,7 +191,7 @@ export default {
             this.end_drag = -1;
             this.tooltip_text = "";
 
-            if (!this.baseAxis || !this.canonData || Object.keys(this.baseAxis).length == 0 || Object.keys(this.canonData).length == 0)
+            if ((!this.baseAxis) || (!this.canonData) || (Object.keys(this.baseAxis).length === 0) || (Object.keys(this.canonData).length === 0))
                 return;
 
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
@@ -199,6 +199,7 @@ export default {
 
             let svgHeight = this.groupScale(this.canonData.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
             let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            exonHeight += exonHeight % 2;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
@@ -329,12 +330,13 @@ export default {
 
                 // Add ORFs to each isoform
                 let orfHeight = self.isoformHeight / 2;
+                orfHeight += orfHeight % 2;
                 for (let i = 0; i < self.canonData.isoformList.length; ++i)
                 {
                     let isoform = self.canonData.isoformList[i];
                     let exon_ranges = isoform.exonRanges;
                     let orf_ranges = self.show_orfs ? isoform.orf : isoform.user_orf;
-                    let y = transformation(i) + orfHeight / 2;
+                    let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
 
                     let transcript_id = isoform.transcriptID;
                     ctx.fillStyle = "rgb(83,83,83)";
@@ -345,13 +347,13 @@ export default {
                         let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
                         let actual_x0 = Math.round(x);
                         let actual_x1 = Math.round(width + x);
-                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
                         let height = Math.ceil(orfHeight);
                         let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
                         let actual_y1 = Math.round(height + y);
                         let actual_height = actual_y1 - Math.round(y);
 
-                        // Don't draw the exon if it's outside of the canvas
+                        // Don't draw the ORF region if it's outside of the canvas
                         if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
                             ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
                         else
@@ -479,7 +481,7 @@ export default {
                 let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
                 let topVal = (clientY - boundary.top + padding + 5);
 
-                let tooltip_text = `Canonical transcript: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
+                let tooltip_text = `Canonical isoform: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
                 let event = new CustomEvent("set_canontrack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
@@ -508,7 +510,7 @@ export default {
 
         buildStackSvg(symbol = false)
         {
-            if (!this.baseAxis || !this.canonData || Object.keys(this.baseAxis).length == 0 || Object.keys(this.canonData).length == 0)
+            if (!this.baseAxis || !this.canonData || Object.keys(this.baseAxis).length === 0 || Object.keys(this.canonData).length === 0)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -520,6 +522,7 @@ export default {
 
             let svgHeight = this.groupScale(this.canonData.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
             let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            exonHeight += exonHeight % 2;
 
             let canvas_width = Math.ceil(this.width);
             let canvas_height = Math.ceil(svgHeight);
@@ -636,11 +639,12 @@ export default {
             {
                 // Add ORFs to each isoform
                 let orfHeight = this.isoformHeight / 2;
+                orfHeight += orfHeight % 2;
                 for (let i = 0; i < this.canonData.isoformList.length; ++i)
                 {
                     let isoform = this.canonData.isoformList[i];
                     let orf_ranges = this.show_orfs ? isoform.orf : isoform.user_orf;
-                    let y = transformation(i) + orfHeight / 2;
+                    let y = transformation(i) + (this.isoformHeight - orfHeight) / 2;
 
                     let exon_colour = "#535353";
 
@@ -650,14 +654,14 @@ export default {
                         let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
                         let actual_x0 = Math.round(x);
                         let actual_x1 = Math.round(width + x);
-                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
                         actual_x1 = actual_x0 + actual_width;
                         let height = Math.ceil(orfHeight);
                         let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
                         let actual_y1 = Math.round(height + y);
                         let actual_height = actual_y1 - Math.round(y);
 
-                        // Don't draw the exon if it's outside of the canvas
+                        // Don't draw the ORF region if it's outside of the canvas
                         if (((actual_x0 < 0) && (actual_x1 < 0)) || ((actual_x0 >= canvas_width) && (actual_x1 >= canvas_width)))
                             continue;
 

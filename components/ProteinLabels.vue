@@ -5,16 +5,14 @@
  */
 
 <template>
-<div id="proteinLabelsParent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;" ref="parentDiv">
-    <div id="proteinLabelsDiv">
-        <p>Loading protein labels...</p>
-    </div>
+<div id="proteinLabelsDiv" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;" ref="parentDiv">
+    <p>Loading protein labels...</p>
 </div>
 </template>
 
 <script>
 import * as d3 from 'd3';
-import {diagonal_text, put_in_svg, text_hanging_baseline} from "~/assets/svg_utils";
+import {put_in_svg, text_diagonal, text_hanging_baseline} from "~/assets/svg_utils";
 
 export default {
     props: ["proteinData", "baseAxis"],
@@ -95,7 +93,7 @@ export default {
         },
 
         buildProteinLabels() {
-            if (!this.baseAxis) return;
+            if ((!this.baseAxis) || (Object.keys(this.baseAxis).length === 0)) return;
 
             let padding = 16;
             let height = 85;
@@ -140,7 +138,7 @@ export default {
             // clear target element of any content
             d3.select("#proteinLabelsDiv").selectAll("*").remove();
 
-            // FIXME: The protein diagram pop-ups go under the labels unless this style is set
+            // Ensure the protein labels are always placed below the protein diagram pop-ups
             d3.select("#proteinLabelsDiv")
                 .style("z-index", -100);
 
@@ -302,7 +300,7 @@ export default {
             if (is_need_diagonal)
                 canvas.height = Math.ceil(max_diagonal_height) + 6;
             else
-                canvas.height = Math.ceil(max_horizontal_height) + 3;
+                canvas.height = Math.ceil(max_horizontal_height) + 5;
 
             height = canvas.height;
 
@@ -543,13 +541,13 @@ export default {
                 return "";
             }
 
-            let svg_height = (is_need_diagonal) ? Math.ceil(max_diagonal_height) + 6 : Math.ceil(max_horizontal_height) + 3;
+            let svg_height = (is_need_diagonal) ? Math.ceil(max_diagonal_height) + 6 : Math.ceil(max_horizontal_height) + 5;
             let svg = "";
 
             for (let [is_draw_diagonally, label_text, label_x, font_size] of label_draw_information)
             {
                 if (is_draw_diagonally)
-                    svg += diagonal_text(label_text, label_x, svg_height, font_size, "sans-serif");
+                    svg += text_diagonal(label_text, label_x, svg_height, font_size, "sans-serif");
                 else
                 {
                     ctx.font = `${font_size}px sans-serif`;

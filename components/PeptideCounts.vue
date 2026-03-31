@@ -11,7 +11,7 @@ Component to render a peptide counts plot, based on peptideCountsData which must
     <p class="text-center">Peptide counts</p>
 </div>
 </template>
-        
+
 <script>
 import * as d3 from 'd3';
 import {put_in_svg, rect} from "~/assets/svg_utils";
@@ -39,7 +39,7 @@ export default {
                 heatmapHigh: '#fde725',
                 invalid: '#c2c2c2'
             };
-            
+
             // Clear target element of content
             d3.select('#peptideCountsDiv').selectAll('*').remove();
 
@@ -58,7 +58,7 @@ export default {
 
             // Labels of row and columns
             let peptides = JSON.parse(JSON.stringify(this.peptideOrder));
-            let samples = this.peptideCountsData.labels;
+            let samples = this.peptideCountsData.labelOrder;
 
             let rowCount = peptides.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;
@@ -158,6 +158,9 @@ export default {
 
                 let row = Math.floor((y_diff * peptides.length) / canvas.height);
                 let col = Math.floor((x_diff * samples.length) / canvas.width);
+                row = Math.min(Math.max(row, 0), peptides.length - 1);
+                col = Math.min(Math.max(col, 0), samples.length - 1);
+
                 let peptide = peptides[row];
                 let sample = samples[col];
                 let value = values[row][col];
@@ -207,7 +210,7 @@ export default {
 
             // Labels of row and columns
             let peptides = JSON.parse(JSON.stringify(this.peptideOrder));
-            let samples = this.peptideCountsData.labels;
+            let samples = this.peptideCountsData.labelOrder;
 
             let rowCount = peptides.length;
             let height = rowCount * (cellDim + cellPad) - cellPad;

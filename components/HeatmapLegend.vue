@@ -8,10 +8,8 @@ Component to render a heatmap legend plot, based on heatmapData which must be su
 See 'secondaryData' key in demo_data.json for example data.
 
 <template>
-<div>
-    <div id="heatmapLegendDiv">
-        <p>Heatmap legend</p>
-    </div>
+<div id="heatmapLegendDiv">
+    <p>Heatmap legend</p>
 </div>
 </template>
 
@@ -40,7 +38,7 @@ export default {
             let el = document.getElementById("heatmapDiv");
             if (!(el && this.heatmapData)) return;
 
-            let samples = this.heatmapData.labels;
+            let samples = this.heatmapData.labelOrder;
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
@@ -178,7 +176,7 @@ export default {
                 if (val === undefined)
                     return "NaN";
                 val = Number.isInteger(val) ? val.toFixed() : val.toFixed(2);
-                if (val.length > 1 && val.split('.')[1] == '00')
+                if (val.length > 1 && val.split('.')[1] === "00")
                     val = val.split('.')[0];
                 return val;
             }
@@ -237,7 +235,7 @@ export default {
                 return "";
             }
 
-            let samples = this.heatmapData.labels;
+            let samples = this.heatmapData.labelOrder;
 
             let padding = 16;
             let boundary = el.getBoundingClientRect();
@@ -297,7 +295,7 @@ export default {
                 if (val === undefined)
                     return "NaN";
                 val = Number.isInteger(val) ? val.toFixed() : val.toFixed(2);
-                if (val.length > 1 && val.split('.')[1] == '00')
+                if (val.length > 1 && val.split('.')[1] === "00")
                     val = val.split('.')[0];
                 return val;
             }

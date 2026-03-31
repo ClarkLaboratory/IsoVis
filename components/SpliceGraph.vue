@@ -8,7 +8,7 @@ Component to render the splice junctions graph.
 
 <template>
 <div id="spliceGraphDiv" ref="parentDiv" style="position: relative; min-height: 100px;">
-    <p>Splice differences graph</p>
+    <p>Splice graph</p>
 </div>
 </template>
 
@@ -18,7 +18,7 @@ import {arc, put_in_svg, rect} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis"],
-    
+
     data: () => {
         return {
             // dimensions
@@ -27,6 +27,7 @@ export default {
             padding_top: 10,
             isoformHeight: 15,
 
+            is_draw_alternative: true,
             is_draw_constitutive: false,
 
             start_drag: -1,
@@ -88,7 +89,7 @@ export default {
 
         draw_crosshair(client_x)
         {
-            if (!this.baseAxis || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || Object.keys(this.baseAxis).length === 0)
                 return;
 
             let crosshair_canvas = document.getElementById("spliceGraphCrosshairCanvas");
@@ -100,7 +101,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -139,7 +140,7 @@ export default {
             this.start_drag = -1;
             this.end_drag = -1;
 
-            if (!this.baseAxis || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || Object.keys(this.baseAxis).length === 0)
                 return;
 
             let el = document.getElementById('stackDiv');
@@ -181,35 +182,39 @@ export default {
                     ctx.fillRect(actual_x0, self.padding_top + max_arc_height, actual_width, self.isoformHeight);
             }
 
-            let spliced_regions = self.baseAxis.spliced_regions;
-            let relative_heights = (self.is_draw_constitutive) ? self.baseAxis.relative_heights_all : self.baseAxis.relative_heights;
-            if (spliced_regions && relative_heights)
+            if (self.is_draw_alternative || self.is_draw_constitutive)
             {
-                // Draw the junction arcs
-                ctx.strokeStyle = "#000000";
-                for (let i = 0; i < spliced_regions.length; ++i)
+                let spliced_regions = self.baseAxis.spliced_regions;
+                let relative_heights = (self.is_draw_constitutive && self.is_draw_alternative) ? self.baseAxis.relative_heights_all :
+                                       (self.is_draw_constitutive ? self.baseAxis.relative_heights_constitutive : self.baseAxis.relative_heights);
+                if (spliced_regions && relative_heights)
                 {
-                    let [spliced_region_start, spliced_region_end, is_constitutive] = spliced_regions[i];
-                    if (is_constitutive && !self.is_draw_constitutive)
-                        continue;
-
-                    let relative_height = relative_heights[i];
-
-                    let x0 = Math.round(self.baseAxis.scale(spliced_region_start));
-                    let x2 = Math.round(self.baseAxis.scale(spliced_region_end));
-                    let x1 = (x0 + x2) / 2;
-
-                    if (is_constitutive)
-                        ctx.setLineDash([2, 2]);
-
-                    ctx.beginPath();
-                    ctx.ellipse(x1, self.padding_top + max_arc_height, Math.abs(x2 - x0) / 2, (max_arc_height - 1) * relative_height, 0, 0, Math.PI, true);
-                    ctx.stroke();
-
-                    if (is_constitutive)
-                        ctx.setLineDash([]);
-
+                    // Draw the junction arcs
                     ctx.strokeStyle = "#000000";
+                    for (let i = 0; i < spliced_regions.length; ++i)
+                    {
+                        let [spliced_region_start, spliced_region_end, is_constitutive] = spliced_regions[i];
+                        if ((is_constitutive && !self.is_draw_constitutive) || (!is_constitutive && !self.is_draw_alternative))
+                            continue;
+
+                        let relative_height = relative_heights[i];
+
+                        let x0 = Math.round(self.baseAxis.scale(spliced_region_start));
+                        let x2 = Math.round(self.baseAxis.scale(spliced_region_end));
+                        let x1 = (x0 + x2) / 2;
+
+                        if (is_constitutive)
+                            ctx.setLineDash([2, 2]);
+
+                        ctx.beginPath();
+                        ctx.ellipse(x1, self.padding_top + max_arc_height, Math.abs(x2 - x0) / 2, (max_arc_height - 1) * relative_height, 0, 0, Math.PI, true);
+                        ctx.stroke();
+
+                        if (is_constitutive)
+                            ctx.setLineDash([]);
+
+                        ctx.strokeStyle = "#000000";
+                    }
                 }
             }
 
@@ -231,7 +236,7 @@ export default {
         buildGraphSvg(symbol = false)
         {
             let el = document.getElementById('stackDiv');
-            if (!this.baseAxis || (Object.keys(this.baseAxis).length == 0) || !el)
+            if (!this.baseAxis || (Object.keys(this.baseAxis).length === 0) || !el)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -256,7 +261,7 @@ export default {
                 let actual_x0 = Math.round(x0);
                 let actual_x1 = Math.round(width + x0);
                 let actual_width = actual_x1 - actual_x0;
-                
+
                 // Don't draw the metagene background if it's outside of the canvas
                 if (((actual_x0 < 0) && (actual_x1 < 0)) || ((actual_x0 >= canvas_width) && (actual_x1 >= canvas_width)))
                     continue;
@@ -279,68 +284,72 @@ export default {
                 svg += rect(actual_x0, this.padding_top + max_arc_height, actual_width, this.isoformHeight, "#d5ebe8");
             }
 
-            let spliced_regions = this.baseAxis.spliced_regions;
-            let relative_heights = (this.is_draw_constitutive) ? this.baseAxis.relative_heights_all : this.baseAxis.relative_heights;
-            if (spliced_regions && relative_heights)
+            if (this.is_draw_alternative || this.is_draw_constitutive)
             {
-                // Draw the junction arcs
-                let arc_colour = "#000000";
-                for (let i = 0; i < spliced_regions.length; ++i)
+                let spliced_regions = this.baseAxis.spliced_regions;
+                let relative_heights = (this.is_draw_constitutive && this.is_draw_alternative) ? this.baseAxis.relative_heights_all :
+                                       (this.is_draw_constitutive ? this.baseAxis.relative_heights_constitutive : this.baseAxis.relative_heights);
+                if (spliced_regions && relative_heights)
                 {
-                    let [spliced_region_start, spliced_region_end, is_constitutive] = spliced_regions[i];
-                    if (is_constitutive && !this.is_draw_constitutive)
-                        continue;
-
-                    let relative_height = relative_heights[i];
-
-                    let x0 = Math.round(this.baseAxis.scale(spliced_region_start));
-                    let x2 = Math.round(this.baseAxis.scale(spliced_region_end));
-                    let x1 = (x0 + x2) / 2;
-
-                    if (x0 > x2)
+                    // Draw the junction arcs
+                    let arc_colour = "#000000";
+                    for (let i = 0; i < spliced_regions.length; ++i)
                     {
-                        let temp = x0;
-                        x0 = x2;
-                        x2 = temp;
+                        let [spliced_region_start, spliced_region_end, is_constitutive] = spliced_regions[i];
+                        if ((is_constitutive && !this.is_draw_constitutive) || (!is_constitutive && !this.is_draw_alternative))
+                            continue;
+
+                        let relative_height = relative_heights[i];
+
+                        let x0 = Math.round(this.baseAxis.scale(spliced_region_start));
+                        let x2 = Math.round(this.baseAxis.scale(spliced_region_end));
+                        let x1 = (x0 + x2) / 2;
+
+                        if (x0 > x2)
+                        {
+                            let temp = x0;
+                            x0 = x2;
+                            x2 = temp;
+                        }
+
+                        // Don't draw any arcs that are completely outside the canvas
+                        if ((x0 <= 0 && x2 <= 0) || (x0 >= canvas_width && x2 >= canvas_width))
+                            continue;
+
+                        let x_start = x0;
+                        let y_start = this.padding_top + max_arc_height;
+                        let x_end = x2;
+                        let y_end = y_start;
+                        let x_radius = (x2 - x0) / 2;
+                        let y_radius = (max_arc_height - 1) * relative_height;
+
+                        let dasharray = null;
+                        if (is_constitutive)
+                            dasharray = "2 2";
+
+                        // If the start / end of the arc is outside the canvas, correct the start / end coordinate of the arc
+
+                        // Equation for ellipse of x_radius = a and y_radius = b centered at (X1, Y1): (x - X1)^2/a^2 + (y - Y1)^2/b^2 = 1
+                        // (y - Y1)^2 = b^2 * (1 - (x - X1)^2 / a^2)
+                        // y = Y1 +/- sqrt(b^2 * (1 - (x - X1)^2 / a^2))
+                        // Since y cannot be below Y1, y = Y1 - sqrt(b^2 * (1 - (x - X1)^2 / a^2))
+
+                        if (x_start < 0)
+                        {
+                            x_start = 0;
+                            y_start = (this.padding_top + max_arc_height) - Math.sqrt((y_radius * y_radius) * (1 - (x1 * x1) / (x_radius * x_radius)));
+                        }
+
+                        if (x_end > canvas_width)
+                        {
+                            x_end = canvas_width;
+                            y_end = (this.padding_top + max_arc_height) - Math.sqrt((y_radius * y_radius) * (1 - ((x_end - x1) * (x_end - x1)) / (x_radius * x_radius)));
+                        }
+
+                        svg += arc(x_start, y_start, x_end, y_end, x_radius, y_radius, arc_colour, dasharray);
+
+                        arc_colour = "#000000";
                     }
-
-                    // Don't draw any arcs that are completely outside the canvas
-                    if ((x0 <= 0 && x2 <= 0) || (x0 >= canvas_width && x2 >= canvas_width))
-                        continue;
-
-                    let x_start = x0;
-                    let y_start = this.padding_top + max_arc_height;
-                    let x_end = x2;
-                    let y_end = y_start;
-                    let x_radius = (x2 - x0) / 2;
-                    let y_radius = (max_arc_height - 1) * relative_height;
-
-                    let dasharray = null;
-                    if (is_constitutive)
-                        dasharray = "2 2";
-
-                    // If the start / end of the arc is outside the canvas, correct the start / end coordinate of the arc
-
-                    // Equation for ellipse of x_radius = a and y_radius = b centered at (X1, Y1): (x - X1)^2/a^2 + (y - Y1)^2/b^2 = 1
-                    // (y - Y1)^2 = b^2 * (1 - (x - X1)^2 / a^2)
-                    // y = Y1 +/- sqrt(b^2 * (1 - (x - X1)^2 / a^2))
-                    // Since y cannot be below Y1, y = Y1 - sqrt(b^2 * (1 - (x - X1)^2 / a^2))
-
-                    if (x_start < 0)
-                    {
-                        x_start = 0;
-                        y_start = (this.padding_top + max_arc_height) - Math.sqrt((y_radius * y_radius) * (1 - (x1 * x1) / (x_radius * x_radius)));
-                    }
-
-                    if (x_end > canvas_width)
-                    {
-                        x_end = canvas_width;
-                        y_end = (this.padding_top + max_arc_height) - Math.sqrt((y_radius * y_radius) * (1 - ((x_end - x1) * (x_end - x1)) / (x_radius * x_radius)));
-                    }
-
-                    svg += arc(x_start, y_start, x_end, y_end, x_radius, y_radius, arc_colour, dasharray);
-
-                    arc_colour = "#000000";
                 }
             }
 
@@ -354,6 +363,10 @@ export default {
 
     watch: {
         baseAxis: function()
+        {
+            this.buildGraph();
+        },
+        is_draw_alternative: function()
         {
             this.buildGraph();
         },

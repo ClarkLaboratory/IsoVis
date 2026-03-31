@@ -66,6 +66,7 @@ export default {
       "BIconBook",
       "BIconCheck",
       "BIconDownload",
+      "BIconGear",
       "BIconGithub",
       "BIconList",
       "BIconPlus",
@@ -99,15 +100,15 @@ export default {
       analyzerMode: 'static'
     },*/
     babel: {
-      compact: true
+      compact: false // true
     },
     standalone: true,
     transpile: ['domain-gfx'],
-    minifyCSS: true,
-    minifyJS: true,
+    minifyCSS: false, // true
+    minifyJS: false, // true
     html: {
-      minifyCSS: true,
-      minifyJS: true,
+      minifyCSS: false, // true
+      minifyJS: false, // true
     }
   },
 

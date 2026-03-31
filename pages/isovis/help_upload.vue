@@ -57,8 +57,8 @@
             <b-link name="isoform_stack_gff_gtf"></b-link>
             <b><u>Isoform stack data GFF/GTF files:</u></b>
             <br><br>
-            GFF3 files must have a file extension of '.gff3'.<br>
-            GTF files must have a file extension of '.gtf', '.gff', or '.gff2'.<br><br>
+            GFF3 files must have a file extension of '.gff3' (case-insensitive).<br>
+            GTF files must have a file extension of '.gtf', '.gff', or '.gff2' (case-insensitive).<br><br>
             IsoVis only considers lines where the feature column (column 3) is either '<b>exon</b>' (isoform exons) or '<b>CDS</b>' (user ORFs). All other lines are ignored.<br>
             The attributes column (column 9) of each line <strong>must contain</strong>:<ol>
                 <li>
@@ -72,10 +72,10 @@
                 <li>
                     A <strong>'transcript_id'</strong> attribute storing either<ul>
                         <li>The corresponding Ensembl ID for <em>known</em> transcripts<br>
-                            (e.g. transcript_id "ENST00000123456.1")</li>  
+                            (e.g. transcript_id "ENST00000123456.1")</li>
                         <li>A unique identifier for <em>novel</em> transcripts<br>
                             (e.g. transcript_id "novelTranscript1")</li>
-                    </ul> 
+                    </ul>
                 </li>
             </ol>
             The strand of each transcript isoform (column 7) must be specified.
@@ -90,7 +90,7 @@
 
             <b-link name="isoform_stack_bed12"></b-link>
             <u>1. BED12:</u><br>
-            BED12 files must have a file extension of either '.bed' or '.bed12'.<br><br>
+            BED12 files must have a file extension of either '.bed' or '.bed12' (case-insensitive).<br><br>
 
             The name column (column 4) of each line <strong>must contain</strong> a gene ID and transcript ID in the format <strong>transcriptID_geneID</strong> or <strong>transcriptID|geneID</strong>. Example:
             <ul>
@@ -98,18 +98,18 @@
                 <li><strong>novelTranscript1_ENSG00000123456.1</strong> or <strong>novelTranscript1|ENSG00000123456.1</strong> (for novel transcripts)</li>
             </ul>
             The strand of each transcript isoform (column 6) must be specified.<br>
-            To specify user ORFs, put the start and end coordinates of ORFs in the <b>thickStart</b> and <b>thickEnd</b> columns (columns 7 and 8) respectively. The start coordinate must be lower than the end coordinate.<br>
+            To specify user ORFs, put the start and end coordinates of ORFs in the <b>thickStart</b> and <b>thickEnd</b> columns (columns 7 and 8) respectively. The start coordinate must be less than the end coordinate.<br>
             For transcripts without user ORFs, set the <b>thickStart</b> and <b>thickEnd</b> columns to a dash ('-').
 
             <br><br>
 
             <b-link name="isoform_stack_bed6_to_bed9"></b-link>
             <u>2. BED6 to BED9:</u><br>
-            BED6 to BED9 files must have a file extension of either '.bed' or '.bedx', where 'x' is 6, 7, 8, or 9.<br><br>
+            BED6 to BED9 files must have a file extension of either '.bed' or '.bedx' (case-insensitive), where 'x' is 6, 7, 8, or 9.<br><br>
 
             These files have the same formatting requirements as BED12 files along with the following additional requirements:
             <ol>
-                <li>The start (column 2) and end (column 3) of the chromosome region in each line represents the start and end of an exon instead of a whole transcript.</li>
+                <li>The start (column 2) and end (column 3) of the chromosome region in each line represent the start and end of an exon instead of a whole transcript.</li>
                 <li>The exons of each transcript <b>must</b> be ordered by <b>ascending</b> starting genome coordinates.</li>
             </ol>
             As user ORF data are stored in the 7th and 8th columns of a BED file, only BED8 and BED9 files may be used to store such data.
@@ -118,7 +118,7 @@
 
             <b-link name="isoform_stack_bed4_to_bed5"></b-link>
             <u>3. BED4 to BED5:</u><br>
-            BED4 to BED5 files must have a file extension of either '.bed' or '.bedx', where 'x' is 4 or 5.<br><br>
+            BED4 to BED5 files must have a file extension of either '.bed' or '.bedx' (case-insensitive), where 'x' is 4 or 5.<br><br>
 
             These files have the same formatting requirements as BED6 to BED9 files.<br><br>
 
@@ -132,10 +132,10 @@
         <br>
         <div>
             Isoform heatmap data can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
-            These files must have a file extension of '.csv', '.tsv' or '.txt'.<br>
+            These files must have a file extension of '.csv', '.tsv' or '.txt' (case-insensitive).<br>
             The uploaded file can either be a <b>Bambu transcript counts file</b> (e.g. counts_transcript.txt) or adhere to the following formatting requirements:
             <br><br>
-            The first row of the file should contain column names.
+            The first row of the file should contain column names. All column names should be unique (disregarding casing) and should not be empty (e.g. only consisting of whitespace).
             <br><br>
             The <b>transcript_id</b> column <strong>must</strong> be in the file. It stores the transcript ID of each row (e.g. ENST00000375793.2).<br>
             All other columns should:
@@ -184,7 +184,7 @@
         <br>
         <div>
             RNA modifications data can be provided either as a <b>BED4 to BED9</b> or <b>BED12</b> file.<br>
-            These files must have a file extension of either '.bed' or '.bedx', where 'x' is 4, 5, 6, 7, 8, 9 or 12.
+            These files must have a file extension of either '.bed' or '.bedx' (case-insensitive), where 'x' is 4, 5, 6, 7, 8, 9 or 12.
             <br><br>
             The name column (column 4) of each line <strong>must</strong> be a gene ID.<br>
             The genomic start and end coordinates of each RNA modification site <strong>must</strong> be specified in columns 2 and 3 respectively.<br>
@@ -197,9 +197,9 @@
         <br>
         <div>
             RNA modification levels can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
-            These files must have a file extension of '.csv', '.tsv' or '.txt'.
+            These files must have a file extension of '.csv', '.tsv' or '.txt' (case-insensitive).
             <br><br>
-            The first row of the file should contain column names.
+            The first row of the file should contain column names. All column names should be unique (disregarding casing) and should not be empty (e.g. only consisting of whitespace).
             <br><br>
             The file <strong>must</strong> contain the two following columns:
             <ul>
@@ -262,13 +262,13 @@
             </ul>
             <b-link name="peptide_bed12"></b-link>
             <u>1. BED12:</u><br>
-            BED12 files must have a file extension of either '.bed' or '.bed12'.<br>
+            BED12 files must have a file extension of either '.bed' or '.bed12' (case-insensitive).<br>
             The genomic start and end coordinates of each peptide <strong>must</strong> be specified in columns 2 and 3 respectively.<br>
             The blocks of genomic coordinates spanned by each peptide should be specified in columns 10 to 12.
             <br><br>
             <b-link name="peptide_bed4_to_bed9"></b-link>
             <u>2. BED4 to BED9:</u><br>
-            BED4 to BED9 files must have a file extension of either '.bed' or '.bedx', where x is 4, 5, 6, 7, 8, or 9.<br>
+            BED4 to BED9 files must have a file extension of either '.bed' or '.bedx' (case-insensitive), where x is 4, 5, 6, 7, 8, or 9.<br>
             Similar to BED4 - BED9 isoform stack data files, instead of specifying the genomic coordinates of each peptide, columns 2 and 3 should specify the genomic start and end coordinates of a peptide block respectively.<br>
             All blocks of a peptide should be arranged in ascending starting genomic coordinates.
         </div>
@@ -278,10 +278,10 @@
         <br>
         <div>
             Peptide counts can be provided either as a <strong>CSV</strong> file or a <strong>tab-delimited text file</strong>.<br>
-            These files must have a file extension of '.csv', '.tsv' or '.txt'.<br>
+            These files must have a file extension of '.csv', '.tsv' or '.txt' (case-insensitive).<br>
             The uploaded file can either be a <b>DIA-NN peptide counts file</b> (e.g. report.pr_matrix.tsv) or adhere to the following formatting requirements:
             <br><br>
-            The first row of the file should contain column names.
+            The first row of the file should contain column names. All column names should be unique (disregarding casing) and should not be empty (e.g. only consisting of whitespace).
             <br><br>
             The <b>peptide_sequence</b> column <strong>must</strong> be in the file. It stores the amino acid sequence of each peptide (e.g. ACDEFGHI).<br>
             All other columns should:
@@ -342,22 +342,23 @@
             4. To visualize user ORFs for uploaded transcripts (including novel isoforms), specify:<br>
             <ul>
                 <li><u>GTF and GFF files</u>: <b>CDS</b> lines</li>
-                <li><u>BED8, BED9 and BED12 files</u>: <b>thickStart</b> and <b>thickEnd</b> information</li>
+                <li><u>BED8, BED9 and BED12 files</u>: <b>thickStart</b> and <b>thickEnd</b> column information</li>
             </ul>
-            5. IsoVis can show more than one user ORF for each transcript as long as isoform stack data is uploaded in GTF or GFF files and the user ORFs are non-overlapping.<br>
-            For overlapping user ORFs, there is currently no method to tell them apart as IsoVis will merge them.
+            5. IsoVis can show multiple user ORFs for each transcript. This feature requires isoform stack data to be uploaded in GTF or GFF files. Regions with overlapping ORFs are drawn with a hatching pattern (<b-img style="width: 16px; height: 16px; background-image: repeating-linear-gradient(-45deg, white 0px 3px, black 3px 6px); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img>).<br>
+            While many ORFs can be shown per transcript, there are limits to the number of overlapping ORFs that can be distinguished. Currently, the overlapping ORFs of a transcript can only be visually distinguished if any position within a transcript has <b>a maximum of two</b> overlapping ORFs.<br>
         </div>
     </b-container>
 </template>
 
 <script>
 
-import { BContainer, BLink } from 'bootstrap-vue';
+import { BContainer, BImg, BLink } from 'bootstrap-vue';
 
 export default
 {
     components: {
         BContainer,
+        BImg,
         BLink
     }
 }

@@ -10,7 +10,7 @@
         <br>
         <div>
             Q: <b>What data must I upload into IsoVis to visualize it?</b><br>
-            A: You must upload an isoform stack file. The heatmap data is optional.
+            A: You must upload an isoform stack data file. All other data files are optional.
         </div>
         <br>
         <div>
@@ -26,9 +26,11 @@
         <div>
             Q: <b>How do I select a gene?</b><br>
             A: When you upload isoform stack data containing multiple Ensembl gene IDs, a pop-up will appear asking you to select a gene.<br>
-               Start typing either the symbol or ID of the gene you wish to visualize into the search box, then select a gene from the list.<br>
-               A minimum of 2 characters is required to perform gene symbol search. A maximum of 100 genes will be shown in the list at any one time.<br>
-               If the gene you wish to select is not shown, continue typing its symbol or ID until it appears in the list.
+               Click on the search box to pick from a list of the first 100 genes found in the uploaded isoform stack data.<br>
+               To find a specific gene, start typing either its symbol or ID in the search box, then select from a list of possible genes to visualize.<br>
+               A minimum of 2 characters is required to perform a gene symbol search. A maximum of 100 genes will be shown in the list at any one time.<br>
+               If the gene you wish to select is not shown, continue typing its symbol or ID until it appears in the list.<br>
+               Finally, press enter or click on the '>' button next to the search box.
         </div>
         <br>
         <div>
@@ -40,7 +42,7 @@
             Q: <b>What species can IsoVis accept data from?</b><br>
             A: IsoVis will accept properly formatted stack and heatmap data files from any species.<br>
                IsoVis should provide linked information from any chordate species in Ensembl, plus <i>Drosophila melanogaster</i> and yeast (<i>Saccharomyces cerevisiae</i>).<br>
-               To ensure this occurs, select the correct species in the data upload pop-up.
+               To ensure this occurs, select the correct species in the 'Upload data' pop-up.
         </div>
         <br>
         <div>
@@ -104,31 +106,47 @@
         <h3>Isoform stack features</h3>
         <br>
         <div>
-            Q: <b>What are the stack options?</b><br>
-            A: IsoVis provides several options to add information to your uploaded isoform stack. These include:<br>
+            Q: <b>What are the stack options? What are the gear icons (<b-icon-gear-fill></b-icon-gear-fill>) in some components?</b><br>
+            A: IsoVis provides several options to add information to your uploaded isoform stack. General options can be found in the <u>'Stack options'</u> button underneath the gene name, and component-specific options can be found in the gear icons (<b-icon-gear-fill></b-icon-gear-fill>) on the left of the stack.<br><br>
+            The <u>'Stack options'</u> dropdown menu contains the following options:<br>
             <ul>
                 <li>Intron normalization: By default, introns are shrunk and normalized to focus on exons. This can be disabled to view the gene locus in the genomic scale.</li>
                 <li>Ascending reading direction: By default, genes are displayed left to right from a smaller genome coordinate to a larger genome coordinate. This direction can be reversed.</li>
-                <li>Canonical transcript: The transcript isoform annotated as a canonical / major transcript in Ensembl. Provides a transcript to compare against user data.</li>
-                <li>Canonical protein: Protein domain and motif information from InterPro for the canonical transcript.</li>
+                <li>Canonical protein: Protein domain and motif information from InterPro for the canonical isoform.</li>
+                <li>Canonical isoform: The transcript isoform annotated as a canonical / major isoform in Ensembl. Provides a transcript to compare against user data.</li>
+                <li>Known ORFs: Turn on or off the display of the coding sequence. Applicable to annotated isoforms with known ORFs only.</li>
+                <li>User ORFs: Turn on or off the display of the coding sequence. Applicable to isoforms with ORF annotations in the uploaded stack data only.</li>
+                <li>Peptide mapping (beta): Show or hide the peptide stack.</li>
+                <li>Splice graph: Toggle a graph that draws alternative and/or constitutive splice junctions found in the isoforms being visualized.</li>
+                <li>Load all other Ensembl isoforms: Loads all Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data.</li>
+                <li>RNA modifications (beta): Show or hide the RNA modifications stack.</li>
+            </ul>
+            Gear icons (<b-icon-gear-fill></b-icon-gear-fill>) are present in the protein diagram, splice graph and peptide stack.<br><br>
+            For the <u>protein diagram</u>, the options are:<br>
+            <ul>
                 <li>Protein domain mapping: Turn on or off the mapping of InterPro protein domains to exons.</li>
                 <li>Protein motif mapping: Turn on or off the mapping of InterPro protein motifs to exons.</li>
                 <li>Protein domain labels (beta): Show or hide labels of InterPro protein domains.</li>
-                <li>Peptide mapping (beta): Show or hide the peptide stack.</li>
-                <li>Known ORFs: Turn on or off the display of the coding sequence. Applicable to annotated isoforms with known ORFs only.</li>
-                <li>User ORFs: Turn on or off the display of the coding sequence. Applicable to isoforms with ORF annotations in the uploaded stack data only.</li>
-                <li>Load all other Ensembl isoforms: Loads all Ensembl isoforms of the currently displayed gene that are absent from the uploaded stack data.</li>
-                <li>RNA modifications (beta): Show or hide the RNA modifications stack.</li>
-                <li>Show splice differences graph: Toggle a graph that draws alternative splice junctions found in the isoforms being visualized.</li>
-                <li>Show constitutive junctions: Control whether constitutive splice junctions should also be shown in the splice differences graph.</li>
+                <li>'Open UniParc protein entry...': Open the UniParc entry of the shown protein in a new tab.</li>
+                <li>'Open Ensembl protein entry...': Open the Ensembl entry of the shown protein in a new tab.</li>
+            </ul>
+            For the <u>splice graph</u>, the options are:<br>
+            <ul>
+                <li>Show alternative junctions: Toggle the visibility of alternative splice junctions in the splice graph.</li>
+                <li>Show constitutive junctions: Toggle the visibility of constitutive splice junctions in the splice graph.</li>
+            </ul>
+            For the <u>peptide stack</u>, the options are:<br>
+            <ul>
+                <li>Peptide integration (beta): When enabled, highlight all ORFs and transcripts that peptides are uniquely mapped to. When disabled, all highlights will be removed.</li>
+                <li>Highlight features when clicking a coloured peptide: When enabled, clicking on a coloured peptide will highlight the ORFs and transcripts it is mapped to. When disabled, all highlights will be removed.</li>
             </ul>
         </div>
         <div>
             Q: <b>What linked information does IsoVis display, and where does it come from?</b><br>
             A: IsoVis uses the Ensembl gene ID provided in the stack data file to obtain and link to the relevant gene information from Ensembl.<br>
-               This information includes the canonical transcript isoform and the Ensembl symbol of the gene.<br>
+               This information includes the canonical isoform and the Ensembl symbol of the gene.<br>
                Annotated Ensembl transcript isoforms in user data are linked to their associated Ensembl transcript pages.<br>
-               Protein information from InterPro is displayed and mapped to the canonical isoform. Further information on the protein is provided as links to UniProt and UniParc. 
+               Protein information from InterPro is displayed and mapped to the canonical isoform. Further information on the protein is provided as links to UniProt and UniParc.
         </div>
         <br>
         <div>
@@ -148,31 +166,31 @@
             </ul>
         </div>
         <div>
-            Q: <b>Why doesn't my data show linked gene, canonical transcript, or protein information?</b><br>
-            A: If uploading non-human data, ensure you have selected the correct species in the 'Data upload' pop-up.<br>
+            Q: <b>Why doesn't my data show linked gene, canonical isoform, or protein information?</b><br>
+            A: If uploading non-human data, ensure you have selected the correct species in the 'Upload data' pop-up.<br>
                If you have selected the correct species, check that the data formatting is correct, such as annotating known transcript isoforms with Ensembl transcript IDs.<br>
                Alternatively, if the species isn't present in the upload list, there is no data in Ensembl to link to.
         </div>
         <br>
         <div>
             Q: <b>Why doesn't an Ensembl transcript from my stack data file have a clickable link?</b><br>
-            A: The transcript either doesn't exist or is retired, such as <b-link href="https://ensembl.org/Homo_sapiens/Transcript/Idhistory?t=ENST00000613795" target="_blank">ENST00000613795</b-link>.
+            A: The transcript either doesn't exist or is retired, such as <b-link href="https://www.ensembl.org/Homo_sapiens/Transcript/Idhistory?t=ENST00000613795&redirect=no" target="_blank">ENST00000613795</b-link>.
         </div>
         <br>
         <div>
             Q: <b>Why does an Ensembl transcript from my stack data file have a clickable link but have no transcript symbol?</b><br>
-            A: The transcript is novel, such as <b-link href="https://ensembl.org/Homo_sapiens/Transcript/Idhistory?t=ENST00000669836" target="_blank">ENST00000669836</b-link>.
+            A: The transcript is novel, such as <b-link href="https://www.ensembl.org/Homo_sapiens/Transcript/Idhistory?t=ENST00000669836&redirect=no" target="_blank">ENST00000669836</b-link>.
         </div>
         <br>
         <div>
             Q: <b>How do I zoom into transcripts?</b><br>
-            A: You could click and drag within the visualization of the isoform stack or most components that are placed above or below it, such as the canonical transcript, peptide stack, and gene strand diagram.<br>
-               You could also use the coordinate box at the top of the page: Enter the range of genomic coordinates you wish to zoom into and press 'Enter'.
+            A: You could click and drag within the visualization of the isoform stack or most components that are placed above or below it, such as the canonical isoform, peptide stack, and gene strand diagram.<br>
+               You could also use the coordinate box at the top of the page: Enter the range of genomic coordinates you wish to zoom into, then either press enter or click the '>' button that appears next to the box.
         </div>
         <br>
         <div>
             Q: <b>How do I reset the zoom?</b><br>
-            A: You could right-click the visualization of the isoform stack or most components that are placed above or below it, such as the canonical transcript, peptide stack, and gene strand diagram.<br>
+            A: You could right-click the visualization of the isoform stack or most components that are placed above or below it, such as the canonical isoform, peptide stack, and gene strand diagram.<br>
                Alternatively, you could click on the 'Reset zoom' button at the top of the page.
         </div>
         <br>
@@ -226,8 +244,8 @@
         </div>
         <br>
         <div>
-            Q: <b>Does this website use cookies?</b><br>
-            A: No, IsoVis does not use cookies.
+            Q: <b>Does this website use browser cookies?</b><br>
+            A: No, IsoVis does not use browser cookies.
         </div>
         <br>
         <div>
@@ -240,7 +258,7 @@
             </ul>
             We recommend using IsoVis on Chrome or Edge as it tends to perform better on these browsers than on Firefox.<br>
             IsoVis has not been tested on Edge within macOS or Linux yet.<br>
-            We <b>do not</b> recommend using IsoVis on Safari as certain features do not work there yet, such as exporting PNGs and JPEGs.<br> 
+            We <b>do not</b> recommend using IsoVis on Safari as certain features do not work there yet, such as exporting PNGs and JPEGs.<br>
         </div>
         <br>
         <div>
@@ -257,12 +275,13 @@
 
 <script>
 
-import { BContainer, BLink } from 'bootstrap-vue';
+import { BContainer, BIconGearFill, BLink } from 'bootstrap-vue';
 
 export default
 {
     components: {
         BContainer,
+        BIconGearFill,
         BLink
     }
 }

@@ -9,9 +9,22 @@ This component is itself made of other components which sit in some of these gri
 Requires mainData object which is used here to update the relevant data other components use.
 
 <template>
-<b-container fluid class="grid-container" style="background-color: white;">
+<b-container fluid style="background-color: white;">
+    <style>
+        #protein_dropdown button, #peptides_dropdown button, #splice_graph_dropdown button
+        {
+            border: 0;
+            border-style: none;
+            padding: 0;
+        }
+        #protein_dropdown svg, #peptides_dropdown svg, #splice_graph_dropdown svg
+        {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
     <b-form inline class="justify-content-center mt-3">
-        <b-link v-if="is_gene_on_ensembl" :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Gene/Summary?g=${mainData.selectedGene}`" target="_blank">
+        <b-link v-if="is_gene_on_ensembl" :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Gene/Summary?g=${mainData.selectedGene}&redirect=no`" target="_blank">
             <h3>{{ mainData.geneLabel ? `${mainData.geneLabel} (${mainData.selectedGene})` : mainData.selectedGene }}</h3>
         </b-link>
         <h3 v-else>{{ mainData.selectedGene }}</h3>
@@ -19,38 +32,29 @@ Requires mainData object which is used here to update the relevant data other co
 
     <b-form inline class="justify-content-center mb-3">
         <b-dropdown v-if="show_stack" text="Stack options" class="mr-3" size="sm" variant="dark">
-            <b-dropdown-item v-if="((canon_disabled || protein_disabled) || protein_ready) && show_stack" @click="togglenormalization()" v-b-tooltip.hover.right="'Toggle normalization of intron length in the isoform stack'">
+            <b-dropdown-item v-if="((canon_disabled || protein_disabled) || protein_ready) && show_stack" @click="toggleNormalization()" v-b-tooltip.hover.right="'Toggle normalization of intron length in the isoform stack'">
                 Intron normalization<b-icon-check v-if="baseAxis.isnormalized()" variant="success"></b-icon-check>
             </b-dropdown-item>
             <b-dropdown-item v-if="((canon_disabled || protein_disabled) || protein_ready) && show_stack" @click="toggleReadDirection()" v-b-tooltip.hover.right="'Switch the reading direction'">
                 Ascending reading direction<b-icon-check v-if="baseAxis.isAscending()" variant="success"></b-icon-check>
             </b-dropdown-item>
-            <b-dropdown-item v-if="!canon_disabled && show_stack" @click="setShowCanon(!show_canon)" v-b-tooltip.hover.right="'Display the canonical isoform for the selected gene (externally sourced)'">
-                Canonical transcript<b-icon-check v-if="show_canon" variant="success"></b-icon-check>
-            </b-dropdown-item>
             <b-dropdown-item v-if="!protein_disabled && protein_ready && show_stack" @click="setShowProtein(!show_protein)" v-b-tooltip.hover.right="'Display the domains and motifs of the canonical protein (externally sourced)'">
                 Canonical protein<b-icon-check v-if="show_protein" variant="success"></b-icon-check>
             </b-dropdown-item>
-            <b-dropdown-item v-if="!protein_disabled && protein_ready && show_stack" @click="setShowDomains(!show_domains)" v-b-tooltip.hover.right="'Display the mapping of protein domains to the canonical transcript (externally sourced)'">
-                Protein domain mapping<b-icon-check v-if="show_domains" variant="success"></b-icon-check>
-            </b-dropdown-item>
-            <b-dropdown-item v-if="!protein_disabled && protein_ready && show_stack" @click="setShowMotifs(!show_motifs)" v-b-tooltip.hover.right="'Display the mapping of protein motifs to the canonical transcript (externally sourced)'">
-                Protein motif mapping<b-icon-check v-if="show_motifs" variant="success"></b-icon-check>
-            </b-dropdown-item>
-            <b-dropdown-item v-if="!protein_disabled && protein_ready && show_stack" @click="setShowDomainLabels(!show_protein_labels)" v-b-tooltip.hover.right="'Display the labels of shown protein domains (externally sourced)'">
-                Protein domain labels (beta)<b-icon-check v-if="show_protein_labels" variant="success"></b-icon-check>
-            </b-dropdown-item>
-            <b-dropdown-item v-if="!peptide_disabled" @click="setShowPeptide(!show_peptide)" v-b-tooltip.hover.right="'Display the mapping of peptides to transcripts'">
-                Peptide mapping (beta)<b-icon-check v-if="show_peptide" variant="success"></b-icon-check>
-            </b-dropdown-item>
-            <b-dropdown-item v-if="!peptide_disabled && (mainData.isoformData.is_genomeprot)" @click="setPeptideIntegration(!peptide_integration_mode)" v-b-tooltip.hover.right="'Highlight all ORFs and transcripts that peptides are uniquely mapped to'">
-                Peptide integration (beta)<b-icon-check v-if="peptide_integration_mode" variant="success"></b-icon-check>
+            <b-dropdown-item v-if="!canon_disabled && show_stack" @click="setShowCanon(!show_canon)" v-b-tooltip.hover.right="'Display the canonical isoform for the selected gene (externally sourced)'">
+                Canonical isoform<b-icon-check v-if="show_canon" variant="success"></b-icon-check>
             </b-dropdown-item>
             <b-dropdown-item v-if="orfs_ready && !no_orfs && show_stack" @click="setShowOrfs(!show_orfs)" v-b-tooltip.hover.right="'Display known ORFs for known transcripts (externally sourced)'">
                 Known ORFs<b-icon-check v-if="show_orfs" variant="success"></b-icon-check>
             </b-dropdown-item>
             <b-dropdown-item v-if="orfs_ready && !no_user_orfs && show_stack" @click="setShowUserOrfs(!show_user_orfs)" v-b-tooltip.hover.right="'Display ORFs from the uploaded isoform stack data'">
                 User ORFs<b-icon-check v-if="show_user_orfs" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="!peptide_disabled" @click="setShowPeptide(!show_peptide)" v-b-tooltip.hover.right="'Display the mapping of peptides to transcripts'">
+                Peptide mapping (beta)<b-icon-check v-if="show_peptide" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
+                Splice graph<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
             </b-dropdown-item>
             <b-dropdown-item v-if="(canon_disabled || protein_disabled || protein_ready) && !is_other_isoforms_button_clicked" @click="getAllOtherIsoforms()" v-b-tooltip.hover.right="'Load all other Ensembl isoforms of the displayed gene that are not present in the uploaded isoform data (externally sourced)'">
                 Load all other Ensembl isoforms
@@ -67,18 +71,12 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="!rna_modif_disabled" @click="setShowRNAModif(!show_rna_modif)" v-b-tooltip.hover.right="'Display RNA modification sites identified in the currently visualized gene'">
                 RNA modifications (beta)<b-icon-check v-if="show_rna_modif" variant="success"></b-icon-check>
             </b-dropdown-item>
-            <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
-                Show splice differences graph<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
-            </b-dropdown-item>
-            <b-dropdown-item v-if="constitutive_junctions_exist" @click="setShowConstitutiveJunctions(!show_constitutive_junctions)" v-b-tooltip.hover.right="'Display splice junctions present in all transcripts that fully cover them by their transcription start and end sites (hidden by default)'">
-                Show constitutive junctions<b-icon-check v-if="show_constitutive_junctions" variant="success"></b-icon-check>
-            </b-dropdown-item>
         </b-dropdown>
         <b-button v-show="heatmap_data_exists && show_heatmap_column" variant="primary" size="sm" @click="setShowStack(!show_stack)">
             {{show_stack ? "Hide stack" : "Show stack"}}
         </b-button>
-        <b-button v-show="!mainData.heatmapData" variant="warning" size="sm" class="ml-2" @click="requestHeatmapDataUpload()">
-            Add isoform heatmap
+        <b-button v-show="!mainData.heatmapData && !hide_upload_heatmap_button" variant="warning" size="sm" :class="heatmap_data_exists ? 'ml-2' : 'mx-1'" @click="requestHeatmapDataUpload()">
+            {{!isovis_in_iframe ? "Add isoform heatmap" : "Add transcript counts"}}
         </b-button>
         <b-dropdown v-if="heatmap_data_exists" text="Heatmap options" class="ml-2" size="sm" variant="dark">
             <b-dropdown-item v-if="show_stack" @click="setShowHeatmapColumn(!show_heatmap_column)" v-b-tooltip.hover.right="'Display a column of heatmaps'">
@@ -106,165 +104,192 @@ Requires mainData object which is used here to update the relevant data other co
                 Log transform of isoform heatmap<b-icon-check v-if="isoform_heatmap_log_transform" variant="success"></b-icon-check>
             </b-dropdown-item>
         </b-dropdown>
-        <!-- <b-button v-show="(mainData.heatmapData || mainData.peptideCountsData || mainData.rnaModifLevelData) && show_stack" variant="primary" size="sm" class="ml-2" @click="setShowHeatmap(!show_heatmap)">
-            {{show_heatmap ? "Hide heatmaps" : "Show heatmaps"}}
-        </b-button> -->
         <b-dropdown v-if="(canon_disabled || protein_disabled || protein_ready) && visible_components_exist" text="Export page as..." size="sm" variant="dark" class="ml-3">
-            <b-dropdown-item @click="exportPNG()">PNG</b-dropdown-item>
-            <b-dropdown-item @click="exportJPEG()">JPEG</b-dropdown-item>
-            <b-dropdown-item @click="exportSVG()">SVG</b-dropdown-item>
-            <b-dropdown-item @click="exportPDF()">PDF</b-dropdown-item>
-            <b-dropdown-item disabled>Export individual components...</b-dropdown-item>
-            <b-dropdown-item v-if="protein_labels_visible" @click="exportProteinLabelsSVG()">Protein labels SVG</b-dropdown-item>
-            <b-dropdown-item v-if="protein_diagram_visible" @click="exportProteinSVG()">Protein diagram SVG</b-dropdown-item>
-            <b-dropdown-item v-if="protein_mappings_visible" @click="exportProteinMapSVG()">Protein domain and motif mappings SVG</b-dropdown-item>
-            <b-dropdown-item v-if="canonical_isoform_visible" @click="exportCanonTrackSVG()">Canonical isoform SVG</b-dropdown-item>
-            <b-dropdown-item v-if="peptide_stack_visible" @click="exportPeptideSVG()">Peptide stack SVG</b-dropdown-item>
-            <b-dropdown-item v-if="peptide_heatmap_visible" @click="exportPeptideHeatmapSVG()">Peptide heatmap SVG</b-dropdown-item>
-            <b-dropdown-item v-if="peptide_heatmap_legend_visible" @click="exportPeptideHeatmapLegendSVG()">Peptide heatmap legend SVG</b-dropdown-item>
-            <b-dropdown-item v-if="splice_graph_visible" @click="exportSpliceGraphSVG()">Splice differences graph SVG</b-dropdown-item>
-            <b-dropdown-item v-if="other_ensembl_isoforms_visible" @click="exportOtherIsoformsSVG()">Other Ensembl isoforms SVG</b-dropdown-item>
-            <b-dropdown-item v-if="rna_modification_sites_visible" @click="exportRNAModificationSitesSVG()">RNA modification sites SVG</b-dropdown-item>
-            <b-dropdown-item v-if="rna_modification_levels_visible" @click="exportRNAModificationLevelsSVG()">RNA modification levels SVG</b-dropdown-item>
-            <b-dropdown-item v-if="rna_modification_levels_legend_visible" @click="exportRNAModificationLevelsLegendSVG()">RNA modification levels legend SVG</b-dropdown-item>
-            <b-dropdown-item v-if="isoform_stack_visible" @click="exportStackSVG()">Isoform stack SVG</b-dropdown-item>
-            <b-dropdown-item v-if="gene_strand_visible" @click="exportStrandSVG()">Gene strand SVG</b-dropdown-item>
-            <b-dropdown-item v-if="isoform_heatmap_visible" @click="exportHeatmapSVG()">Heatmap SVG</b-dropdown-item>
-            <b-dropdown-item v-if="isoform_heatmap_legend_visible" @click="exportHeatmapLegendSVG()">Heatmap legend SVG</b-dropdown-item>
+            <b-dropdown-item @click="exportPage('png')">PNG</b-dropdown-item>
+            <b-dropdown-item @click="exportPage('jpeg')">JPEG</b-dropdown-item>
+            <b-dropdown-item @click="exportPage('svg')">SVG</b-dropdown-item>
+            <b-dropdown-item @click="exportPage('pdf')">PDF</b-dropdown-item>
+            <b-dropdown-item disabled>Export components as SVGs...</b-dropdown-item>
+            <b-dropdown-item v-if="protein_labels_visible" @click="exportComponent('protein_labels')">Protein labels</b-dropdown-item>
+            <b-dropdown-item v-if="protein_diagram_visible" @click="exportComponent('protein')">Protein diagram</b-dropdown-item>
+            <b-dropdown-item v-if="protein_mappings_visible" @click="exportComponent('protein_mapping')">Protein domain and motif mappings</b-dropdown-item>
+            <b-dropdown-item v-if="canonical_isoform_visible" @click="exportComponent('canon_track')">Canonical isoform</b-dropdown-item>
+            <b-dropdown-item v-if="peptide_stack_visible" @click="exportComponent('peptide_stack')">Peptide stack</b-dropdown-item>
+            <b-dropdown-item v-if="peptide_heatmap_visible" @click="exportComponent('peptide_intensities_heatmap')">Peptide heatmap</b-dropdown-item>
+            <b-dropdown-item v-if="peptide_heatmap_legend_visible" @click="exportComponent('peptide_intensities_heatmap_legend')">Peptide heatmap legend</b-dropdown-item>
+            <b-dropdown-item v-if="splice_graph_visible" @click="exportComponent('splice_graph')">Splice graph</b-dropdown-item>
+            <b-dropdown-item v-if="other_ensembl_isoforms_visible" @click="exportComponent('other_isoforms')">Other Ensembl isoforms</b-dropdown-item>
+            <b-dropdown-item v-if="rna_modification_sites_visible" @click="exportComponent('rna_modification_sites')">RNA modification sites</b-dropdown-item>
+            <b-dropdown-item v-if="rna_modification_levels_visible" @click="exportComponent('rna_modification_levels')">RNA modification levels</b-dropdown-item>
+            <b-dropdown-item v-if="rna_modification_levels_legend_visible" @click="exportComponent('rna_modification_levels_legend')">RNA modification levels legend</b-dropdown-item>
+            <b-dropdown-item v-if="isoform_stack_visible" @click="exportComponent('stack')">Isoform stack</b-dropdown-item>
+            <b-dropdown-item v-if="isoform_heatmap_visible" @click="exportComponent('heatmap')">Heatmap</b-dropdown-item>
+            <b-dropdown-item v-if="isoform_heatmap_legend_visible" @click="exportComponent('heatmap_legend')">Heatmap legend</b-dropdown-item>
+            <b-dropdown-item v-if="gene_strand_visible" @click="exportComponent('strand')">Gene strand</b-dropdown-item>
         </b-dropdown>
     </b-form>
 
-    <!-- Row 1: Nothing, protein domain labels, and nothing -->
-    <b-row v-show="!protein_disabled && show_stack && show_protein && show_protein_labels" class="row1">
+    <!-- Nothing, protein domain labels, and nothing -->
+    <b-row v-show="!protein_disabled && show_stack && show_protein && show_protein_labels">
 
-        <!-- Column 1.1: Nothing -->
-        <b-col class="col1 text-center" cols="3">
+        <!-- Nothing -->
+        <b-col class="text-center" cols="3">
         </b-col>
 
-        <!-- Column 1.2: Protein domain labels -->
-        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Protein domain labels -->
+        <b-col :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <ProteinLabels :proteinData="mainData.proteinData" :base-axis="baseAxis" ref="proteinLabelsComponent"></ProteinLabels>
         </b-col>
 
-        <!-- Column 1.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Row 2: Protein information, protein & protein mapping, and nothing -->
-    <b-row v-show="!protein_disabled && show_stack && show_protein" class="border-bottom row2">
+    <!-- Protein information, protein & protein mapping, and nothing -->
+    <b-row v-show="!protein_disabled && show_stack && show_protein" class="border-bottom">
 
-        <!-- Column 2.1: Protein information -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
-            <span v-if="labels.interpro_source_database != '' && labels.uniprot != '' && labels.ensembl != '' && labels.uniparc != ''"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`" target="_blank">Protein</b-link>: <b-link :href="`https://www.ebi.ac.uk/interpro/protein/${labels.interpro_source_database}/${labels.uniprot}/`" target="_blank">InterPro</b-link>, <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link>, <b-link :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank">UniParc</b-link></span>
-            <span v-else-if="labels.interpro_source_database != '' && labels.uniprot != '' && labels.ensembl != ''"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`" target="_blank">Protein</b-link>: <b-link :href="`https://www.ebi.ac.uk/interpro/protein/${labels.interpro_source_database}/${labels.uniprot}/`" target="_blank">InterPro</b-link>, <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
-            <span v-else-if="labels.interpro_source_database != '' && labels.uniprot != '' && labels.uniparc != ''">Protein: <b-link :href="`https://www.ebi.ac.uk/interpro/protein/${labels.interpro_source_database}/${labels.uniprot}/`" target="_blank">InterPro</b-link>, <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link>, <b-link :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank">UniParc</b-link></span>
-            <span v-else-if="labels.interpro_source_database != '' && labels.uniprot != ''">Protein: <b-link :href="`https://www.ebi.ac.uk/interpro/protein/${labels.interpro_source_database}/${labels.uniprot}/`" target="_blank">InterPro</b-link>, <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
-            <span v-else-if="labels.ensembl != '' && labels.uniprot != '' && labels.uniparc != ''"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`" target="_blank">Protein</b-link>: <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link>, <b-link :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank">UniParc</b-link></span>
-            <span v-else-if="labels.ensembl != '' && labels.uniprot != ''"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`" target="_blank">Protein</b-link>: <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
-            <span v-else-if="labels.ensembl != '' && labels.uniparc != ''"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`" target="_blank">Protein</b-link>: <b-link :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank">UniParc</b-link></span>
-            <span v-else-if="labels.uniprot != '' && labels.uniparc != ''">Protein: <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link>, <b-link :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank">UniParc</b-link></span>
-            <span v-else-if="labels.ensembl != ''"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`" target="_blank">Protein</b-link></span>
-            <span v-else-if="labels.uniprot != ''">Protein: <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
-            <span v-else-if="labels.uniparc != ''">Protein: <b-link :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank">UniParc</b-link></span>
-            <span v-else>Protein:</span>
-            <span v-if="!labels_ready"> <b-spinner variant="dark" class="ml-1" type="grow" small></b-spinner></span>
+        <!-- Protein information -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap;">
+            <span v-if="labels.interpro_source_database != '' && labels.uniprot != ''"><b>Protein</b>: <b-link :href="`https://www.ebi.ac.uk/interpro/protein/${labels.interpro_source_database}/${labels.uniprot}/`" target="_blank">InterPro</b-link>, <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
+            <span v-else-if="labels.uniprot != ''"><b>Protein</b>: <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
+            <span v-else><b>Protein</b>:</span>
+            <b-spinner v-if="!labels_ready" variant="dark" type="grow" small></b-spinner>
+            <b-dropdown id="protein_dropdown" v-if="labels_ready && !protein_disabled && protein_ready && show_stack" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Configure the protein diagram'">
+                <template #button-content>
+                    <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
+                </template>
+                <b-dropdown-item @click="setShowDomains(!show_domains)" v-b-tooltip.hover.right="'Display the mapping of protein domains to the canonical isoform (externally sourced)'">
+                    Protein domain mapping<b-icon-check v-if="show_domains" variant="success"></b-icon-check>
+                </b-dropdown-item>
+                <b-dropdown-item @click="setShowMotifs(!show_motifs)" v-b-tooltip.hover.right="'Display the mapping of protein motifs to the canonical isoform (externally sourced)'">
+                    Protein motif mapping<b-icon-check v-if="show_motifs" variant="success"></b-icon-check>
+                </b-dropdown-item>
+                <b-dropdown-item @click="setShowDomainLabels(!show_protein_labels)" v-b-tooltip.hover.right="'Display the labels of shown protein domains (externally sourced)'">
+                    Protein domain labels (beta)<b-icon-check v-if="show_protein_labels" variant="success"></b-icon-check>
+                </b-dropdown-item>
+                <b-dropdown-item v-if="labels.uniparc != ''" :href="`https://www.uniprot.org/uniparc/${this.labels.uniparc}`" target="_blank" v-b-tooltip.hover.right="'Open the UniParc protein entry in a new tab'">
+                    Open UniParc protein entry...
+                </b-dropdown-item>
+                <b-dropdown-item v-if="labels.ensembl != ''" :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;p=${this.labels.ensembl}&redirect=no`" target="_blank" v-b-tooltip.hover.right="'Open the Ensembl protein entry in a new tab'">
+                    Open Ensembl protein entry...
+                </b-dropdown-item>
+            </b-dropdown>
             <br>
             <span><b-img style="width: 16px; height: 16px; background-color: #4a1c83; display: inline-block; border: 0; border-style: none; border-radius: 16px; overflow: visible; vertical-align: -0.15em;"></b-img> PFAM domain, <b-img style="width: 16px; height: 16px; background-color: #c3a685; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Signal peptide</span><br>
             <span><b-img style="width: 16px; height: 16px; background-color: #bbe8be; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Disordered region, <b-img style="width: 16px; height: 16px; background-color: #d0cfee; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Coil</span>
         </b-col>
 
-        <!-- Column 2.2: Protein & protein mapping -->
-        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Protein & protein mapping -->
+        <b-col :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
             <Protein :proteinData="mainData.proteinData" :base-axis="baseAxis" ref="proteinComponent"></Protein>
         </b-col>
 
-        <!-- Column 2.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Row 3: Canonical transcript information, canonical transcript track, and nothing -->
-    <b-row v-show="!canon_disabled && show_stack && show_canon" class="border-bottom row3">
+    <!-- Canonical isoform information, canonical isoform track, and nothing -->
+    <b-row v-show="!canon_disabled && show_stack && show_canon" class="border-bottom">
 
-        <!-- Column 3.1: Canonical transcript information -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+        <!-- Canonical isoform information -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto;">
             <span>
-            Canonical isoform: 
-            <b-spinner v-if="showCanonLoading" variant="dark" class="ml-1" type="grow" small></b-spinner>
+            <b>Canonical isoform</b>:
+            <b-spinner v-if="showCanonLoading" variant="dark" type="grow" small></b-spinner>
             <br>
             </span>
             <span v-if="!labels.refseq">
-            <b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalTranscript}`" target="_blank">{{ this.canonDisplay }}</b-link>
+            <b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalIsoform}&redirect=no`" target="_blank">{{ this.canonDisplay }}</b-link>
             </span>
             <span v-else>
-            <b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalTranscript}`" target="_blank">{{ this.canonDisplaySymbolOrID }}</b-link>, <b-link :href="`https://www.ncbi.nlm.nih.gov/nuccore/${labels.refseq}`" target="_blank">{{ this.labels.refseq }}</b-link>
+            <b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalIsoform}&redirect=no`" target="_blank">{{ this.canonDisplaySymbolOrID }}</b-link>, <b-link :href="`https://www.ncbi.nlm.nih.gov/nuccore/${labels.refseq}`" target="_blank">{{ this.labels.refseq }}</b-link>
             </span>
         </b-col>
 
-        <!-- Column 3.2: Canonical transcript track -->
-        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <CanonTrack :base-axis="baseAxis" :canon-data="mainData.canonData" ref="canonStackComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></CanonTrack>
+        <!-- Canonical isoform track -->
+        <b-col :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <CanonTrack :base-axis="baseAxis" :canon-data="mainData.canonData" ref="canonStackComponent" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></CanonTrack>
         </b-col>
 
-        <!-- Column 3.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: Peptides label, nothing, and nothing -->
-    <b-row v-show="!peptide_disabled && show_peptide" class="row13">
+    <!-- Peptides label, nothing, and nothing -->
+    <b-row v-show="!peptide_disabled && show_peptide">
 
-        <!-- Column W.1: Peptides label -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
-            <span>Peptides (beta):</span>
-            <b-icon-sort-alpha-down v-if="!peptide_compact_mode" @click="sortPeptidesByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort peptides by ascending amino acid sequences'"></b-icon-sort-alpha-down>
-            <b-icon-sort-alpha-down-alt v-if="!peptide_compact_mode" @click="sortPeptidesByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort peptides by descending amino acid sequences'"></b-icon-sort-alpha-down-alt>
-            <b-img v-if="mainData.peptideCountsData && !peptide_compact_mode" @click="sortPeptidesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort peptides by ascending mean peptide counts'"></b-img>
-            <b-img v-if="mainData.peptideCountsData && !peptide_compact_mode" @click="sortPeptidesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort peptides by descending mean peptide counts'"></b-img>
+        <!-- Peptides label -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; padding-top: 5px; padding-bottom: 5px">
+            <span><b>Peptides</b> (beta):</span>
+            <b-icon-sort-alpha-down v-if="!peptide_compact_mode && (peptideOrder.length > 1)" @click="sortPeptidesByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort peptides by ascending amino acid sequences'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!peptide_compact_mode && (peptideOrder.length > 1)" @click="sortPeptidesByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort peptides by descending amino acid sequences'"></b-icon-sort-alpha-down-alt>
+            <b-img v-if="mainData.peptideCountsData && !peptide_compact_mode && (peptideOrder.length > 1)" @click="sortPeptidesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort peptides by ascending mean peptide counts'"></b-img>
+            <b-img v-if="mainData.peptideCountsData && !peptide_compact_mode && (peptideOrder.length > 1)" @click="sortPeptidesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort peptides by descending mean peptide counts'"></b-img>
             <b-icon-arrows-collapse v-if="!peptide_compact_mode" @click="setPeptideCompact(!peptide_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Collapse peptides into one row (hides the peptide counts heatmap and legend)'"></b-icon-arrows-collapse>
             <b-icon-arrows-expand v-if="peptide_compact_mode" @click="setPeptideCompact(!peptide_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Expand peptides into individual rows'"></b-icon-arrows-expand>
+            <b-dropdown id="peptides_dropdown" v-if="!peptide_disabled && (mainData.isoformData.is_genomeprot)" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Configure peptide-related stack options'">
+                <template #button-content>
+                    <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
+                </template>
+                <b-dropdown-item @click="setPeptideIntegration(!peptide_integration_mode)" v-b-tooltip.hover.right="'Highlight all ORFs and transcripts that peptides are uniquely mapped to'">
+                    Peptide integration (beta)<b-icon-check v-if="peptide_integration_mode" variant="success"></b-icon-check>
+                </b-dropdown-item>
+                <b-dropdown-item v-if="!peptide_compact_mode && show_stack" @click="setPeptideHighlight(!peptide_highlight_mode)" v-b-tooltip.hover.right="'Highlight the ORFs and transcripts a peptide is mapped to (highlights removed when disabled)'">
+                    Highlight features when clicking a coloured peptide<b-icon-check v-if="peptide_highlight_mode" variant="success"></b-icon-check>
+                </b-dropdown-item>
+            </b-dropdown>
             <br v-if="show_stack">
-            <span v-if="mainData.isoformData.is_genomeprot && show_stack">Uniquely map to <b-img style="width: 16px; height: 16px; background-color: #ff9500; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> ORF > <b-img style="width: 16px; height: 16px; background-color: #0000ff; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Gene</span>
-            <br v-if="!peptide_compact_mode && mainData.isoformData.is_genomeprot && show_stack">
-            <span v-if="!peptide_compact_mode && mainData.isoformData.is_genomeprot && show_stack">Click on a coloured peptide to highlight features:</span>
-            <b-icon-check v-if="!peptide_compact_mode && peptide_highlight_mode && (mainData.isoformData.is_genomeprot) && show_stack" @click="setPeptideHighlight(!peptide_highlight_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.right="'Enabled (click to disable)'"></b-icon-check>
-            <b-icon-x v-if="!peptide_compact_mode && !peptide_highlight_mode && (mainData.isoformData.is_genomeprot) && show_stack" @click="setPeptideHighlight(!peptide_highlight_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.right="'Disabled (click to enable)'"></b-icon-x>
+            <span v-if="mainData.isoformData.is_genomeprot && show_stack">Uniquely map to:
+                <b-img style="width: 16px; height: 16px; background-color: #ff9500; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> ORF >
+                <b-img style="width: 16px; height: 16px; background-color: #00d0ff; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Transcript >
+                <b-img style="width: 16px; height: 16px; background-color: #0000ff; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Gene;
+            </span>
+            <br v-if="mainData.isoformData.is_genomeprot && show_stack">
+            <span v-if="mainData.isoformData.is_genomeprot && show_stack"><b-img style="width: 16px; height: 16px; background-color: #535353; display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Peptide maps to multiple genes</span>
         </b-col>
 
-        <!-- Column W.2: Nothing -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
-        <!-- Column W.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column && show_peptide_heatmap" :cols="show_stack ? 3 : 9" class="text-center" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: Peptide list, peptide stack, and peptide counts -->
-    <b-row v-show="!peptide_disabled && show_peptide" class="border-bottom row14">
+    <!-- Peptide list, peptide stack, and peptide counts -->
+    <b-row v-show="!peptide_disabled && show_peptide" class="border-bottom">
 
-        <!-- Column W.1: Peptide list -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; cursor: move;">
-            <draggable v-if="!peptide_compact_mode" v-model="peptideOrder" @start="drag=true" @end="onPeptideEnd">
+        <!-- Peptide list -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-if="!peptide_compact_mode && (peptideOrder.length > 1)" v-model="peptideOrder" @start="drag=true" @end="onPeptideEnd" style="cursor: move;">
                 <div v-for="peptide in peptideOrder" :key="peptide" :id="peptide" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                     <!-- Delete button -->
-                    <b-icon-x v-if="(peptideOrder.length > 1)" class="icon float-left" @click="removePeptide(peptide);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
+                    <b-icon-x class="icon float-left" @click="removePeptide(peptide);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
                     <!-- Peptide -->
-                    <span>{{peptide}}</span>
+                    <span v-if="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack && ($refs.peptideGenomeProtStackComponent) && (peptide === $refs.peptideGenomeProtStackComponent.highlighted_peptide)"><b>{{peptide}}</b></span>
+                    <span v-else>{{peptide}}</span>
                     <!-- Reorder icon -->
-                    <b-icon-list v-if="(peptideOrder && (peptideOrder.length > 1))" class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-list>
+                    <b-icon-grip-vertical class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-grip-vertical>
                 </div>
             </draggable>
-            <div v-if="peptide_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+            <div v-else-if="peptide_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                 <!-- Compact mode label -->
                 <span>(Compact mode enabled)</span>
             </div>
-            <b-icon-plus v-if="(!peptide_compact_mode) && allPeptides && allPeptides.length > 1" @click="addPeptideClick" style="cursor: pointer;">+</b-icon-plus>
+            <div v-else style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                <!-- Peptide -->
+                <span v-if="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack && ($refs.peptideGenomeProtStackComponent) && (peptideOrder[0] === $refs.peptideGenomeProtStackComponent.highlighted_peptide)"><b>{{peptideOrder[0]}}</b></span>
+                <span v-else>{{peptideOrder[0]}}</span>
+            </div>
+            <b-icon-plus v-if="(!peptide_compact_mode) && allPeptides && (peptideOrder.length < allPeptides.length)" @click="modal.addPeptide.show = true" style="cursor: pointer;" v-b-tooltip.hover.window.bottom="'Edit peptide list'"></b-icon-plus>
             <b-modal v-model="modal.addPeptide.show" size="md" title="Edit peptide list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="peptide in allPeptides" :key="peptide" :style="inclusionStyle((peptideOrder.indexOf(peptide) !== -1))" class="text-center border-bottom">
@@ -278,96 +303,116 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column W.2: Peptide stack -->
-        <b-col v-show="mainData && mainData.isoformData && !(mainData.isoformData.is_genomeprot) && show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <PeptideStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :peptide-to-transcripts="peptide_data.peptideToTranscripts" :is-genome-prot="mainData.isoformData.is_genomeprot" ref="peptideStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideStack>
+        <!-- Peptide stack -->
+        <b-col v-show="mainData && mainData.isoformData && !(mainData.isoformData.is_genomeprot) && show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <PeptideStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :peptide-to-transcripts="peptide_data.peptideToTranscripts" :is-genome-prot="mainData.isoformData.is_genomeprot" ref="peptideStackComponent" class="mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideStack>
         </b-col>
-        <b-col v-show="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <PeptideGenomeProtStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :is-genome-prot="mainData.isoformData.is_genomeprot" :current-gene="mainData.selectedGene" ref="peptideGenomeProtStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideGenomeProtStack>
+        <b-col v-show="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <PeptideGenomeProtStack :base-axis="baseAxis" :peptide-order="peptide_data.peptideOrder" :peptide-info="peptide_data.peptideInfo" :is-genome-prot="mainData.isoformData.is_genomeprot" :current-gene="mainData.selectedGene" ref="peptideGenomeProtStackComponent" class="mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideGenomeProtStack>
         </b-col>
 
-        <!-- Column W.3: Peptide counts -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
-            <PeptideCounts :peptideCountsData="mainData.peptideCountsData" :peptide-order="peptide_data.peptideOrder" ref="peptideCountsComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideCounts>
+        <!-- Peptide counts -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
+            <PeptideCounts :peptideCountsData="mainData.peptideCountsData" :peptide-order="peptide_data.peptideOrder" ref="peptideCountsComponent" class="mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></PeptideCounts>
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: Nothing, nothing, and peptide counts legend -->
-    <b-row v-show="!peptide_disabled && show_peptide && show_peptide_heatmap && mainData.peptideCountsData && show_heatmap_column && !peptide_compact_mode" class="border-bottom row15">
+    <!-- Nothing, nothing, and sample labels + peptide counts legend -->
+    <b-row v-show="!peptide_disabled && show_peptide && show_peptide_heatmap && mainData.peptideCountsData && show_heatmap_column && !peptide_compact_mode" class="border-bottom">
 
-        <!-- Column X.1: Nothing -->
+        <!-- Nothing -->
         <b-col cols="3">
         </b-col>
 
-        <!-- Column X.2: Nothing -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
-        <!-- Column X.3: Sample labels + heatmap legend -->
-        <b-col v-show="mainData.peptideCountsData && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
-            <PeptideCountsLegend :peptideCountsData="mainData.peptideCountsData" ref="peptideCountsLegendComponent" class="grid-item p-0 mx-0 my-3 g-0 text-center"></PeptideCountsLegend>
-        </b-col>
-
-    </b-row>
-
-    <!-- Extra row: Splice differences graph label, splice differences graph, and nothing -->
-    <b-row v-show="show_splices && show_stack" class="border-bottom row10">
-
-        <!-- Column X.1: Splice differences graph label -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto;">
-            <span>Splice differences graph:</span>
-        </b-col>
-
-        <!-- Column X.2: Splice differences graph -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <SpliceGraph :base-axis="baseAxis" ref="spliceGraphComponent" class="grid-item" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></SpliceGraph>
-        </b-col>
-
-        <!-- Column X.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Sample labels + heatmap legend -->
+        <b-col v-show="mainData.peptideCountsData && show_heatmap_column" :cols="show_stack ? 3 : 9">
+            <PeptideCountsLegend :peptideCountsData="mainData.peptideCountsData" ref="peptideCountsLegendComponent" class="p-0 mx-0 my-3 g-0 text-center"></PeptideCountsLegend>
         </b-col>
 
     </b-row>
 
-    <!-- Extra row 2A: Other isoforms label, nothing, and nothing -->
-    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack" class="row11">
+    <!-- Splice graph label, splice graph, and nothing -->
+    <b-row v-show="show_splices && show_stack" class="border-bottom">
 
-        <!-- Column YA.1: Other isoforms label -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
-            <span>Other Ensembl isoforms:</span>
-            <b-spinner v-if="other_isoforms_loading" variant="dark" class="ml-1" type="grow" small></b-spinner>
-            <b-icon-sort-alpha-down v-if="!other_isoforms_loading" @click="sortOtherIsoformsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
-            <b-icon-sort-alpha-down-alt v-if="!other_isoforms_loading" @click="sortOtherIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
+        <!-- Splice graph label -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap;">
+            <span><b>Splice graph</b>:</span>
+            <b-dropdown id="splice_graph_dropdown" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.right="'Configure the splice graph'">
+                <template #button-content>
+                    <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
+                </template>
+                <b-dropdown-item @click="setShowAlternativeJunctions(!show_alternative_junctions)" v-b-tooltip.hover.right="'Display splice junctions that are not present in all transcripts (shown by default)'">
+                    Show alternative junctions<b-icon-check v-if="show_alternative_junctions" variant="success"></b-icon-check>
+                </b-dropdown-item>
+                <b-dropdown-item v-if="constitutive_junctions_exist" @click="setShowConstitutiveJunctions(!show_constitutive_junctions)" v-b-tooltip.hover.right="'Display splice junctions present in all transcripts that fully cover them by their transcription start and end sites (hidden by default)'">
+                    Show constitutive junctions<b-icon-check v-if="show_constitutive_junctions" variant="success"></b-icon-check>
+                </b-dropdown-item>
+            </b-dropdown>
+            <br v-if="show_alternative_junctions">
+            <span v-if="show_alternative_junctions"><b-img style="border: 1px solid black; width: 30px; margin: 0; display: inline-block;"></b-img> Alternative splice junction</span>
+            <br v-if="show_constitutive_junctions && constitutive_junctions_exist">
+            <span v-if="show_constitutive_junctions && constitutive_junctions_exist"><b-img style="border: 1px dashed black; width: 30px; margin: 0; display: inline-block;"></b-img> Constitutive splice junction</span>
         </b-col>
 
-        <!-- Column 4.2: Nothing -->
-        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Splice graph -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <SpliceGraph :base-axis="baseAxis" ref="spliceGraphComponent" style="margin-top: 0px; margin-bottom: 0px; padding-top: 0px; padding-bottom: 0px; padding-left: 1rem !important; padding-right: 1rem !important;"></SpliceGraph>
         </b-col>
 
-        <!-- Column 4.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row 2B: Other isoforms label, other isoforms stack, and nothing -->
-    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom row12">
+    <!-- Other isoforms label, nothing, and nothing -->
+    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack">
 
-        <!-- Column YB.1: Other isoforms accession list -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; cursor: move;">
-            <draggable v-model="other_isoforms_ids" @start="drag=true" @end="onOtherEnd">
+        <!-- Other isoforms label -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
+            <span><b>Other Ensembl isoforms</b>:</span>
+            <b-spinner v-if="other_isoforms_loading" variant="dark" type="grow" small></b-spinner>
+            <b-icon-sort-alpha-down v-if="!other_isoforms_loading && (other_isoforms_ids.length > 1)" @click="sortOtherIsoformsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!other_isoforms_loading && (other_isoforms_ids.length > 1)" @click="sortOtherIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort Ensembl isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
+        </b-col>
+
+    </b-row>
+
+    <!-- Other isoforms label, other isoforms stack, and nothing -->
+    <b-row v-show="!other_isoforms_disabled && show_all_other_isoforms && show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="border-bottom">
+
+        <!-- Other isoforms accession list -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-if="other_isoforms_ids && (other_isoforms_ids.length > 1)" v-model="other_isoforms_ids" @start="drag=true" @end="onOtherEnd" style="cursor: move;">
                 <div v-for="other_isoform_id in other_isoforms_ids" :key="other_isoform_id" :id="other_isoform_id" style="display: block; height: 51px; line-height: 51px; background-color: white;">
                     <!-- Delete button -->
-                    <b-icon-x v-if="(other_isoforms_ids.length > 1)" class="icon float-left" @click="removeOtherIsoform(other_isoform_id);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
+                    <b-icon-x class="icon float-left" @click="removeOtherIsoform(other_isoform_id);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
                     <!-- Accession ID -->
-                    <span v-if="transcriptNames[other_isoform_id] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoform_id}`" target="_blank">{{other_isoform_id}}</b-link></span>
-                    <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoform_id}`" target="_blank">{{transcriptNames[other_isoform_id] + " (" + other_isoform_id + ')'}}</b-link></span>
+                    <span v-if="transcriptNames[other_isoform_id] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoform_id}&redirect=no`" target="_blank">{{other_isoform_id}}</b-link></span>
+                    <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoform_id}&redirect=no`" target="_blank">{{transcriptNames[other_isoform_id] + " (" + other_isoform_id + ')'}}</b-link></span>
                     <!-- Reorder icon -->
-                    <b-icon-list v-if="(other_isoforms_ids && (other_isoforms_ids.length > 1))" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-list>
+                    <b-icon-grip-vertical class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-grip-vertical>
                 </div>
             </draggable>
-            <b-icon-plus v-if="other_isoform_data && other_isoform_data.allIsoforms && other_isoform_data.allIsoforms.length > 1" @click="addOtherClick" style="cursor: pointer;">+</b-icon-plus>
+            <div v-else-if="other_isoforms_ids && (other_isoforms_ids.length === 1)" style="display: block; height: 51px; line-height: 51px; background-color: white;">
+                <!-- Accession ID -->
+                <span v-if="transcriptNames[other_isoforms_ids[0]] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoforms_ids[0]}&redirect=no`" target="_blank">{{other_isoforms_ids[0]}}</b-link></span>
+                <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${other_isoforms_ids[0]}&redirect=no`" target="_blank">{{transcriptNames[other_isoforms_ids[0]] + " (" + other_isoforms_ids[0] + ')'}}</b-link></span>
+            </div>
+            <b-icon-plus v-if="other_isoform_data && other_isoform_data.allIsoforms && (other_isoforms_ids.length < other_isoform_data.allIsoforms.length)" @click="modal.addOtherIsoform.show = true" style="cursor: pointer;" v-b-tooltip.hover.window.bottom="'Edit Ensembl isoform list'"></b-icon-plus>
             <b-modal v-model="modal.addOtherIsoform.show" size="md" title="Edit Ensembl isoform list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="isoform in otherIsoformList" :key="isoform" :style="inclusionStyle((other_isoforms_ids.indexOf(isoform) !== -1))" class="text-center border-bottom">
@@ -381,61 +426,65 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column YB.2: Other isoforms stack -->
-        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <OtherIsoformStack :base-axis="baseAxis" :isoform-list="other_isoform_data.isoformList" ref="otherIsoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></OtherIsoformStack>
+        <!-- Other isoforms stack -->
+        <b-col v-show="show_stack && other_isoform_data && other_isoform_data.isoformList && (other_isoform_data.isoformList.length >= 1)" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <OtherIsoformStack :base-axis="baseAxis" :isoform-list="other_isoform_data.isoformList" ref="otherIsoformStackComponent" class="mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></OtherIsoformStack>
         </b-col>
 
-        <!-- Column YB.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: RNA modification sites label, nothing, and nothing -->
-    <b-row v-show="!rna_modif_disabled && show_rna_modif" class="row16">
+    <!-- RNA modification sites label, nothing, and nothing -->
+    <b-row v-show="!rna_modif_disabled && show_rna_modif">
 
-        <!-- Column X.1: RNA modification sites label -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
-            <span>RNA modification sites (beta):</span>
-            <b-icon-sort-alpha-down v-if="!rna_modif_compact_mode" @click="sortSitesByCoords()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort sites by ascending genomic coordinates'"></b-icon-sort-alpha-down>
-            <b-icon-sort-alpha-down-alt v-if="!rna_modif_compact_mode" @click="sortSitesByCoords(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort sites by descending genomic coordinates'"></b-icon-sort-alpha-down-alt>
-            <b-img v-if="mainData.rnaModifLevelData && !rna_modif_compact_mode" @click="sortSitesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort sites by ascending mean modification levels'"></b-img>
-            <b-img v-if="mainData.rnaModifLevelData && !rna_modif_compact_mode" @click="sortSitesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort sites by descending mean modification levels'"></b-img>
+        <!-- RNA modification sites label -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
+            <span><b>RNA modification sites</b> (beta):</span>
+            <b-icon-sort-alpha-down v-if="!rna_modif_compact_mode && (siteOrder.length > 1)" @click="sortSitesByCoords()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort sites by ascending genomic coordinates'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!rna_modif_compact_mode && (siteOrder.length > 1)" @click="sortSitesByCoords(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort sites by descending genomic coordinates'"></b-icon-sort-alpha-down-alt>
+            <b-img v-if="mainData.rnaModifLevelData && !rna_modif_compact_mode && (siteOrder.length > 1)" @click="sortSitesByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#440154, #21918c, #fde725); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort sites by ascending mean modification levels'"></b-img>
+            <b-img v-if="mainData.rnaModifLevelData && !rna_modif_compact_mode && (siteOrder.length > 1)" @click="sortSitesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort sites by descending mean modification levels'"></b-img>
             <b-icon-arrows-collapse v-if="!rna_modif_compact_mode" @click="setRNAModifCompact(!rna_modif_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Collapse sites into one row (hides the RNA modification levels heatmap and legend)'"></b-icon-arrows-collapse>
             <b-icon-arrows-expand v-if="rna_modif_compact_mode" @click="setRNAModifCompact(!rna_modif_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Expand sites into individual rows'"></b-icon-arrows-expand>
         </b-col>
 
-        <!-- Column X.2: Nothing -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
-        <!-- Column X.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column && show_rna_modif_heatmap" :cols="show_stack ? 3 : 9" class="text-center" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: RNA modification site list, RNA modification sites stack, and RNA modification levels -->
-    <b-row v-show="!rna_modif_disabled && show_rna_modif" class="border-bottom row17">
+    <!-- RNA modification site list, RNA modification sites stack, and RNA modification levels -->
+    <b-row v-show="!rna_modif_disabled && show_rna_modif" class="border-bottom">
 
-        <!-- Column W.1: RNA modification site list -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; cursor: move;">
-            <draggable v-if="!rna_modif_compact_mode" v-model="siteOrder" @start="drag=true" @end="onSiteEnd">
+        <!-- RNA modification site list -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-if="!rna_modif_compact_mode && (siteOrder.length > 1)" v-model="siteOrder" @start="drag=true" @end="onSiteEnd" style="cursor: move;">
                 <div v-for="site in siteOrder" :key="site" :id="site" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                     <!-- Delete button -->
-                    <b-icon-x v-if="(siteOrder.length > 1)" class="icon float-left" @click="removeSite(site);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
+                    <b-icon-x class="icon float-left" @click="removeSite(site);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
                     <!-- Site -->
                     <span>{{site}}</span>
                     <!-- Reorder icon -->
-                    <b-icon-list v-if="(siteOrder && (siteOrder.length > 1))" class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-list>
+                    <b-icon-grip-vertical class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-grip-vertical>
                 </div>
             </draggable>
-            <div v-if="rna_modif_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+            <div v-else-if="rna_modif_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
                 <!-- Compact mode label -->
                 <span>(Compact mode enabled)</span>
             </div>
-            <b-icon-plus v-if="(!rna_modif_compact_mode) && allSites && allSites.length > 1" @click="addSiteClick" style="cursor: pointer;">+</b-icon-plus>
+            <div v-else style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                <!-- Site -->
+                <span>{{siteOrder[0]}}</span>
+            </div>
+            <b-icon-plus v-if="(!rna_modif_compact_mode) && (siteOrder.length < allSites.length)" @click="modal.addSite.show = true" style="cursor: pointer;" v-b-tooltip.hover.window.bottom="'Edit RNA modification site list'"></b-icon-plus>
             <b-modal v-model="modal.addSite.show" size="md" title="Edit RNA modification site list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="site in allSites" :key="site" :style="inclusionStyle((siteOrder.indexOf(site) !== -1))" class="text-center border-bottom">
@@ -449,78 +498,88 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column W.2: RNA modification sites stack -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <RNAModifSiteStack :base-axis="baseAxis" :site-order="site_data.siteOrder" ref="RNAModifStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></RNAModifSiteStack>
+        <!-- RNA modification sites stack -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <RNAModifSiteStack :base-axis="baseAxis" :site-order="site_data.siteOrder" ref="RNAModifStackComponent" class="mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></RNAModifSiteStack>
         </b-col>
 
-        <!-- Column W.3: RNA modification levels -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
-            <RNAModifLevels :rnaModifLevelData="mainData.rnaModifLevelData" :site-order="site_data.siteOrder" ref="RNAModifLevelsComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></RNAModifLevels>
+        <!-- RNA modification levels -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
+            <RNAModifLevels :rnaModifLevelData="mainData.rnaModifLevelData" :site-order="site_data.siteOrder" ref="RNAModifLevelsComponent" class="mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></RNAModifLevels>
         </b-col>
 
     </b-row>
 
-    <!-- Extra row: Nothing, nothing, and RNA modification levels legend -->
-    <b-row v-show="!rna_modif_disabled && show_rna_modif && show_rna_modif_heatmap && mainData.rnaModifLevelData && show_heatmap_column && !rna_modif_compact_mode" class="border-bottom row18">
+    <!-- Nothing, nothing, and sample labels + RNA modification levels legend -->
+    <b-row v-show="!rna_modif_disabled && show_rna_modif && show_rna_modif_heatmap && mainData.rnaModifLevelData && show_heatmap_column && !rna_modif_compact_mode" class="border-bottom">
 
-        <!-- Column X.1: Nothing -->
+        <!-- Nothing -->
         <b-col cols="3">
         </b-col>
 
-        <!-- Column X.2: Nothing -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
         </b-col>
 
-        <!-- Column X.3: RNA modification levels legend -->
-        <b-col v-show="mainData.rnaModifLevelData && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
-            <RNAModifLevelsLegend :rnaModifLevelData="mainData.rnaModifLevelData" ref="RNAModifLevelsLegendComponent" class="grid-item p-0 mx-0 my-3 g-0 text-center"></RNAModifLevelsLegend>
-        </b-col>
-
-    </b-row>
-
-    <!-- Row 4: User isoforms label, nothing, and nothing -->
-    <b-row class="row4">
-
-        <!-- Column 4.1: User isoforms label -->
-        <b-col class="col1 text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
-            <span>User isoforms:</span>
-            <b-icon-sort-alpha-down v-if="orfs_ready" @click="sortIsoformsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
-            <b-icon-sort-alpha-down-alt v-if="orfs_ready" @click="sortIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
-            <b-img v-if="orfs_ready && mainData.heatmapData" @click="sortIsoformsByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#1170aa, #fff8e6, #fc7d0b); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending mean heatmap values'"></b-img>
-            <b-img v-if="orfs_ready && mainData.heatmapData" @click="sortIsoformsByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fc7d0b, #fff8e6, #1170aa); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by descending mean heatmap values'"></b-img>
-        </b-col>
-
-        <!-- Column 4.2: Nothing -->
-        <b-col class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-        </b-col>
-
-        <!-- Column 4.3: Nothing -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Sample labels + RNA modification levels legend -->
+        <b-col v-show="mainData.rnaModifLevelData && show_heatmap_column" :cols="show_stack ? 3 : 9">
+            <RNAModifLevelsLegend :rnaModifLevelData="mainData.rnaModifLevelData" ref="RNAModifLevelsLegendComponent" class="p-0 mx-0 my-3 g-0 text-center"></RNAModifLevelsLegend>
         </b-col>
 
     </b-row>
 
-    <!-- Row 5: Accession list, isoform stack, and heatmap -->
-    <b-row class="border-bottom row5">
+    <!-- User isoforms label, nothing, and nothing -->
+    <b-row>
 
-        <!-- Column 5.1: Accession list -->
-        <b-col class="col1 grid-item mx-0 g-0" cols="3" style="text-align: center; white-space: nowrap; overflow: auto; cursor: move;">
-            <draggable v-model="transcriptIds" @start="drag=true" @end="onEnd">
+        <!-- User isoforms label -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
+            <span><b>User isoforms</b>:</span>
+            <b-icon-sort-alpha-down v-if="orfs_ready && transcriptIds.length > 1" @click="sortIsoformsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending transcript symbols / IDs'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="orfs_ready && transcriptIds.length > 1" @click="sortIsoformsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort isoforms by descending transcript symbols / IDs'"></b-icon-sort-alpha-down-alt>
+            <b-img v-if="orfs_ready && mainData.heatmapData && transcriptIds.length > 1" @click="sortIsoformsByMeanHeatmap()" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#1170aa, #fff8e6, #fc7d0b); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by ascending mean heatmap values'"></b-img>
+            <b-img v-if="orfs_ready && mainData.heatmapData && transcriptIds.length > 1" @click="sortIsoformsByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fc7d0b, #fff8e6, #1170aa); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort isoforms by descending mean heatmap values'"></b-img>
+            <br v-if="show_stack && show_user_orfs && is_overlapping_orfs_present">
+            <span v-if="show_stack && show_user_orfs && is_overlapping_orfs_present"><b-img style="width: 16px; height: 16px; background-image: repeating-linear-gradient(-45deg, white 0px 3px, black 3px 6px); display: inline-block; border: 0; border-style: none; overflow: visible; vertical-align: -0.15em;"></b-img> Region with overlapping ORFs</span>
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column && show_isoform_heatmap" :cols="show_stack ? 3 : 9" class="text-center" style="white-space: nowrap; overflow: auto; padding-top: 5px; padding-bottom: 5px">
+        </b-col>
+
+    </b-row>
+
+    <!-- Accession list, isoform stack, and heatmap -->
+    <b-row class="border-bottom">
+
+        <!-- Accession list -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-if="transcriptIds.length > 1" v-model="transcriptIds" @start="drag=true" @end="onEnd" style="cursor: move;">
                 <div v-for="transcriptId in transcriptIds" :key="transcriptId" :id="transcriptId" style="display: block; height: 51px; line-height: 51px; background-color: white;">
                     <!-- Delete button -->
-                    <b-icon-x v-if="(transcriptIds.length > 1) && transcript_names_ready" class="icon float-left" @click="removeIsoform(transcriptId);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
-                    <!-- Loading icon -->
-                    <b-spinner v-if="!transcript_names_ready" variant="dark" class="ml-1 float-left" type="grow" small></b-spinner>
+                    <b-icon-x v-if="transcript_names_ready" class="icon float-left" @click="removeIsoform(transcriptId);" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-x>
                     <!-- Accession ID -->
-                    <span v-if="transcriptNames[transcriptId] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}`" target="_blank">{{transcriptId}}</b-link></span>
+                    <span v-if="transcriptNames[transcriptId] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}&redirect=no`" target="_blank">{{transcriptId}}</b-link></span>
                     <span v-else-if="(transcriptNames[transcriptId] === 'Not found') || (!transcriptNames[transcriptId])" class="accessionText">{{transcriptId}}</span>
-                    <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : ''}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}`" target="_blank">{{transcript_names_ready ? transcriptNames[transcriptId] + " (" + transcriptId + ')' : transcriptId}}</b-link></span>
+                    <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}&redirect=no`" target="_blank">{{transcript_names_ready ? transcriptNames[transcriptId] + " (" + transcriptId + ')' : transcriptId}}</b-link></span>
+                    <!-- Loading icon -->
+                    <b-spinner v-if="!transcript_names_ready" variant="dark" type="grow" small></b-spinner>
                     <!-- Reorder icon -->
-                    <b-icon-list v-if="(mainData && mainData.isoformData && mainData.isoformData.transcriptOrder && (mainData.isoformData.transcriptOrder.length > 1)) && transcript_names_ready" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-list>
+                    <b-icon-grip-vertical v-if="transcript_names_ready" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-grip-vertical>
                 </div>
             </draggable>
-            <b-icon-plus v-if="isoformList.length > 1" @click="addClick" style="cursor: pointer;">+</b-icon-plus>
+            <div v-else style="display: block; height: 51px; line-height: 51px; background-color: white;">
+                <!-- Accession ID -->
+                <span v-if="transcriptNames[transcriptIds[0]] === 'Novel'" class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptIds[0]}&redirect=no`" target="_blank">{{transcriptIds[0]}}</b-link></span>
+                <span v-else-if="(transcriptNames[transcriptIds[0]] === 'Not found') || (!transcriptNames[transcriptIds[0]])" class="accessionText">{{transcriptIds[0]}}</span>
+                <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptIds[0]}&redirect=no`" target="_blank">{{transcript_names_ready ? transcriptNames[transcriptIds[0]] + " (" + transcriptIds[0] + ')' : transcriptIds[0]}}</b-link></span>
+                <!-- Loading icon -->
+                <b-spinner v-if="!transcript_names_ready" variant="dark" type="grow" small></b-spinner>
+            </div>
+            <b-icon-plus v-if="(transcriptIds.length < isoformList.length) && transcript_names_ready" @click="modal.addIsoform.show = true" style="cursor: pointer;" v-b-tooltip.hover.window.bottom="'Edit isoform list'"></b-icon-plus>
             <b-modal v-model="modal.addIsoform.show" size="md" title="Edit isoform list" ok-only>
                 <div class="border-top"></div>
                 <div v-for="isoform in isoformList" :key="isoform" :style="inclusionStyle((includedIsoforms.indexOf(isoform) !== -1))" class="text-center border-bottom">
@@ -534,52 +593,52 @@ Requires mainData object which is used here to update the relevant data other co
             </b-modal>
         </b-col>
 
-        <!-- Column 5.2: Isoform stack -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <IsoformStack :base-axis="baseAxis" :isoform-list="mainData.isoformData.isoformList" :orf-info="mainData.isoformData.orfs" ref="isoformStackComponent" class="grid-item mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></IsoformStack>
+        <!-- Isoform stack -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <IsoformStack :base-axis="baseAxis" :isoform-list="mainData.isoformData.isoformList" :orf-info="mainData.isoformData.orfs" ref="isoformStackComponent" class="mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></IsoformStack>
         </b-col>
 
-        <!-- Column 5.3: Heatmap -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
-            <Heatmap :heatmapData="mainData.heatmapData" ref="heatmapComponent" class="grid-item mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></Heatmap>
+        <!-- Heatmap -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
+            <Heatmap :heatmapData="mainData.heatmapData" ref="heatmapComponent" class="mx-0 g-0 align-self-center" style="padding-left: 1rem !important; padding-right: 1rem !important;"></Heatmap>
         </b-col>
 
     </b-row>
 
-    <!-- Row 6: Logo, gene strand, and sample labels + heatmap legend -->
-    <b-row class="row6">
+    <!-- Logo, gene strand, and sample labels + heatmap legend -->
+    <b-row>
 
-        <!-- Column 6.1: Logo -->
-        <b-col class="col1 grid-item p-3 mx-0 my-1 g-0" style="display: flex; align-items: center; justify-content: center;" cols="3">
+        <!-- Logo -->
+        <b-col class="p-3 mx-0 my-1 g-0" style="display: flex; align-items: center; justify-content: center;" cols="3">
             <b-img src="~/assets/logos/IsovisLogo.svg" height="120px"></b-img>
         </b-col>
 
-        <!-- Column 6.2: Gene strand -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
-            <GeneStrand :base-axis="baseAxis" :chromosome="mainData.isoformData.chromosome" :is-strand-unknown="mainData.isoformData.is_strand_unknown" :is-strandedness-mismatched="is_strandedness_mismatched" ref="geneStrandComponent" class="grid-item p-3 mx-0 my-1 g-0"/>
+        <!-- Gene strand -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <GeneStrand :base-axis="baseAxis" :chromosome="mainData.isoformData.chromosome" :is-strand-unknown="mainData.isoformData.is_strand_unknown" :is-strandedness-mismatched="is_strandedness_mismatched" ref="geneStrandComponent" class="p-3 mx-0 my-1 g-0"/>
         </b-col>
 
-        <!-- Column 6.3: Sample labels + heatmap legend -->
-        <b-col v-show="heatmap_data_exists && show_heatmap_column" class="col3" :cols="show_stack ? 3 : 9">
-            <HeatmapLegend :heatmapData="mainData.heatmapData" ref="heatmapLegendComponent" class="grid-item p-0 mx-0 my-3 g-0 text-center"></HeatmapLegend>
+        <!-- Sample labels + heatmap legend -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
+            <HeatmapLegend :heatmapData="mainData.heatmapData" ref="heatmapLegendComponent" class="p-0 mx-0 my-3 g-0 text-center"></HeatmapLegend>
         </b-col>
 
     </b-row>
 
-    <!-- Row 7: Nothing, gene strand explanation, and nothing -->
-    <b-row class="row7">
+    <!-- Nothing, gene strand explanation, and nothing -->
+    <b-row>
 
-        <!-- Column 7.1: Nothing -->
-        <b-col class="col1" cols="3">
+        <!-- Nothing -->
+        <b-col cols="3">
         </b-col>
 
-        <!-- Column 7.2: Gene strand explanation -->
-        <b-col v-show="show_stack" class="col2" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9" style="text-align: center">
-            <b-link href="help_gene_strand/" target="_blank">What is this diagram?</b-link>
+        <!-- Gene strand explanation -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9" style="text-align: center">
+            <b-link href="help_gene_strand/" target="_blank" v-b-tooltip.hover.right="'Open the help page on the gene strand diagram in a new tab'">What is this diagram?</b-link>
         </b-col>
 
-        <!-- Column 7.3: Nothing -->
-        <b-col class="col3" :cols="show_stack ? 3 : 9">
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -589,10 +648,11 @@ Requires mainData object which is used here to update the relevant data other co
 
 <script>
 import { createBaseAxis } from '~/assets/base_axis';
-import { CanonData, OtherIsoformData, ProteinData, mergeRanges, calculateSplicedRegions, calculateRelativeHeights, calculateRelativeHeightsAll } from '~/assets/data_parser';
-import { put_in_svg, put_in_symbol, put_in_hyperlink, use, put_in_protein_symbol, isovis_logo_symbol, line, rect, rounded_rect, text_preserve_whitespace_central_baseline, text_double_centered, text_topped_centered, tspan } from '~/assets/svg_utils';
+import { CanonData, OtherIsoformData, ProteinData, mergeRanges } from '~/assets/data_parser';
+import { calculateSplicedRegions, calculateRelativeHeights, calculateRelativeHeightsAll } from '~/assets/splice_junctions';
+import { put_in_svg, put_in_symbol, put_in_hyperlink, use, put_in_protein_symbol, isovis_logo_symbol, line, line_dashed, orf_hatching_pattern_16px, rect, rect_rounded, text_preserve_whitespace_central_baseline, text_double_centered, text_double_centered_bolded, text_topped_centered, tspan } from '~/assets/svg_utils';
 import draggable from 'vuedraggable';
-import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconArrowsCollapse, BIconArrowsExpand, BIconCheck, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, VBTooltip } from 'bootstrap-vue';
+import { BButton, BCol, BContainer, BDropdown, BDropdownItem, BForm, BFormCheckbox, BIconArrowsCollapse, BIconArrowsExpand, BIconArrowRepeat, BIconCheck, BIconGearFill, BIconGripVertical, BIconList, BIconPlus, BIconSortAlphaDown, BIconSortAlphaDownAlt, BIconX, BImg, BLink, BModal, BRow, BSpinner, BVModalPlugin, VBTooltip } from 'bootstrap-vue';
 
 export default
 {
@@ -609,7 +669,10 @@ export default
         BFormCheckbox,
         BIconArrowsCollapse,
         BIconArrowsExpand,
+        BIconArrowRepeat,
         BIconCheck,
+        BIconGearFill,
+        BIconGripVertical,
         BIconList,
         BIconPlus,
         BIconSortAlphaDown,
@@ -619,7 +682,8 @@ export default
         BLink,
         BModal,
         BRow,
-        BSpinner
+        BSpinner,
+        BVModalPlugin
     },
 
     directives: {
@@ -662,6 +726,7 @@ export default
             peptide_integration_mode: false,
 
             show_splices: false,
+            show_alternative_junctions: true,
             show_constitutive_junctions: false,
 
             show_rna_modif: false,
@@ -692,6 +757,8 @@ export default
             other_isoforms_toggled: false,
             other_isoform_data: false,
 
+            is_overlapping_orfs_present: false,
+
             transcriptIds: [],
             transcriptNames: {},
             species_to_prefix: {},
@@ -704,6 +771,8 @@ export default
             labels_ready: false,
             labels: {"ensembl": "", "uniprot": "", "uniparc": "", "interpro_source_database": ""},
             isoform_heatmap_log_transform: false,
+
+            hide_upload_heatmap_button: false,
 
             canondata_ranges: [],
             canondata_start: -1,
@@ -724,6 +793,7 @@ export default
 
             spliced_regions: null,
             relative_heights: null,
+            relative_heights_constitutive: null,
             relative_heights_all: null,
             is_spliced_regions_outdated: false,
 
@@ -750,14 +820,17 @@ export default
 
     computed:
     {
+        isovis_in_iframe()
+        {
+            return (window.parent !== window);
+        },
+
         isoformList()
         {
             let data = [];
             if (this.mainData && this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
-            {
                 for (let isoform of this.mainData.isoformData.allIsoforms)
                     data.push(isoform.transcriptID);
-            }
             return data;
         },
 
@@ -765,10 +838,8 @@ export default
         {
             let data = [];
             if (this.other_isoform_data && this.other_isoform_data.allIsoforms)
-            {
                 for (let isoform of this.other_isoform_data.allIsoforms)
                     data.push(isoform.transcriptID);
-            }
             return data;
         },
 
@@ -785,24 +856,19 @@ export default
             return this.mainData.species;
         },
 
-        canonicalTranscript()
+        canonicalIsoform()
         {
             return this.mainData.canonData.isoformList? this.mainData.canonData.isoformList[0].transcriptID : '';
         },
 
         canonDisplay()
         {
-            return this.mainData.canonData.display ? `${this.mainData.canonData.display} (${this.canonicalTranscript})` : this.canonicalTranscript;
+            return this.mainData.canonData.display ? `${this.mainData.canonData.display} (${this.canonicalIsoform})` : this.canonicalIsoform;
         },
 
         canonDisplaySymbolOrID()
         {
-            return this.mainData.canonData.display ? `${this.mainData.canonData.display}` : `${this.canonicalTranscript}`;
-        },
-
-        canonStyle()
-        {
-            return (this.show_canon) ? "" : "display: none";
+            return this.mainData.canonData.display ? `${this.mainData.canonData.display}` : `${this.canonicalIsoform}`;
         },
 
         heatmap_data_exists()
@@ -993,114 +1059,67 @@ export default
             return "height: 32px; line-height: 32px; background-color: rgb(255, 0, 0, 0.1);";
         },
 
-        addClick()
+        async exportPage(image_type)
         {
-            this.modal.addIsoform.show = true;
-        },
-
-        addOtherClick()
-        {
-            this.modal.addOtherIsoform.show = true;
-        },
-
-        addPeptideClick()
-        {
-            this.modal.addPeptide.show = true;
-        },
-
-        addSiteClick()
-        {
-            this.modal.addSite.show = true;
-        },
-
-        exportPNG()
-        {
-            let [svg_width, svg_height, svg] = this.exportSVG(true);
-
-            let export_canvas = document.createElement("canvas");
-            export_canvas.setAttribute("width", svg_width);
-            export_canvas.setAttribute("height", svg_height);
-            let export_canvas_ctx = export_canvas.getContext("2d");
-
-            let filename = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}.png` : 'IsoVis.png';
-
-            let img = new Image();
-            img.width = svg_width;
-            img.height = svg_height;
-
-            img.onload = function()
+            if (image_type === "svg")
+                this.exportPageSVG();
+            else if ((image_type === "png") || (image_type === "jpeg"))
             {
-                export_canvas_ctx.fillStyle = "white";
-                export_canvas_ctx.fillRect(0, 0, svg_width, svg_height);
-                export_canvas_ctx.drawImage(img, 0, 0);
-                let png = export_canvas.toDataURL("image/png");
-                let link = document.createElement('a');
-                link.href = png;
-                link.download = filename;
-                link.click();
-            };
+                let [svg_width, svg_height, svg] = this.exportPageSVG(true);
 
-            img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-        },
+                let export_canvas = document.createElement("canvas");
+                export_canvas.setAttribute("width", svg_width);
+                export_canvas.setAttribute("height", svg_height);
+                let export_canvas_ctx = export_canvas.getContext("2d");
 
-        exportJPEG()
-        {
-            let [svg_width, svg_height, svg] = this.exportSVG(true);
+                let filename = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}` : "IsoVis";
+                let img = new Image(svg_width, svg_height);
 
-            let export_canvas = document.createElement("canvas");
-            export_canvas.setAttribute("width", svg_width);
-            export_canvas.setAttribute("height", svg_height);
-            let export_canvas_ctx = export_canvas.getContext("2d");
+                img.onload = function()
+                {
+                    export_canvas_ctx.fillStyle = "white";
+                    export_canvas_ctx.fillRect(0, 0, svg_width, svg_height);
+                    export_canvas_ctx.drawImage(img, 0, 0);
+                    export_canvas.toBlob((blob) => {
+                        let exported_image = URL.createObjectURL(blob);
+                        let link = document.createElement('a');
+                        link.href = exported_image;
+                        link.download = filename;
+                        link.click();
+                        URL.revokeObjectURL(exported_image);
+                    }, `image/${image_type}`, 1.0);
+                };
 
-            let filename = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}.png` : 'IsoVis.png';
-
-            let img = new Image();
-            img.width = svg_width;
-            img.height = svg_height;
-
-            img.onload = function()
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+            }
+            else
             {
-                export_canvas_ctx.fillStyle = "white";
-                export_canvas_ctx.fillRect(0, 0, svg_width, svg_height);
-                export_canvas_ctx.drawImage(img, 0, 0);
-                let jpeg = export_canvas.toDataURL("image/jpeg", 1.0);
-                let link = document.createElement('a');
-                link.href = jpeg;
-                link.download = filename;
-                link.click();
-            };
+                let PDFDocument = require("~/assets/pdfkit.standalone.js");
+                let SVGtoPDF = require("svg-to-pdfkit");
+                let blobStream = require("blob-stream");
 
-            img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+                let [svg_width, svg_height, svg] = this.exportPageSVG(true);
+                let doc = new PDFDocument({size: [svg_width, svg_height]});
+                SVGtoPDF(doc, svg, 0, 0, {assumePt: true});
+
+                let filename = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}` : "IsoVis";
+                let stream = doc.pipe(blobStream());
+                stream.on("finish", function()
+                {
+                    let url = stream.toBlobURL("application/pdf");
+                    let link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    link.click();
+                });
+                doc.end();
+            }
         },
 
-        async exportPDF()
-        {
-            let PDFDocument = require("~/assets/pdfkit.standalone.js");
-            let SVGtoPDF = require("svg-to-pdfkit");
-            let blobStream = require("blob-stream");
-
-            let [svg_width, svg_height, svg] = this.exportSVG(true);
-            let doc = new PDFDocument({size: [svg_width, svg_height]});
-            SVGtoPDF(doc, svg, 0, 0, {assumePt: true});
-
-            let filename = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}.pdf` : 'IsoVis.pdf';
-            let stream = doc.pipe(blobStream());
-            stream.on("finish", function()
-            {
-                let url = stream.toBlobURL("application/pdf");
-                let link = document.createElement('a');
-                link.href = url;
-                link.download = filename;
-                link.click();
-            });
-            doc.end();
-        },
-
-        exportSVG(is_return_svg = false)
+        exportPageSVG(is_return_svg = false)
         {
             // We want all the text on the left hand side fully shown and centered
             // Idea: Calculate the width of the longest component on the left hand side, then center-align the texts accordingly
-
             let [shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
             let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line);
 
@@ -1117,7 +1136,7 @@ export default
             if (this.is_gene_on_ensembl)
             {
                 main_gene_text = this.mainData.geneLabel ? `${this.mainData.geneLabel} (${this.mainData.selectedGene})` : this.mainData.selectedGene;
-                main_gene_hyperlink = `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Gene/Summary?g=${this.mainData.selectedGene}`;
+                main_gene_hyperlink = `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Gene/Summary?g=${this.mainData.selectedGene}&amp;redirect=no`;
             }
             else
             {
@@ -1361,8 +1380,8 @@ export default
 
                 // Export the SVG
                 let link = document.createElement('a');
-                link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-                link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}.svg` : 'IsoVis.svg';
+                link.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+                link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}` : "IsoVis";
                 link.click();
 
                 return;
@@ -1513,7 +1532,7 @@ export default
                 let protein_second_line_width = text_metrics_canvas_ctx.measureText(protein_second_line).width + 16 * 2;
                 let protein_second_line_elems = "";
 
-                protein_second_line_elems += rounded_rect(x - protein_second_line_width / 2, temp_y, 16, 16, 8, 8, "#4a1c83");
+                protein_second_line_elems += rect_rounded(x - protein_second_line_width / 2, temp_y, 16, 16, 8, 8, "#4a1c83");
                 protein_second_line_elems += text_preserve_whitespace_central_baseline(" PFAM domain, ", x - protein_second_line_width / 2 + 16, temp_y + protein_second_line_height / 2, 16, "sans-serif");
                 protein_second_line_elems += rect(x - protein_second_line_width / 2 + 16 + text_metrics_canvas_ctx.measureText(" PFAM domain, ").width, temp_y, 16, 16, "#c3a685");
                 protein_second_line_elems += text_preserve_whitespace_central_baseline(" Signal peptide", x - protein_second_line_width / 2 + 16 + text_metrics_canvas_ctx.measureText(" PFAM domain, ").width + 16, temp_y + protein_second_line_height / 2, 16, "sans-serif");
@@ -1605,21 +1624,37 @@ export default
                 }
 
                 // Draw the peptide highlight legend if it is shown
-                if (this.mainData.isoformData.is_genomeprot && this.show_stack)
+                if (this.mainData.isoformData.is_genomeprot)
                 {
                     y += 5;
 
-                    let peptide_highlight_legend_text = "Uniquely map to" + "  " + "ORF >" + "  " + "Gene";
+                    // Draw the first line of the peptide highlight legend
+
+                    let peptide_highlight_legend_text = "Uniquely map to: " + " ORF >" + "  " + "Transcript >" + "  " + "Gene;";
                     let text_metrics = text_metrics_canvas_ctx.measureText(peptide_highlight_legend_text);
                     let peptide_highlight_legend_text_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
-                    let peptide_highlight_legend_text_width = text_metrics.width + 16 * 2;
-                    let peptide_highlight_legend_elems = "";
+                    let peptide_highlight_legend_text_width = text_metrics.width + 16 * 3;
 
-                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline("Uniquely map to ", x - peptide_highlight_legend_text_width / 2, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
-                    peptide_highlight_legend_elems += rect(x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to ").width, y, 16, 16, "#ff9500");
-                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline(" ORF > ", x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to ").width + 16, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
-                    peptide_highlight_legend_elems += rect(x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to ").width + 16 + text_metrics_canvas_ctx.measureText(" ORF > ").width, y, 16, 16, "#0000ff");
-                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline(" Gene", x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to ").width + 16 + text_metrics_canvas_ctx.measureText(" ORF > ").width + 16, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
+                    let peptide_highlight_legend_elems = "";
+                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline("Uniquely map to: ", x - peptide_highlight_legend_text_width / 2, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
+                    peptide_highlight_legend_elems += rect(x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to: ").width, y, 16, 16, "#ff9500");
+                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline(" ORF > ", x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to: ").width + 16, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
+                    peptide_highlight_legend_elems += rect(x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to: ").width + 16 + text_metrics_canvas_ctx.measureText(" ORF > ").width, y, 16, 16, "#00d0ff");
+                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline(" Transcript > ", x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to: ").width + 16 + text_metrics_canvas_ctx.measureText(" ORF > ").width + 16, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
+                    peptide_highlight_legend_elems += rect(x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to: ").width + 16 + text_metrics_canvas_ctx.measureText(" ORF > ").width + 16 + text_metrics_canvas_ctx.measureText(" Transcript > ").width, y, 16, 16, "#0000ff");
+                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline(" Gene;", x - peptide_highlight_legend_text_width / 2 + text_metrics_canvas_ctx.measureText("Uniquely map to: ").width + 16 + text_metrics_canvas_ctx.measureText(" ORF > ").width + 16 + text_metrics_canvas_ctx.measureText(" Transcript > ").width + 16, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
+
+                    y += peptide_highlight_legend_text_height + 10;
+
+                    // Draw the second line of the peptide highlight legend
+
+                    peptide_highlight_legend_text = " Peptide maps to multiple genes";
+                    text_metrics = text_metrics_canvas_ctx.measureText(peptide_highlight_legend_text);
+                    peptide_highlight_legend_text_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
+                    peptide_highlight_legend_text_width = text_metrics.width + 16;
+
+                    peptide_highlight_legend_elems += rect(x - peptide_highlight_legend_text_width / 2, y, 16, 16, "#535353");
+                    peptide_highlight_legend_elems += text_preserve_whitespace_central_baseline(" Peptide maps to multiple genes", x - peptide_highlight_legend_text_width / 2 + 16, y + peptide_highlight_legend_text_height / 2, 16, "sans-serif");
 
                     svg += peptide_highlight_legend_elems;
 
@@ -1644,13 +1679,13 @@ export default
                 }
 
                 // Draw all shown peptides
-                y += 15;
+                y += 19;
                 for (let peptide_text of shown_peptide_texts)
                 {
-                    if ((peptide_text === "Peptides (beta):") || (peptide_text === "Uniquely map to" + "  " + "ORF >" + "  " + "Gene"))
+                    if ((peptide_text === "Peptides (beta):") || (peptide_text === "Uniquely map to: " + " ORF >" + "  " + "Transcript >" + "  " + "Gene;") || (peptide_text === " Peptide maps to multiple genes"))
                         continue;
 
-                    let text_elem = text_double_centered(peptide_text, x, y, 16, "sans-serif", "");
+                    let text_elem = (this.$refs.peptideGenomeProtStackComponent && (peptide_text === this.$refs.peptideGenomeProtStackComponent.highlighted_peptide)) ? text_double_centered_bolded(peptide_text, x, y, 16, "sans-serif", "") : text_double_centered(peptide_text, x, y, 16, "sans-serif", "");
                     svg += text_elem;
                     y += 1 + 30;
                 }
@@ -1680,19 +1715,52 @@ export default
                 y += 15;
             }
 
-            // Splice differences graph
+            // Splice graph
             if (splice_graph_shown)
             {
-                // Draw the 'Splice differences graph:' label
-                svg += text_topped_centered("Splice differences graph:", x, y, 16, "sans-serif");
+                // Draw the 'Splice graph:' label
+                svg += text_topped_centered("Splice graph:", x, y, 16, "sans-serif");
 
-                // Draw the splice differences graph
+                // Draw the splice graph
                 let line_y = -1;
                 if (!((splice_graph_width === -1) || (splice_graph_height === -1) || !splice_graph_symbol))
                 {
                     line_y = Math.ceil(y + splice_graph_height);
                     svg += put_in_symbol("splice_graph", splice_graph_width, splice_graph_height, splice_graph_symbol);
                     svg += use("#splice_graph", 50 + longest_text_width + 50, y);
+                }
+
+                let text_metrics = text_metrics_canvas_ctx.measureText("Splice graph:");
+                let text_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
+
+                if (this.show_alternative_junctions)
+                {
+                    y += text_height + 8;
+
+                    let splice_legend_text = " Alternative splice junction";
+                    text_metrics = text_metrics_canvas_ctx.measureText(splice_legend_text);
+                    text_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
+                    let splice_legend_text_width = text_metrics.width + 30;
+
+                    let splice_legend_elems = "";
+                    splice_legend_elems += line(x - splice_legend_text_width / 2, y + text_height / 2 + 0.5, x - splice_legend_text_width / 2 + 30, y + text_height / 2 + 0.5, "#000000", 2);
+                    splice_legend_elems += text_preserve_whitespace_central_baseline(splice_legend_text, x - splice_legend_text_width / 2 + 30, y + text_height / 2, 16, "sans-serif");
+                    svg += splice_legend_elems;
+                }
+
+                if (this.show_constitutive_junctions && this.constitutive_junctions_exist)
+                {
+                    y += text_height + 8;
+
+                    let splice_legend_text = " Constitutive splice junction";
+                    text_metrics = text_metrics_canvas_ctx.measureText(splice_legend_text);
+                    text_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
+                    let splice_legend_text_width = text_metrics.width + 30;
+
+                    let splice_legend_elems = "";
+                    splice_legend_elems += line_dashed(x - splice_legend_text_width / 2, y + text_height / 2 + 0.5, x - splice_legend_text_width / 2 + 30, y + text_height / 2 + 0.5, "#000000", 2, "3 2");
+                    splice_legend_elems += text_preserve_whitespace_central_baseline(splice_legend_text, x - splice_legend_text_width / 2 + 30, y + text_height / 2, 16, "sans-serif");
+                    svg += splice_legend_elems;
                 }
 
                 if (line_y !== -1)
@@ -1824,6 +1892,21 @@ export default
                 y += text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent + 5;
             }
 
+            if (this.show_stack && this.show_user_orfs && this.is_overlapping_orfs_present)
+            {
+                y += 8;
+
+                let text_metrics = text_metrics_canvas_ctx.measureText(" Region with overlapping ORFs");
+                let orf_hatching_pattern_legend_line_width = text_metrics.width;
+                let orf_hatching_pattern_legend_line_height = Math.max(text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent, 16);
+
+                svg += orf_hatching_pattern_16px("orf_hatching_pattern_legend", "black", "white");
+                svg += rect(x - (orf_hatching_pattern_legend_line_width + 16) / 2, y, 16, 16, "url(#orf_hatching_pattern_legend)");
+                svg += text_preserve_whitespace_central_baseline(" Region with overlapping ORFs", x - (orf_hatching_pattern_legend_line_width + 16) / 2 + 16, y + orf_hatching_pattern_legend_line_height / 2, 16, "sans-serif");
+
+                y += orf_hatching_pattern_legend_line_height + 5;
+            }
+
             // Draw the isoform stack
             svg += put_in_symbol("isoform_stack", isoform_stack_width, isoform_stack_height, isoform_stack_symbol);
             svg += use("#isoform_stack", 50 + longest_text_width + 50, y);
@@ -1896,8 +1979,8 @@ export default
 
             // Export the SVG
             let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}.svg` : 'IsoVis.svg';
+            link.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}` : "IsoVis";
             link.click();
         },
 
@@ -1920,7 +2003,7 @@ export default
                 shown_texts.push(line_text);
 
             if (this.splice_graph_visible)
-                shown_texts.push("Splice differences graph:");
+                shown_texts.push("Splice graph:");
 
             for (let line_text of shown_peptide_texts)
                 shown_texts.push(line_text);
@@ -1962,12 +2045,26 @@ export default
             let protein_third_line_width = text_width_canvas_ctx.measureText(protein_third_line).width + 16 * 2;
             longest_text_width = Math.max(longest_text_width, protein_second_line_width, protein_third_line_width);
 
+            if (this.splice_graph_visible)
+            {
+                let splice_graph_first_line_width = text_width_canvas_ctx.measureText(" Alternative splice junction").width + 30;
+                let splice_graph_second_line_width = (this.show_constitutive_junctions && this.constitutive_junctions_exist) ? text_width_canvas_ctx.measureText(" Constitutive splice junction").width + 30 : -1;
+                longest_text_width = Math.max(longest_text_width, splice_graph_first_line_width, splice_graph_second_line_width);
+            }
+
             // Also consider the peptide highlight legend if it is present
             if (!this.peptide_disabled && this.show_peptide && this.mainData.isoformData.is_genomeprot && this.show_stack)
             {
-                let shown_text = "Uniquely map to" + "  " + "ORF >" + "  " + "Gene";
-                let peptide_highlight_legend_line_width = text_width_canvas_ctx.measureText(shown_text).width + 16 * 2;
+                let shown_text = " ORF >" + "  " + "Transcript >" + "  " + "Gene >" + "  " + "Nothing";
+                let peptide_highlight_legend_line_width = text_width_canvas_ctx.measureText(shown_text).width + 16 * 4;
                 longest_text_width = Math.max(longest_text_width, peptide_highlight_legend_line_width);
+            }
+
+            if (this.show_stack && this.show_user_orfs && this.is_overlapping_orfs_present)
+            {
+                let shown_text = " Region with overlapping ORFs";
+                let orf_hatching_pattern_legend_line_width = text_width_canvas_ctx.measureText(shown_text).width + 16;
+                longest_text_width = Math.max(longest_text_width, orf_hatching_pattern_legend_line_width);
             }
 
             text_width_canvas.remove();
@@ -1988,7 +2085,7 @@ export default
 
                 if (this.transcriptNames[transcriptId] === 'Novel')
                 {
-                    link = `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${transcriptId}`;
+                    link = `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${transcriptId}&amp;redirect=no`;
                     shown_text = transcriptId;
                 }
                 else if ((this.transcriptNames[transcriptId] === 'Not found') || (!this.transcriptNames[transcriptId]))
@@ -1997,7 +2094,7 @@ export default
                 }
                 else
                 {
-                    link = `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${transcriptId}`;
+                    link = `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${transcriptId}&amp;redirect=no`;
                     shown_text = `${this.transcript_names_ready ? this.transcriptNames[transcriptId] + " (" + transcriptId + ')' : transcriptId}`;
                 }
 
@@ -2013,10 +2110,10 @@ export default
 
                 let second_line_info = [];
                 if (!this.labels.refseq)
-                    second_line_info.push([this.canonDisplay, `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalTranscript}`]);
+                    second_line_info.push([this.canonDisplay, `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalIsoform}&amp;redirect=no`]);
                 else
                 {
-                    second_line_info.push([this.canonDisplaySymbolOrID, `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalTranscript}`]);
+                    second_line_info.push([this.canonDisplaySymbolOrID, `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${this.canonicalIsoform}&amp;redirect=no`]);
                     second_line_info.push([", ", null]);
                     second_line_info.push([this.labels.refseq, `https://www.ncbi.nlm.nih.gov/nuccore/${this.labels.refseq}`]);
                 }
@@ -2032,7 +2129,10 @@ export default
                 shown_peptide_texts.push("Peptides (beta):");
 
                 if (this.mainData.isoformData.is_genomeprot && this.show_stack)
-                    shown_peptide_texts.push("Uniquely map to" + "  " + "ORF >" + "  " + "Gene");
+                {
+                    shown_peptide_texts.push("Uniquely map to: " + " ORF >" + "  " + "Transcript >" + "  " + "Gene;");
+                    shown_peptide_texts.push(" Peptide maps to multiple genes");
+                }
 
                 if (!this.peptide_compact_mode)
                 {
@@ -2053,7 +2153,7 @@ export default
                 for (let other_isoform_id of this.other_isoforms_ids)
                 {
                     let shown_text = null;
-                    let link = `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${other_isoform_id}`;
+                    let link = `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Transcript/Summary?db=core;g=${this.mainData.selectedGene};t=${other_isoform_id}&amp;redirect=no`;
 
                     if (this.transcriptNames[other_isoform_id] === 'Novel')
                         shown_text = other_isoform_id;
@@ -2089,7 +2189,7 @@ export default
             {
                 let ensembl_link = "";
                 if (this.labels.ensembl != '')
-                    ensembl_link = `https://${this.is_use_grch37 ? 'grch37.' : ''}ensembl.org/${this.species}/Transcript/Summary?db=core;p=${this.labels.ensembl}`;
+                    ensembl_link = `https://${this.is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${this.species}/Transcript/Summary?db=core;p=${this.labels.ensembl}&amp;redirect=no`;
 
                 let interpro_link = "";
                 if (this.labels.interpro_source_database != '' && this.labels.uniprot != '')
@@ -2141,167 +2241,63 @@ export default
             return [shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line];
         },
 
-        exportProteinLabelsSVG()
+        exportComponent(component)
         {
-            let svg = this.$refs.proteinLabelsComponent.buildProteinLabelsSvg();
+            let svg = '';
+
+            if (component === "protein_labels")
+                svg = this.$refs.proteinLabelsComponent.buildProteinLabelsSvg();
+            else if (component === "protein")
+                svg = this.$refs.proteinComponent.buildProteinSvg();
+            else if (component === "protein_mapping")
+                svg = this.$refs.proteinComponent.buildProteinMapSvg();
+            else if (component === "canon_track")
+                svg = this.$refs.canonStackComponent.buildStackSvg();
+            else if (component === "peptide_stack")
+                svg = (this.mainData.isoformData.is_genomeprot) ? this.$refs.peptideGenomeProtStackComponent.buildStackSvg() : this.$refs.peptideStackComponent.buildStackSvg();
+            else if (component === "peptide_intensities_heatmap")
+                svg = this.$refs.peptideCountsComponent.buildHeatmapSvg();
+            else if (component === "peptide_intensities_heatmap_legend")
+                svg = this.$refs.peptideCountsLegendComponent.buildHeatmapLegendSvg();
+            else if (component === "splice_graph")
+                svg = this.$refs.spliceGraphComponent.buildGraphSvg();
+            else if (component === "other_isoforms")
+                svg = this.$refs.otherIsoformStackComponent.buildStackSvg();
+            else if (component === "rna_modification_sites")
+                svg = this.$refs.RNAModifStackComponent.buildStackSvg();
+            else if (component === "rna_modification_levels")
+                svg = this.$refs.RNAModifLevelsComponent.buildHeatmapSvg();
+            else if (component === "rna_modification_levels_legend")
+                svg = this.$refs.RNAModifLevelsLegendComponent.buildHeatmapLegendSvg();
+            else if (component === "stack")
+                svg = this.$refs.isoformStackComponent.buildStackSvg();
+            else if (component === "strand")
+                svg = this.$refs.geneStrandComponent.buildStrandSvg();
+            else if (component === "heatmap" && this.mainData.heatmapData)
+                svg = this.$refs.heatmapComponent.buildHeatmapSvg();
+            else if (component === "heatmap_legend" && this.mainData.heatmapData)
+                svg = this.$refs.heatmapLegendComponent.buildHeatmapLegendSvg();
+
+            if (svg === '')
+                return;
+
             let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_protein.svg` : 'IsoVis_protein_labels.svg';
+            link.href = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+            link.download = `IsoVis${this.mainData.selectedGene ? '_' + this.mainData.selectedGene : ''}_${component}`;
             link.click();
-        },
-
-        exportProteinSVG()
-        {
-            let svg = this.$refs.proteinComponent.buildProteinSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_protein.svg` : 'IsoVis_protein.svg';
-            link.click();
-        },
-
-        exportProteinMapSVG()
-        {
-            let svg = this.$refs.proteinComponent.buildProteinMapSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_protein_mapping.svg` : 'IsoVis_protein_mapping.svg';
-            link.click();
-        },
-
-        exportCanonTrackSVG()
-        {
-            let svg = this.$refs.canonStackComponent.buildStackSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_canon_track.svg` : 'IsoVis_canon_track.svg';
-            link.click();
-        },
-
-        exportPeptideSVG()
-        {
-            let svg = (this.mainData.isoformData.is_genomeprot) ? this.$refs.peptideGenomeProtStackComponent.buildStackSvg() : this.$refs.peptideStackComponent.buildStackSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_peptide_stack.svg` : 'IsoVis_peptide_stack.svg';
-            link.click();
-        },
-
-        exportPeptideHeatmapSVG()
-        {
-            let svg = this.$refs.peptideCountsComponent.buildHeatmapSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_peptide_intensities_heatmap.svg` : 'IsoVis_peptide_intensities_heatmap.svg';
-            link.click();
-        },
-
-        exportPeptideHeatmapLegendSVG()
-        {
-            let svg = this.$refs.peptideCountsLegendComponent.buildHeatmapLegendSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_peptide_intensities_heatmap_legend.svg` : 'IsoVis_peptide_intensities_heatmap_legend.svg';
-            link.click();
-        },
-
-        exportSpliceGraphSVG()
-        {
-            let svg = this.$refs.spliceGraphComponent.buildGraphSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_splice_graph.svg` : 'IsoVis_splice_graph.svg';
-            link.click();
-        },
-
-        exportOtherIsoformsSVG()
-        {
-            let svg = this.$refs.otherIsoformStackComponent.buildStackSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_other_isoforms.svg` : 'IsoVis_other_isoforms.svg';
-            link.click();
-        },
-
-        exportRNAModificationSitesSVG()
-        {
-            let svg = this.$refs.RNAModifStackComponent.buildStackSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_rna_modification_sites.svg` : 'IsoVis_rna_modification_sites.svg';
-            link.click();
-        },
-
-        exportRNAModificationLevelsSVG()
-        {
-            let svg = this.$refs.RNAModifLevelsComponent.buildHeatmapSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_rna_modification_levels.svg` : 'IsoVis_rna_modification_levels.svg';
-            link.click();
-        },
-
-        exportRNAModificationLevelsLegendSVG()
-        {
-            let svg = this.$refs.RNAModifLevelsLegendComponent.buildHeatmapLegendSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_rna_modification_levels_legend.svg` : 'IsoVis_rna_modification_levels_legend.svg';
-            link.click();
-        },
-
-        exportStackSVG()
-        {
-            let svg = this.$refs.isoformStackComponent.buildStackSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_stack.svg` : 'IsoVis_stack.svg';
-            link.click();
-        },
-
-        exportStrandSVG()
-        {
-            let svg = this.$refs.geneStrandComponent.buildStrandSvg();
-            let link = document.createElement('a');
-            link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-            link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_strand.svg` : 'IsoVis_strand.svg';
-            link.click();
-        },
-
-        exportHeatmapSVG()
-        {
-            if (this.mainData.heatmapData)
-            {
-                let svg = this.$refs.heatmapComponent.buildHeatmapSvg();
-                let link = document.createElement('a');
-                link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-                link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_heatmap.svg` : 'IsoVis_heatmap.svg';
-                link.click();
-            }
-        },
-
-        exportHeatmapLegendSVG()
-        {
-            if (this.mainData.heatmapData)
-            {
-                let svg = this.$refs.heatmapLegendComponent.buildHeatmapLegendSvg();
-                let link = document.createElement('a');
-                link.href = "data:image/svg;charset=utf-8," + encodeURIComponent(svg);
-                link.download = this.mainData.selectedGene ? `IsoVis_${this.mainData.selectedGene}_heatmap_legend.svg` : 'IsoVis_heatmap_legend.svg';
-                link.click();
-            }
         },
 
         setBaseAxis()
         {
-            let introns_normalized = (Object.keys(this.baseAxis).length != 0) ? this.baseAxis.isnormalized() : true;
-            let is_ascending = (Object.keys(this.baseAxis).length != 0) ? this.baseAxis.isAscending() : true;
+            let introns_normalized = (Object.keys(this.baseAxis).length !== 0) ? this.baseAxis.isnormalized() : true;
+            let is_ascending = (Object.keys(this.baseAxis).length !== 0) ? this.baseAxis.isAscending() : true;
 
             let isoformData = JSON.parse(JSON.stringify(this.mainData.isoformData));
             let canonData = JSON.parse(JSON.stringify(this.mainData.canonData));
             this.transcriptIds = isoformData.transcriptOrder.map((item)=>item);
 
             let is_other_isoforms_loaded = (this.other_isoform_data && this.other_isoform_data.isoformList && (this.other_isoform_data.isoformList.length >= 1));
-            let is_canon_loaded = (!(!canonData || Object.keys(canonData).length == 0));
+            let is_canon_loaded = (!(!canonData || Object.keys(canonData).length === 0));
             let is_zoomed = ((this.zoom_start !== -1) && (this.zoom_end !== -1));
 
             // Determine the start and end of the genomic coordinate axis
@@ -2351,10 +2347,11 @@ export default
             // Calculate or update the splcing regions
             let spliced_regions = this.spliced_regions;
             let relative_heights = this.relative_heights;
+            let relative_heights_constitutive = this.relative_heights_constitutive;
             let relative_heights_all = this.relative_heights_all;
-            if (this.is_spliced_regions_outdated || !spliced_regions || !relative_heights || !relative_heights_all)
+            if (this.is_spliced_regions_outdated || !spliced_regions || !relative_heights || !relative_heights_constitutive || !relative_heights_all)
             {
-                let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms)); // isoformList?
+                let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms));
                 if (is_other_isoforms_loaded && this.show_all_other_isoforms)
                 {
                     let other_isoforms_list = JSON.parse(JSON.stringify(this.other_isoform_data.isoformList));
@@ -2370,21 +2367,21 @@ export default
 
                 [spliced_regions, constitutive_junctions_exist] = calculateSplicedRegions(isoform_list);
                 relative_heights = calculateRelativeHeights(spliced_regions);
+                relative_heights_constitutive = calculateRelativeHeights(spliced_regions, false);
                 relative_heights_all = calculateRelativeHeightsAll(spliced_regions);
 
                 this.spliced_regions = spliced_regions;
                 this.relative_heights = relative_heights;
+                this.relative_heights_constitutive = relative_heights_constitutive;
                 this.relative_heights_all = relative_heights_all;
                 this.is_spliced_regions_outdated = false;
 
                 this.constitutive_junctions_exist = constitutive_junctions_exist;
             }
 
-            
-            // let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges);
-            let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_all);
+            let new_baseaxis = createBaseAxis(width, start, end, strand, mergedRanges, spliced_regions, relative_heights, relative_heights_constitutive, relative_heights_all);
 
-            // Do not use the newly calculated genomic coordinate axis if nothing would be shown in the zoomed range 
+            // Do not use the newly calculated genomic coordinate axis if nothing would be shown in the zoomed range
             if ((new_baseaxis.shrunkRange.length === 0) || (new_baseaxis.shrunkDomain.length === 0))
                 return;
 
@@ -2393,7 +2390,7 @@ export default
             this.baseAxis = new_baseaxis;
 
             if (!introns_normalized)
-                this.baseAxis.togglenormalization();
+                this.baseAxis.toggleNormalization();
 
             if (!is_ascending)
                 this.baseAxis.reverse();
@@ -2410,7 +2407,7 @@ export default
 
         setZoom(zoom_start, zoom_end)
         {
-            if (!((zoom_start === -1) || (zoom_end === -1) || (zoom_start == zoom_end)))
+            if (!((zoom_start === -1) || (zoom_end === -1) || (zoom_start === zoom_end)))
             {
                 this.zoom_start = zoom_start;
                 this.zoom_end = zoom_end;
@@ -2419,17 +2416,17 @@ export default
             this.setBaseAxis();
         },
 
-        // Calculate the metagene ranges from both the uploaded isoform stack data and the downloaded canonical transcript data, and set the base axis accordingly.
+        // Calculate the metagene ranges from both the uploaded isoform stack data and the downloaded canonical isoform data, and set the base axis accordingly.
         calculate_canon_mergedranges()
         {
             let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
             let stack_isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms));
             let isoform_list = canon_isoform_list.concat(stack_isoform_list);
-            
+
             this.canondata_ranges = mergeRanges(isoform_list);
-            this.canondata_start = this.mainData.isoformData.strand == '+' ? Math.min(this.mainData.isoformData.start, this.mainData.canonData.start) :
+            this.canondata_start = this.mainData.isoformData.strand === '+' ? Math.min(this.mainData.isoformData.start, this.mainData.canonData.start) :
                 Math.max(this.mainData.isoformData.start, this.mainData.canonData.start);
-            this.canondata_end = this.mainData.isoformData.strand == '+' ? Math.max(this.mainData.isoformData.end, this.mainData.canonData.end) :
+            this.canondata_end = this.mainData.isoformData.strand === '+' ? Math.max(this.mainData.isoformData.end, this.mainData.canonData.end) :
                 Math.min(this.mainData.isoformData.end, this.mainData.canonData.end);
 
             this.zoom_start = this.canondata_start;
@@ -2464,9 +2461,9 @@ export default
             }
         },
 
-        togglenormalization()
+        toggleNormalization()
         {
-            this.baseAxis.togglenormalization();
+            this.baseAxis.toggleNormalization();
             this.$refs.isoformStackComponent.buildStack();
             this.$refs.otherIsoformStackComponent.buildStack();
             this.$refs.spliceGraphComponent.buildGraph();
@@ -2515,7 +2512,7 @@ export default
         {
             this.show_domains = state;
             this.$refs.proteinComponent.show_domains = state;
-            if (state == true && this.show_protein == false)
+            if (state === true && this.show_protein === false)
                 this.setShowProtein(true);
         },
 
@@ -2523,21 +2520,21 @@ export default
         {
             this.show_motifs = state;
             this.$refs.proteinComponent.show_motifs = state;
-            if (state == true && this.show_protein == false)
+            if (state === true && this.show_protein === false)
                 this.setShowProtein(true);
         },
 
         setShowDomainLabels(state)
         {
             this.show_protein_labels = state;
-            if (state == true && this.show_protein == false)
+            if (state === true && this.show_protein === false)
                 this.setShowProtein(true);
         },
 
         setShowProtein(state)
         {
             this.show_protein = state;
-            if (state == true && this.show_canon == false)
+            if (state === true && this.show_canon === false)
                 this.setShowCanon(true);
             this.resizePage();
         },
@@ -2599,12 +2596,6 @@ export default
                 this.$refs.isoformStackComponent.ump_orfs_to_highlight = [];
                 this.$refs.isoformStackComponent.ump_transcripts_to_highlight = [];
                 this.$refs.isoformStackComponent.transcripts_to_highlight = [];
-                // if (!this.canon_disabled)
-                // {
-                //     this.$refs.canonStackComponent.ump_orfs_to_highlight = [];
-                //     this.$refs.canonStackComponent.ump_transcripts_to_highlight = [];
-                //     this.$refs.canonStackComponent.transcripts_to_highlight = [];
-                // }
             }
 
             this.resizePage();
@@ -2622,12 +2613,6 @@ export default
             this.$refs.isoformStackComponent.ump_orfs_to_highlight = (this.peptide_highlight_mode) ? JSON.parse(JSON.stringify(this.mainData.isoformData.orfs_identified)) : [];
             this.$refs.isoformStackComponent.ump_transcripts_to_highlight = (this.peptide_highlight_mode) ? JSON.parse(JSON.stringify(this.mainData.isoformData.transcripts_identified)) : [];
             this.$refs.isoformStackComponent.transcripts_to_highlight = [];
-            // if (!this.canon_disabled)
-            // {
-            //     this.$refs.canonStackComponent.ump_orfs_to_highlight = this.$refs.isoformStackComponent.ump_orfs_to_highlight;
-            //     this.$refs.canonStackComponent.ump_transcripts_to_highlight = this.$refs.isoformStackComponent.ump_transcripts_to_highlight;
-            //     this.$refs.canonStackComponent.transcripts_to_highlight = [];
-            // }
             if (this.peptide_integration_mode)
                 this.setShowUserOrfs(true);
 
@@ -2671,7 +2656,7 @@ export default
                 this.is_spliced_regions_outdated = true;
 
             this.show_canon = state;
-            if (state == false)
+            if (state === false)
                 this.setShowProtein(false);
 
             this.is_zoom_changed = true;
@@ -2692,19 +2677,19 @@ export default
         setShowSplices(state)
         {
             this.show_splices = state;
-            if (!this.show_splices)
-            {
-                this.setShowConstitutiveJunctions(false);
-            }
             this.resizePage();
+        },
+
+        setShowAlternativeJunctions(state)
+        {
+            this.show_alternative_junctions = state;
+            this.$refs.spliceGraphComponent.is_draw_alternative = state;
         },
 
         setShowConstitutiveJunctions(state)
         {
             this.show_constitutive_junctions = state;
             this.$refs.spliceGraphComponent.is_draw_constitutive = state;
-            if (this.show_constitutive_junctions)
-                this.setShowSplices(true);
         },
 
         setShowStack(state)
@@ -2712,7 +2697,7 @@ export default
             this.show_stack = state;
             this.is_stack_toggled = true;
         },
-        
+
         setShowHeatmapColumn(state)
         {
             this.show_heatmap_column = state;
@@ -2732,7 +2717,6 @@ export default
         {
             this.hide_peptide_heatmap_labels = state;
             this.$refs.peptideCountsLegendComponent.hide_peptide_heatmap_labels = state;
-            //this.resizePage();
         },
 
         setShowRNAModifHeatmap(state)
@@ -2748,7 +2732,6 @@ export default
         {
             this.hide_rna_modif_heatmap_labels = state;
             this.$refs.RNAModifLevelsLegendComponent.hide_rna_modif_heatmap_labels = state;
-            //this.resizePage();
         },
 
         setShowIsoformHeatmap(state)
@@ -2838,9 +2821,17 @@ export default
          * @param {string} url URL
          * @returns {Object} The JSON object
          */
-        async fetchJSON(url)
+        async fetchJSON(url, post_data = null)
         {
-            let response = await fetch(url, { signal: this.signal }).then(
+            let options = {signal: this.signal};
+            if (post_data)
+            {
+                options.method = "POST";
+                options.headers = {"Content-Type": "application/json"};
+                options.body = JSON.stringify(post_data);
+            }
+
+            let response = await fetch(url, options).then(
                 res => res.json()
             ).catch(
                 () => null
@@ -2849,97 +2840,114 @@ export default
         },
 
         /**
-         * Check if a gene ID is linked to Ensembl.
-         * @param {*} gene_id The gene ID.
-         */
-        async isGeneOnEnsembl(gene_id)
-        {
-            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_id}?species=${this.species}&content-type=application/json`;
-            let response = await this.fetchJSON(url);
-            this.is_gene_on_ensembl = (response && !response.error);
-        },
-
-        /**
-         * Fetch transcript names from Ensembl.
-         */
-         async getTranscriptNames()
-         {
-            let prefix = this.species_to_prefix[this.species];
-            for (let transcript_id of this.transcriptIds)
-            {
-                // Don't try to fetch names for transcripts that we've already found a name for
-                if (this.transcriptNames[transcript_id] != null)
-                    continue;
-
-                // For species that do have a stable ID prefix, only fetch names for transcripts that have a matching prefix.
-                // For species that don't have a stable ID prefix, fetch the names of all transcripts being visualized.
-                if (prefix && (transcript_id.toUpperCase().indexOf(prefix) !== 0))
-                    continue;
-
-                let transcript_name = "";
-
-                let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${transcript_id}?species=${this.species}&content-type=application/json`;
-                let response = await this.fetchJSON(url);
-                if (response)
-                {
-                    if (response.display_name)
-                        transcript_name = response.display_name;
-                    else if (response.error)
-                        transcript_name = "Not found";  // The transcript either doesn't exist or is retired, such as ENST00000613795
-                    else                                // The transcript does exist but it's novel
-                        transcript_name = "Novel";
-                }
-
-                this.transcriptNames[transcript_id] = transcript_name;
-            }
-            this.transcript_names_ready = true;
-        },
-
-        /**
-         * Fetch canonical transcript data from Ensembl.
+         * Fetch transcript names and canonical isoform data from Ensembl.
          * @param {string} gene_id Ensembl gene ID from the stack file
          * @returns {Array<>} An array containing 2 elements:
-         * 1. A JSON object containing the canonical transcript data, and
-         * 2. The Ensembl ID of the canonical transcript
+         * 1. An array of protein-coding transcript IDs
+         * 2. The Ensembl ID of the canonical isoform
          */
-        async getCanonData(gene_id)
+        async getTranscriptNamesAndCanonData(gene_id)
         {
             this.showCanonLoading = true;
             let canon_data = {};
             let canon_id = "";
+            let is_canon_protein_coding = false;
 
-            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_id}?species=${this.species}&content-type=application/json`;
-            let response = await this.fetchJSON(url);
-            if (response && !response.error && response.canonical_transcript)
+            let protein_coding_transcripts = [];
+            let protein_coding_biotypes = ["IG_C_gene", "IG_D_gene", "IG_J_gene", "IG_V_gene", "TR_C_gene", "TR_D_gene", "TR_J_gene", "TR_V_gene", "non_stop_decay", "nonsense_mediated_decay", "protein_coding", "protein_coding_LoF"];
+
+            let prefix = this.species_to_prefix[this.species];
+            let ids_to_check = this.transcriptIds.filter((transcript_id) => (prefix && (transcript_id.toUpperCase().indexOf(prefix) === 0)));
+            ids_to_check.push(gene_id);
+
+            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id?species=${encodeURIComponent(this.species)}`;
+            let response = await this.fetchJSON(url, {ids: ids_to_check});
+            if (response)
             {
-                if (response.display_name)
+                for (let i = 0; i < ids_to_check.length; ++i)
                 {
-                    this.mainData.geneLabel = response.display_name;
-                    // Let GenomeProt(SC) know which gene is selected by the user
-                    if (window.parent !== window)
-                        window.parent.postMessage(this.mainData.geneLabel, document.referrer);
-                }
-                else
-                {
-                    // Let GenomeProt(SC) know which gene is selected by the user
-                    if (window.parent !== window)
-                        window.parent.postMessage(this.mainData.selectedGene, document.referrer);
-                }
+                    let id = ids_to_check[i];
+                    let result = response[id];
+                    if (i !== ids_to_check.length - 1)
+                    {
+                        let transcript_name = "Not found";  // The transcript either doesn't exist or is retired, such as ENST00000613795
+                        if (result)
+                        {
+                            if (result.display_name)
+                                transcript_name = result.display_name;
+                            else                            // The transcript does exist but it's novel
+                                transcript_name = "Novel";
 
-                canon_id = response.canonical_transcript;
-                canon_id = canon_id.substring(0, canon_id.indexOf('.'));
+                            if (protein_coding_biotypes.indexOf(result.biotype) !== -1)
+                                protein_coding_transcripts.push(id);
+                        }
+                        this.transcriptNames[id] = transcript_name;
+                    }
+                    else
+                    {
+                        this.transcript_names_ready = true;
+                        this.is_gene_on_ensembl = (result != null);
 
-                url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${canon_id}?species=${this.species}&expand=1;content-type=application/json`;
-                let transcript = await this.fetchJSON(url);
-                if (transcript && transcript.Exon)
-                {
-                    canon_data = new CanonData(transcript);
-                    this.is_strandedness_mismatched = (canon_data.strand !== this.mainData.isoformData.strand);
+                        if (this.is_gene_on_ensembl && result.canonical_transcript)
+                        {
+                            if (result.display_name)
+                            {
+                                this.mainData.geneLabel = result.display_name;
+                                // Let GenomeProt(SC) know which gene is selected by the user
+                                if (window.parent !== window)
+                                    window.parent.postMessage(this.mainData.geneLabel, document.referrer);
+                            }
+                            else
+                            {
+                                // Let GenomeProt(SC) know which gene is selected by the user
+                                if (window.parent !== window)
+                                    window.parent.postMessage(this.mainData.selectedGene, document.referrer);
+                            }
+
+                            canon_id = result.canonical_transcript;
+                            canon_id = canon_id.substring(0, canon_id.indexOf('.'));
+
+                            url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${canon_id}?species=${encodeURIComponent(this.species)}&expand=1;content-type=application/json`;
+                            response = await this.fetchJSON(url);
+                            if (response)
+                            {
+                                if (response.Exon)
+                                {
+                                    canon_data = new CanonData(response);
+                                    this.is_strandedness_mismatched = (canon_data.strand !== this.mainData.isoformData.strand);
+                                }
+
+                                if (response.Translation && response.Translation.id)
+                                    this.labels["ensembl"] = response.Translation.id;
+
+                                is_canon_protein_coding = (protein_coding_biotypes.indexOf(response.biotype) !== -1);
+                            }
+                        }
+
+                        this.showCanonLoading = false;
+                        this.canon_disabled = (Object.keys(canon_data).length === 0);
+                        if (!this.canon_disabled)
+                        {
+                            this.mainData.canonData = canon_data;
+                            this.calculate_canon_mergedranges();
+
+                            // Ensures that both the displayed canonical isoform width and the protein diagram width match the stack's
+                            this.resizePage();
+                        }
+
+                        if (is_canon_protein_coding && canon_id)
+                            protein_coding_transcripts.push(canon_id);
+                    }
                 }
             }
+            else
+            {
+                this.transcript_names_ready = true;
+                this.showCanonLoading = false;
+                this.canon_disabled = true;
+            }
 
-            this.showCanonLoading = false;
-            return [canon_data, canon_id];
+            return [protein_coding_transcripts, canon_id];
         },
 
         /**
@@ -2955,14 +2963,14 @@ export default
             let all_stack_isoform_ids = this.isoformList;
 
             let isoform_list = JSON.parse(JSON.stringify(this.mainData.isoformData.allIsoforms));
-            let is_canon_loaded = (!(!this.mainData.canonData || Object.keys(this.mainData.canonData).length == 0));
+            let is_canon_loaded = (!(!this.mainData.canonData || Object.keys(this.mainData.canonData).length === 0));
             if (is_canon_loaded)
             {
                 let canon_isoform_list = JSON.parse(JSON.stringify(this.mainData.canonData.isoformList));
                 isoform_list = isoform_list.concat(canon_isoform_list);
             }
 
-            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_id}?species=${this.species}&expand=1&content-type=application/json`;
+            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${gene_id}?species=${encodeURIComponent(this.species)}&expand=1&content-type=application/json`;
             let response = await this.fetchJSON(url);
             if (response && !response.error && response.Transcript && (response.Transcript.length !== 0))
             {
@@ -2976,21 +2984,62 @@ export default
                     return;
                 }
 
-                for (let i = 0; i < other_isoform_data.isoformList.length; ++i)
+                let results = [];
+                let result_counter = 0;
+                let result_threshold = 5;   // Only process at most 5 requests at once to prevent being rate-limited by Ensembl (maximum 15 requests per second)
+                for (let isoform of other_isoform_data.isoformList)
                 {
-                    let isoform = other_isoform_data.isoformList[i];
+                    if (!other_isoform_data.transcripts[isoform.transcriptID].is_protein_coding)
+                        results.push(undefined);
+                    else
+                    {
+                        let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/map/cds/${isoform.transcriptID}/1..${isoform.length}?species=${encodeURIComponent(this.species)}&content-type=application/json`;
+                        results.push(this.fetchJSON(url));
+                    }
+                    result_counter += 1;
 
-                    let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/map/cds/${isoform.transcriptID}/1..${isoform.length}?species=${this.species}&content-type=application/json`;
-                    let response = await this.fetchJSON(url);
-                    if (!response)
-                        continue;
+                    if (result_counter % result_threshold == 0)
+                    {
+                        await Promise.allSettled(results).then(responses => {
+                            let i = result_counter - results.length;
+                            for (let result of responses)
+                            {
+                                let response = result.value;
+                                if (response && response.mappings)
+                                {
+                                    let ORFExons = [];
+                                    for (let entry of response.mappings)
+                                        ORFExons.push([entry.start, entry.end]);
 
-                    let ORFExons = [];
-                    for (let entry of response.mappings)
-                        ORFExons.push([entry.start, entry.end]);
+                                    other_isoform_data.isoformList[i].orf = ORFExons;
+                                    other_isoform_data.allIsoforms[i].orf = ORFExons;
+                                }
+                                i += 1;
+                            }
+                        });
+                        results = [];
+                    }
+                }
 
-                    other_isoform_data.isoformList[i].orf = ORFExons;
-                    other_isoform_data.allIsoforms[i].orf = ORFExons;
+                if (results.length > 0)
+                {
+                    await Promise.allSettled(results).then(responses => {
+                        let i = result_counter - results.length;
+                        for (let result of responses)
+                        {
+                            let response = result.value;
+                            if (response && response.mappings)
+                            {
+                                let ORFExons = [];
+                                for (let entry of response.mappings)
+                                    ORFExons.push([entry.start, entry.end]);
+
+                                other_isoform_data.isoformList[i].orf = ORFExons;
+                                other_isoform_data.allIsoforms[i].orf = ORFExons;
+                            }
+                            i += 1;
+                        }
+                    });
                 }
 
                 for (let transcript_id of Object.keys(other_isoform_data.id_to_symbol))
@@ -3052,7 +3101,7 @@ export default
          * Fetch the open reading frames (ORFs) of each transcript with an Ensembl ID.
          * This would later call updateORFs(ORFs), which updates isoformData.isoformList and canonData.isoformList with the fetched ORFs.
          */
-        async getORFs()
+        async getORFs(protein_coding_transcripts)
         {
             let ORFs = {};
             let isoforms = this.mainData.isoformData.isoformList;
@@ -3060,36 +3109,80 @@ export default
             if (!isoforms)
                 return;
 
-            let prefix = this.species_to_prefix[this.species];
             isoforms = isoforms.concat(this.mainData.canonData.isoformList);
+
+            let transcript_id_and_length_pairs = [];
             for (let isoform of isoforms)
             {
-                if (!isoform || !isoform.transcriptID)
+                if (!isoform || (protein_coding_transcripts.indexOf(isoform.transcriptID) === -1))
                     continue;
 
-                let transcript_id = isoform.transcriptID;
-
-                // If the ORF of a transcript has already been fetched (e.g. when the uploaded isoform stack data contains the canonical transcript), do not fetch it again.
-                if (ORFs[transcript_id])
-                    continue;
-
-                // For species that do have a stable ID prefix, only fetch ORFs for transcripts that have a matching prefix.
-                // For species that don't have a stable ID prefix, fetch the ORFs of all transcripts being visualized.
-                if (prefix && (transcript_id.toUpperCase().indexOf(prefix) !== 0))
-                    continue;
-
-                let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/map/cds/${isoform.transcriptID}/1..${isoform.length}?species=${this.species}&content-type=application/json`;
-                let response = await this.fetchJSON(url);
-                if (response)
+                let is_found = false;
+                for (let [transcript_id, ignored] of transcript_id_and_length_pairs)
                 {
-                    let ORFExons = [];
-                    for (let entry of response.mappings)
-                        ORFExons.push([entry.start, entry.end]);
-                    ORFs[isoform.transcriptID] = ORFExons;
+                    if (transcript_id === isoform.transcriptID)
+                    {
+                        is_found = true;
+                        break;
+                    }
+                }
+
+                if (!is_found)
+                    transcript_id_and_length_pairs.push([isoform.transcriptID, isoform.length]);
+            }
+
+            let results = [];
+            let result_counter = 0;
+            let result_threshold = 5;   // Only process at most 5 requests at once to prevent being rate-limited by Ensembl (maximum 15 requests per second)
+            for (let [transcript_id, length] of transcript_id_and_length_pairs)
+            {
+                let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/map/cds/${transcript_id}/1..${length}?species=${encodeURIComponent(this.species)}&content-type=application/json`;
+                results.push(this.fetchJSON(url));
+                result_counter += 1;
+
+                if (result_counter % result_threshold == 0)
+                {
+                    await Promise.allSettled(results).then(responses => {
+                        let i = result_counter - results.length;
+                        for (let result of responses)
+                        {
+                            let response = result.value;
+                            let transcript_id = transcript_id_and_length_pairs[i][0];
+                            if (response && response.mappings)
+                            {
+                                let ORFExons = [];
+                                for (let entry of response.mappings)
+                                    ORFExons.push([entry.start, entry.end]);
+                                ORFs[transcript_id] = ORFExons;
+                            }
+                            i += 1;
+                        }
+                        this.updateORFs(ORFs);
+                    });
+                    results = [];
                 }
             }
 
-            this.updateORFs(ORFs);
+            if (results.length > 0)
+            {
+                await Promise.allSettled(results).then(responses => {
+                    let i = result_counter - results.length;
+                    for (let result of responses)
+                    {
+                        let response = result.value;
+                        let transcript_id = transcript_id_and_length_pairs[i][0];
+                        if (response && response.mappings)
+                        {
+                            let ORFExons = [];
+                            for (let entry of response.mappings)
+                                ORFExons.push([entry.start, entry.end]);
+                            ORFs[transcript_id] = ORFExons;
+                        }
+                        i += 1;
+                    }
+                    this.updateORFs(ORFs);
+                });
+            }
         },
 
         /**
@@ -3126,7 +3219,7 @@ export default
                 }
             }
 
-            if (Object.keys(this.mainData.canonData).length != 0 && this.mainData.canonData.isoformList)
+            if (Object.keys(this.mainData.canonData).length !== 0 && this.mainData.canonData.isoformList)
             {
                 for (var isoform of this.mainData.canonData.isoformList)
                 {
@@ -3139,22 +3232,31 @@ export default
                 }
             }
 
-            this.orfs_ready = true;
             this.no_orfs = (Object.keys(ORFs).length === 0);
             this.no_user_orfs = !are_user_orfs_present;
+            this.orfs_ready = true;
         },
 
         /**
-         * Fetch the UniProt, UniParc and Ensembl labels of the canonical transcript.
-         * @param {string} canon_id Ensembl ID of the canonical transcript
+         * Fetch the UniProt, UniParc and Ensembl labels of the canonical isoform, and return the InterPro protein accession from Ensembl.
+         * @param {string} canon_id Ensembl ID of the canonical isoform
+         * @returns {string} The InterPro protein accession
          */
-        async getLabels(canon_id)
+        async findLabelsAndGetAccession(canon_id)
         {
-            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/xrefs/id/${canon_id}?species=${this.species}&all_levels=1;content-type=application/json`;
+            if (!canon_id)
+                return "";
+
+            let accession = "";
+
+            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/xrefs/id/${canon_id}?species=${encodeURIComponent(this.species)}&all_levels=1;content-type=application/json`;
             let response = await this.fetchJSON(url);
 
             if ((!response) || (response.error))
-                return;
+            {
+                this.labels_ready = true;
+                return "";
+            }
 
             for (let item of response)
             {
@@ -3174,29 +3276,6 @@ export default
                         this.labels["uniprot"] = item.primary_id;
                 }
             }
-
-            url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/lookup/id/${canon_id}?species=${this.species}&expand=1;content-type=application/json`;
-            response = await this.fetchJSON(url);
-            if (response && response.Translation && response.Translation.id)
-                this.labels["ensembl"] = response.Translation.id;
-
-            this.labels_ready = true;
-        },
-
-        /**
-         * Fetch the InterPro protein accession from Ensembl.
-         * @param {string} canon_id Ensembl ID of the canonical transcript
-         * @returns {string} The InterPro protein accession
-         */
-        async getAccession(canon_id)
-        {
-            let accession = "";
-
-            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/xrefs/id/${canon_id}?species=${this.species}&all_levels=1;content-type=application/json`;
-            let response = await this.fetchJSON(url);
-
-            if ((!response) || (response.error))
-                return "";
 
             for (let item of response)
             {
@@ -3223,18 +3302,6 @@ export default
         },
 
         /**
-         * Fetch the source database of an InterPro protein accession..
-         * @param {string} accession InterPro protein accession
-         */
-         async getInterProSourceDB(accession)
-        {
-            let url = `https://www.ebi.ac.uk/interpro/api/protein/UniProt/${accession}/?format=json`;
-            let response = await this.fetchJSON(url);
-            if (response && response.metadata && response.metadata.source_database)
-                this.labels["interpro_source_database"] = response.metadata.source_database;
-        },
-
-        /**
          * Fetch the protein data from InterPro.
          * @param {string} accession InterPro protein accession
          * @returns {ProteinData} The protein data
@@ -3245,15 +3312,29 @@ export default
             let features_url = `https://www.ebi.ac.uk/interpro/api/protein/UniProt/${accession}/?extra_features&format=json`;
             let domains_url = `https://www.ebi.ac.uk/interpro/api/entry/all/protein/UniProt/${accession}/?format=json`;
 
-            let metadata_json = await this.fetchJSON(metadata_url);
-            let features_json = await this.fetchJSON(features_url);
-            let domains_json = await this.fetchJSON(domains_url);
+            let results = [this.fetchJSON(metadata_url), this.fetchJSON(features_url), this.fetchJSON(domains_url)];
+            let protein_data_jsons = await Promise.allSettled(results).then(responses => {
+                let jsons = [];
+                for (let result of responses)
+                {
+                    let response = result.value;
+                    if (!response)
+                        return undefined;
+                    jsons.push(response);
+                }
+                return jsons;
+            });
 
-            // If the InterPro entry for the protein accession does not exist, these JSON objects would be undefined
-            if (metadata_json && features_json && domains_json)
-                return new ProteinData([metadata_json, features_json, domains_json], canon_data);
+            this.labels_ready = true;
 
-            return undefined;
+            if (!protein_data_jsons)
+                return undefined;
+
+            let metadata_json = protein_data_jsons[0];
+            if (metadata_json.metadata && metadata_json.metadata.source_database)
+                this.labels["interpro_source_database"] = metadata_json.metadata.source_database;
+
+            return new ProteinData(protein_data_jsons, canon_data);
         },
 
         /**
@@ -3333,7 +3414,7 @@ export default
         {
             for (let i = 0; i < this.mainData.isoformData.isoformList.length; ++i)
             {
-                if (this.mainData.isoformData.isoformList[i].transcriptID == transcript_id)
+                if (this.mainData.isoformData.isoformList[i].transcriptID === transcript_id)
                 {
                     this.mainData.isoformData.isoformList.splice(i, 1);
                     this.mainData.isoformData.transcriptOrder.splice(i, 1);
@@ -3360,7 +3441,7 @@ export default
         {
             for (let i = 0; i < this.other_isoform_data.isoformList.length; ++i)
             {
-                if (this.other_isoform_data.isoformList[i].transcriptID == transcript_id)
+                if (this.other_isoform_data.isoformList[i].transcriptID === transcript_id)
                 {
                     this.other_isoform_data.isoformList.splice(i, 1);
                     this.other_isoform_data.transcriptOrder.splice(i, 1);
@@ -3817,9 +3898,53 @@ export default
         {
             if (zoom_start !== zoom_end)
             {
+                let new_zoom_start = zoom_start;
+                let new_zoom_end = zoom_end;
+
+                if (new_zoom_start > new_zoom_end)
+                {
+                    let temp = new_zoom_start;
+                    new_zoom_start = new_zoom_end;
+                    new_zoom_end = temp;
+                }
+
+                // Ensure the coordinates zoomed into stay within the boundaries of the genomic coordinate axis
+                let is_other_isoforms_loaded = (this.other_isoform_data && this.other_isoform_data.isoformList && (this.other_isoform_data.isoformList.length >= 1));
+                let is_canon_loaded = (!(!(this.mainData.canonData) || Object.keys(this.mainData.canonData).length === 0));
+                let mergedRanges = [];
+                if (is_other_isoforms_loaded && this.show_all_other_isoforms)
+                    mergedRanges = this.other_isoforms_ranges;
+                else if (is_canon_loaded)
+                    mergedRanges = this.canondata_ranges;
+                else
+                    mergedRanges = this.mainData.isoformData.mergedRanges;
+
+                let min_coord = Infinity;
+                let max_coord = -Infinity;
+                for (let [coord0, coord1] of mergedRanges)
+                {
+                    if (coord0 > coord1)
+                    {
+                        let temp = coord0;
+                        coord0 = coord1;
+                        coord1 = temp;
+                    }
+                    min_coord = Math.min(min_coord, coord0);
+                    max_coord = Math.max(max_coord, coord1);
+                }
+
+                if (new_zoom_start < min_coord)
+                    new_zoom_start = min_coord;
+                if (new_zoom_end < min_coord)
+                    new_zoom_end = min_coord;
+                if (new_zoom_start > max_coord)
+                    new_zoom_start = max_coord;
+                if (new_zoom_end > max_coord)
+                    new_zoom_end = max_coord;
+
                 this.is_zoom_reset = false;
                 this.is_zoom_changed = true;
-                this.setZoom(zoom_start, zoom_end);
+                this.setZoom(new_zoom_start, new_zoom_end);
             }
             else if (is_mouse_used)
             {
@@ -3856,13 +3981,6 @@ export default
             this.$refs.isoformStackComponent.ump_transcripts_to_highlight = ump_transcripts_to_highlight;
             this.$refs.isoformStackComponent.transcripts_to_highlight = transcripts_to_highlight;
             this.$refs.isoformStackComponent.buildStack();
-            // if (!this.canon_disabled)
-            // {
-            //     this.$refs.canonStackComponent.ump_orfs_to_highlight = ump_orfs_to_highlight;
-            //     this.$refs.canonStackComponent.ump_transcripts_to_highlight = ump_transcripts_to_highlight;
-            //     this.$refs.canonStackComponent.transcripts_to_highlight = transcripts_to_highlight;
-            //     this.$refs.canonStackComponent.buildStack();
-            // }
         });
     },
 
@@ -3873,7 +3991,7 @@ export default
 
     watch:
     {
-        mainData: function()
+        mainData: async function()
         {
             if (this.mainData.init === false)
                 return;
@@ -3892,7 +4010,10 @@ export default
             this.other_isoforms_toggled = false;
             this.other_isoform_data = false;
 
+            this.is_overlapping_orfs_present = false;
+
             this.show_splices = false;
+            this.show_alternative_junctions = true;
             this.show_constitutive_junctions = false;
 
             this.show_stack = true;
@@ -3905,7 +4026,7 @@ export default
             this.showCanonLoading = true;
 
             this.transcriptNames = {};
-            this.transcriptIds = [];            
+            this.transcriptIds = [];
 
             this.is_gene_on_ensembl = false;
             this.transcript_names_ready = false;
@@ -3937,6 +4058,7 @@ export default
 
             this.spliced_regions = null;
             this.relative_heights = null;
+            this.relative_heights_constitutive = null;
             this.relative_heights_all = null;
             this.is_spliced_regions_outdated = false;
 
@@ -3958,10 +4080,11 @@ export default
             this.is_use_grch37 = this.mainData.is_use_grch37;
             this.is_zoom_changed = false;
             this.is_zoom_reset = true;
+
+            this.$refs.isoformStackComponent.orfless_transcript_ids = [];
+
             this.setBaseAxis();
 
-            if (!this.mainData.demoData)
-                this.getTranscriptNames().then();
             this.buildHeatmapComponent();
 
             this.setShowOrfs(false);
@@ -3970,6 +4093,7 @@ export default
             this.setShowMotifs(true);
             this.setShowDomainLabels(false);
             this.setShowPeptide(false);
+            this.setShowAlternativeJunctions(true);
             this.setShowConstitutiveJunctions(false);
             this.setShowRNAModif(false);
             this.setRNAModifCompact(false);
@@ -3989,8 +4113,7 @@ export default
                 if (this.mainData.peptideData)
                 {
                     this.peptide_disabled = false;
-                    if (this.mainData.peptideCountsData)
-                        this.setShowPeptideHeatmap(true);
+                    this.setPeptideCompact(true);
                     this.peptideOrder = JSON.parse(JSON.stringify(this.mainData.peptideData.peptideOrder));
                     this.allPeptides = JSON.parse(JSON.stringify(this.mainData.peptideData.peptides));
                     this.peptide_data = {peptideOrder: JSON.parse(JSON.stringify(this.peptideOrder)), peptideInfo: JSON.parse(JSON.stringify(this.mainData.peptideData.peptide_info)),
@@ -3999,13 +4122,9 @@ export default
                 else if (this.mainData.isoformData.peptides && (Object.keys(this.mainData.isoformData.peptides).length !== 0))
                 {
                     this.peptide_disabled = false;
-                    
                     this.$refs.peptideGenomeProtStackComponent.highlighted_peptide = "";
-
-                    this.setShowPeptide(true);              // Show peptides and highlight them by default specifically for GenomeProt data
-                    this.setPeptideHighlight(false);
-                    if (this.mainData.peptideCountsData)
-                        this.setShowPeptideHeatmap(true);
+                    this.setPeptideHighlight(false);        // Show peptides and highlight them by default specifically for GenomeProt data
+                    this.setPeptideCompact(true);
 
                     // If user ORFs exist, show them by default
                     for (var isoform of this.mainData.isoformData.allIsoforms)
@@ -4029,8 +4148,7 @@ export default
                 if (this.mainData.rnaModifData)
                 {
                     this.rna_modif_disabled = false;
-                    if (this.mainData.rnaModifLevelData)
-                        this.setShowRNAModifHeatmap(true);
+                    this.setRNAModifCompact(true);
                     this.siteOrder = JSON.parse(JSON.stringify(this.mainData.rnaModifData.siteOrder));
                     this.allSites = JSON.parse(JSON.stringify(this.mainData.rnaModifData.allSites));
                     this.site_data = {siteOrder: JSON.parse(JSON.stringify(this.mainData.rnaModifData.siteOrder))};
@@ -4045,57 +4163,29 @@ export default
                     this.resizePage();
                 }
 
-                let gene_id = this.mainData.selectedGene;
-
-                this.isGeneOnEnsembl(gene_id).then();
-                this.getCanonData(gene_id).then(([canon_data, canon_id]) =>
+                for (let isoform of this.mainData.isoformData.allIsoforms)
                 {
-                    if (Object.keys(canon_data).length != 0)
+                    if (isoform && isoform.overlapping_orf_regions && (isoform.overlapping_orf_regions.length !== 0))
                     {
-                        this.mainData.canonData = canon_data;
-                        this.calculate_canon_mergedranges();
-
-                        // Ensures that both the displayed canonical isoform width and the protein diagram width match the stack's
-                        this.resizePage();
+                        this.is_overlapping_orfs_present = true;
+                        break;
                     }
-                    else
-                        this.canon_disabled = true;
+                }
 
-                    if (canon_id != "")
-                        this.getLabels(canon_id).then();
-
-                    this.getORFs().then(() =>
-                    {
-                        if (canon_id != "")
-                        {
-                            this.getAccession(canon_id).then((accession) =>
-                            {
-                                if (accession != "")
-                                {
-                                    this.getInterProSourceDB(accession).then();
-                                    this.getProteinData(accession, this.mainData.canonData).then((protein_data) =>
-                                    {
-                                        if (!protein_data)
-                                        {
-                                            this.mainData.proteinData = new Object();
-                                            this.mainData.proteinData.gone = true;
-                                        }
-                                        else
-                                            this.mainData.proteinData = JSON.parse(JSON.stringify(protein_data));
-
-                                        this.protein_ready = true;
-                                        this.resizePage();
-                                        this.buildProteinComponent();
-                                    });
-                                }
-                                else
-                                    this.protein_disabled = true;
-                            });
-                        }
-                        else
-                            this.protein_disabled = true;
-                    });
-                });
+                let [protein_coding_transcripts, canon_id] = await this.getTranscriptNamesAndCanonData(this.mainData.selectedGene);
+                await this.getORFs(protein_coding_transcripts).then();
+                let accession = await this.findLabelsAndGetAccession(canon_id).then();
+                this.protein_disabled = (accession == "");
+                if (!this.protein_disabled)
+                {
+                    let protein_data = await this.getProteinData(accession, this.mainData.canonData).then();
+                    this.mainData.proteinData = protein_data ? JSON.parse(JSON.stringify(protein_data)) : {gone: true};
+                    this.protein_ready = true;
+                    this.resizePage();
+                    this.buildProteinComponent();
+                }
+                else
+                    this.labels_ready = true;
             }
             else
             {

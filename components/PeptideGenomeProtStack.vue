@@ -7,7 +7,7 @@
 Component to render peptide stacks, where each peptide is a row of rectangles.
 
 <template>
-<div id="peptideGenomeProtStackDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
+<div id="peptideGenomeProtStackDiv" ref="parentDiv" style="position: relative">
     <p>Peptide GenomeProt stack</p>
 </div>
 </template>
@@ -18,7 +18,7 @@ import {put_in_svg, rect, line} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "peptideOrder", "peptideInfo", "isGenomeProt", "currentGene"],
-    
+
     data: () => {
         return {
             // dimensions
@@ -93,7 +93,7 @@ export default {
                     await navigator.clipboard.writeText(this.tooltip_text);
                     this.set_tooltip_copied(true);
                 }
-                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                // Are we copying the tooltip text from an iframe showing IsoVis?
                 else if (window.parent !== window)
                 {
                     window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
@@ -148,7 +148,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -180,14 +180,14 @@ export default {
                 crosshair_canvas_ctx.fillStyle = old_fillstyle;
             }
         },
-        
+
         // Method to build the stack
         buildStack() {
             this.start_drag = -1;
             this.end_drag = -1;
             this.tooltip_text = "";
 
-            if (!this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || (Object.keys(this.peptideInfo).length === 0) || Object.keys(this.baseAxis).length == 0)
+            if (!this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || (Object.keys(this.peptideInfo).length === 0) || Object.keys(this.baseAxis).length === 0)
                 return;
 
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
@@ -195,6 +195,7 @@ export default {
 
             let svgHeight = this.groupScale(this.is_compact ? 1 : this.peptideOrder.length, this.peptideHeight, this.peptideGap) - this.peptideGap;
             let blockHeight = this.peptideHeight / 2;
+            blockHeight += blockHeight % 2;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
@@ -257,7 +258,7 @@ export default {
                 let end = is_forward_strand ? peptide_blocks[peptide_blocks.length - 1][1] : peptide_blocks[0][1];
                 if (start > end)
                     start = end;
-                
+
                 let x0 = self.baseAxis.scale(start);
                 let x1 = self.baseAxis.scale(end);
                 let y0 = (self.peptideHeight) / 2 + (this.is_compact ? 0 : transformation(i)) + blockHeight / 8;
@@ -293,11 +294,11 @@ export default {
 
                 ctx.fillStyle = "rgb(83,83,83)";
                 if (peptide_ids_orf)
-                    ctx.fillStyle = "rgb(255,149,0)";   // Peptide is uniquely mapped to an ORF: Yellow
+                    ctx.fillStyle = "rgb(255,149,0)";   // Peptide is uniquely mapped to an ORF: yellow
                 else if (peptide_ids_transcript)
-                    ctx.fillStyle = "rgb(0,208,255)";   // Peptide is uniquely mapped to a transcript: Light blue
+                    ctx.fillStyle = "rgb(0,208,255)";   // Peptide is uniquely mapped to a transcript: cyan
                 else if (peptide_ids_gene)
-                    ctx.fillStyle = "rgb(0,0,255)";     // Peptide is uniquely mapped to a gene: Blue
+                    ctx.fillStyle = "rgb(0,0,255)";     // Peptide is uniquely mapped to a gene: blue
 
                 for (let j = 0; j < peptide_blocks.length; ++j)
                 {
@@ -350,9 +351,9 @@ export default {
                 tooltip.style("visibility", "hidden");
             }
 
-            let tooltip_end_text_orf_transcript_mapping = "<br>(Click on the peptide block to highlight any ORF and transcript it uniquely maps to)<br>";
+            let tooltip_end_text_orf_transcript_mapping = "<br>(Click on the peptide to highlight any ORF and transcript it uniquely maps to)<br>";
             let tooltip_end_text_copy = "<br>(Click on the peptide block to copy the text in this tooltip)<br>";
-            let tooltip_end_text_ump_gene = "<br>(Click on the peptide block to highlight all transcripts it maps to)<br>";
+            let tooltip_end_text_ump_gene = "<br>(Click on the peptide to highlight all transcripts it maps to)<br>";
             let tooltip_end_text = (this.is_set_highlight) ? tooltip_end_text_orf_transcript_mapping : tooltip_end_text_copy;
 
             // make tooltip follow cursor
@@ -424,6 +425,7 @@ export default {
                 let peptide_mapping_info_text = "";
                 let shown_peptide_mapping_info_text = "";
                 let num_cutoff = 5;
+                let is_ellipsis_used = false;
 
                 if (shown_peptide_id_orf)
                 {
@@ -443,7 +445,10 @@ export default {
                 {
                     let orfs_mapped_text = shown_orfs_mapped.slice(0, num_cutoff).join(", ");
                     if (shown_orfs_mapped.length > num_cutoff)
+                    {
                         orfs_mapped_text += "...";
+                        is_ellipsis_used = true;
+                    }
 
                     peptide_mapping_info_text += `ORFs: ${shown_orfs_mapped.join(", ")}\r\n`;
                     shown_peptide_mapping_info_text += `ORFs: ${orfs_mapped_text}\r\n`;
@@ -467,7 +472,10 @@ export default {
                 {
                     let transcripts_mapped_text = shown_transcripts_mapped.slice(0, num_cutoff).join(", ");
                     if (shown_transcripts_mapped.length > num_cutoff)
+                    {
                         transcripts_mapped_text += "...";
+                        is_ellipsis_used = true;
+                    }
 
                     peptide_mapping_info_text += `Transcripts: ${shown_transcripts_mapped.join(", ")}\r\n`;
                     shown_peptide_mapping_info_text += `Transcripts: ${transcripts_mapped_text}\r\n`;
@@ -494,6 +502,8 @@ export default {
                     else if (!shown_peptide_id_orf && !shown_peptide_id_transcript && !tooltip_end_text_ump_gene)
                         end_text = "";
                 }
+                else if (is_ellipsis_used)
+                    end_text = "<br>(Click on the peptide block to copy the full text in this tooltip)<br>";
 
                 let tooltip_html = shown_tooltip_text.replaceAll("\r\n", "<br>") + end_text;
                 tooltip.html(tooltip_html)
@@ -520,7 +530,7 @@ export default {
 
         buildStackSvg(symbol = false)
         {
-            if (!this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || (Object.keys(this.peptideInfo).length === 0) || Object.keys(this.baseAxis).length == 0)
+            if (!this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || (Object.keys(this.peptideInfo).length === 0) || Object.keys(this.baseAxis).length === 0)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -532,6 +542,7 @@ export default {
 
             let svgHeight = this.groupScale(this.is_compact ? 1 : this.peptideOrder.length, this.peptideHeight, this.peptideGap) - this.peptideGap;
             let blockHeight = this.peptideHeight / 2;
+            blockHeight += blockHeight % 2;
 
             let canvas_width = Math.ceil(this.width);
             let canvas_height = Math.ceil(svgHeight);
@@ -582,7 +593,7 @@ export default {
                 let end = is_forward_strand ? peptide_blocks[peptide_blocks.length - 1][1] : peptide_blocks[0][1];
                 if (start > end)
                     start = end;
-                
+
                 let x0 = this.baseAxis.scale(start);
                 let x1 = this.baseAxis.scale(end);
                 let y0 = (this.peptideHeight) / 2 + (this.is_compact ? 0 : transformation(i)) + blockHeight / 8;
@@ -622,11 +633,11 @@ export default {
 
                 let peptide_colour = "#535353";
                 if (peptide_ids_orf)
-                    peptide_colour = "#ff9500"; // Peptide is uniquely mapped to an ORF: Yellow
+                    peptide_colour = "#ff9500"; // Peptide is uniquely mapped to an ORF: yellow
                 else if (peptide_ids_transcript)
-                    peptide_colour = "#00d0ff"; // Peptide is uniquely mapped to a transcript: Light blue
+                    peptide_colour = "#00d0ff"; // Peptide is uniquely mapped to a transcript: cyan
                 else if (peptide_ids_gene)
-                    peptide_colour = "#0000ff"; // Peptide is uniquely mapped to a gene: Blue
+                    peptide_colour = "#0000ff"; // Peptide is uniquely mapped to a gene: blue
 
                 for (let j = 0; j < peptide_blocks.length; ++j)
                 {
@@ -722,6 +733,7 @@ export default {
                     d3.select("#peptidegenomeprotstack_tooltip").html("Highlights removed!");
                     this.$root.$emit("set_orf_transcript_highlight", [[], [], []]);
                     this.highlighted_peptide = "";
+                    this.buildStack();
                     return;
                 }
 
@@ -734,7 +746,7 @@ export default {
                     if (ump_orf_end_index !== -1)
                         ump_orf = tooltip_text.substring(ump_orf_start_index, ump_orf_end_index);
                 }
-                
+
                 let ump_transcript = "";
                 let ump_transcript_start_index = tooltip_text.indexOf("Uniquely mapped to transcript ");
                 if (ump_transcript_start_index !== -1)
@@ -769,6 +781,7 @@ export default {
                 {
                     this.$root.$emit("set_orf_transcript_highlight", [[ump_orf], [ump_transcript], transcripts_mapped]);
                     this.highlighted_peptide = peptide;
+                    this.buildStack();
                 }
             }
             else

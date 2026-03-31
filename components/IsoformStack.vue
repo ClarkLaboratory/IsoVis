@@ -9,18 +9,18 @@ Requires an instance of BaseAxis as input, as well as isoformList object
 which must have 'transcriptID', 'exonRanges' and 'orf' properties.
 
 <template>
-<div id="stackDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
+<div id="stackDiv" ref="parentDiv" style="position: relative">
     <p>Isoform stack</p>
 </div>
 </template>
 
 <script>
 import * as d3 from 'd3';
-import {put_in_svg, rect, line} from "~/assets/svg_utils";
+import {orf_hatching_pattern, put_in_svg, rect, line} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "isoformList", "orfInfo"],
-    
+
     data: () => {
         return {
             // dimensions
@@ -37,6 +37,8 @@ export default {
             ump_orfs_to_highlight: [],
             ump_transcripts_to_highlight: [],
             transcripts_to_highlight: [],
+
+            orfless_transcript_ids: [],
 
             tooltip_text: ""
         };
@@ -96,7 +98,7 @@ export default {
                     await navigator.clipboard.writeText(this.tooltip_text);
                     this.set_tooltip_copied(true);
                 }
-                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                // Are we copying the tooltip text from an iframe showing IsoVis?
                 else if (window.parent !== window)
                 {
                     window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
@@ -151,7 +153,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -183,14 +185,14 @@ export default {
                 crosshair_canvas_ctx.fillStyle = old_fillstyle;
             }
         },
-        
+
         // Method to build the stack
         buildStack() {
             this.start_drag = -1;
             this.end_drag = -1;
             this.tooltip_text = "";
 
-            if (!this.baseAxis || !this.isoformList || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || !this.isoformList || Object.keys(this.baseAxis).length === 0)
                 return;
 
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
@@ -198,6 +200,7 @@ export default {
 
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
             let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            exonHeight += exonHeight % 2;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
@@ -327,18 +330,19 @@ export default {
                 }
             }
 
+            // Add ORFs to each isoform
             if (self.show_orfs || self.show_user_orfs)
             {
                 let orf_exon_info = [];
 
-                // Add ORFs to each isoform
                 let orfHeight = self.isoformHeight / 2;
+                orfHeight += orfHeight % 2;
                 for (let i = 0; i < self.isoformList.length; ++i)
                 {
                     let isoform = self.isoformList[i];
                     let exon_ranges = isoform.exonRanges;
                     let orf_ranges = self.show_orfs ? isoform.orf : isoform.user_orf;
-                    let y = transformation(i) + orfHeight / 2;
+                    let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
 
                     let transcript_id = isoform.transcriptID;
                     if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
@@ -354,13 +358,13 @@ export default {
                         let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
                         let actual_x0 = Math.round(x);
                         let actual_x1 = Math.round(width + x);
-                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
                         let height = Math.ceil(orfHeight);
                         let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
                         let actual_y1 = Math.round(height + y);
                         let actual_height = actual_y1 - Math.round(y);
 
-                        // Don't draw the exon if it's outside of the canvas
+                        // Don't draw the ORF region if it's outside of the canvas
                         if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
                             ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
                         else
@@ -410,6 +414,75 @@ export default {
                 }
 
                 exon_info = orf_exon_info.concat(exon_info);
+
+                // Indicate overlapping user ORF regions (useful if the only highlighting is for the entire transcript, i.e. there are no ORF-specific peptides)
+                if (self.show_user_orfs)
+                {
+                    for (let i = 0; i < self.isoformList.length; ++i)
+                    {
+                        let isoform = self.isoformList[i];
+                        let overlapping_orf_regions = isoform.overlapping_orf_regions;
+                        if (!overlapping_orf_regions || (overlapping_orf_regions.length === 0))
+                            continue;
+
+                        let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
+                        let fill_colour = '';
+
+                        let transcript_id = isoform.transcriptID;
+                        ctx.fillStyle = "rgb(240,240,240)";
+                        if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                            fill_colour = "rgb(0,208,255)";     // uniquely mapped transcript: cyan
+                        else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                            fill_colour = "rgb(0,0,255)";       // gene-level UMP: blue
+                        else
+                            fill_colour = "rgb(83,83,83)";
+
+                        let patternCanvas = document.createElement("canvas");
+                        let patternContext = patternCanvas.getContext("2d");
+
+                        patternCanvas.width = orfHeight;
+                        patternCanvas.height = orfHeight;
+
+                        patternContext.lineWidth = 3;
+                        patternContext.fillStyle = fill_colour;
+                        patternContext.strokeStyle = ctx.fillStyle;
+
+                        // Create the background of the hatching pattern
+                        patternContext.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
+
+                        // Create the strokes of the hatching pattern
+                        patternContext.beginPath();
+                        for (let coord = -orfHeight * 2 - 1; coord <= patternCanvas.height; coord += orfHeight / 2)
+                        {
+                            patternContext.moveTo(coord, orfHeight * 2);
+                            patternContext.lineTo(coord + orfHeight * 2 + 1, -1);
+                        }
+                        patternContext.stroke();
+
+                        ctx.fillStyle = ctx.createPattern(patternCanvas, "repeat");
+
+                        patternCanvas.remove();
+
+                        for (let [x0, x1] of overlapping_orf_regions)
+                        {
+                            let x = self.baseAxis.isAscending() ? self.baseAxis.scale(x0) : self.baseAxis.scale(x1);
+                            let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
+                            let actual_x0 = Math.round(x);
+                            let actual_x1 = Math.round(width + x);
+                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
+                            let height = Math.ceil(orfHeight);
+                            let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
+                            let actual_y1 = Math.round(height + y);
+                            let actual_height = actual_y1 - Math.round(y);
+
+                            // Don't draw the ORF region if it's outside of the canvas
+                            if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
+                                ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
+                            else
+                                continue;
+                        }
+                    }
+                }
             }
 
             // Colour any highlighted ORFs
@@ -423,6 +496,7 @@ export default {
                         continue;
 
                     let orfHeight = self.isoformHeight / 2;
+                    orfHeight += orfHeight % 2;
                     for (let i = 0; i < self.isoformList.length; ++i)
                     {
                         let isoform = self.isoformList[i];
@@ -431,7 +505,7 @@ export default {
                             continue;
 
                         let orf_ranges = this.orfInfo[orf_id];
-                        let y = transformation(i) + orfHeight / 2;
+                        let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
 
                         for (let [x0, x1] of orf_ranges)
                         {
@@ -439,13 +513,13 @@ export default {
                             let width = Math.abs(self.baseAxis.scale(x1) - self.baseAxis.scale(x0));
                             let actual_x0 = Math.round(x);
                             let actual_x1 = Math.round(width + x);
-                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
                             let height = Math.ceil(orfHeight);
                             let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
                             let actual_y1 = Math.round(height + y);
                             let actual_height = actual_y1 - Math.round(y);
 
-                            // Don't draw the exon if it's outside of the canvas
+                            // Don't draw the ORF region if it's outside of the canvas
                             if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
                                 ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
                             else
@@ -548,7 +622,7 @@ export default {
                     }
                 }
 
-                let tooltip_text = `${encoded_orfs_text}Transcript: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
+                let tooltip_text = `${encoded_orfs_text}Isoform: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
                 let event = new CustomEvent("set_isoformstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
@@ -577,7 +651,7 @@ export default {
 
         buildStackSvg(symbol = false)
         {
-            if (!this.baseAxis || !this.isoformList || Object.keys(this.baseAxis).length == 0)
+            if (!this.baseAxis || !this.isoformList || Object.keys(this.baseAxis).length === 0)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -589,6 +663,7 @@ export default {
 
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
             let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            exonHeight += exonHeight % 2;
 
             let canvas_width = Math.ceil(this.width);
             let canvas_height = Math.ceil(svgHeight);
@@ -706,15 +781,16 @@ export default {
                 }
             }
 
+            // Add ORFs to each isoform
             if (this.show_orfs || this.show_user_orfs)
             {
-                // Add ORFs to each isoform
                 let orfHeight = this.isoformHeight / 2;
+                orfHeight += orfHeight % 2;
                 for (let i = 0; i < this.isoformList.length; ++i)
                 {
                     let isoform = this.isoformList[i];
                     let orf_ranges = this.show_orfs ? isoform.orf : isoform.user_orf;
-                    let y = transformation(i) + orfHeight / 2;
+                    let y = transformation(i) + (this.isoformHeight - orfHeight) / 2;
 
                     let transcript_id = isoform.transcriptID;
                     let exon_colour = "#535353";
@@ -729,14 +805,14 @@ export default {
                         let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
                         let actual_x0 = Math.round(x);
                         let actual_x1 = Math.round(width + x);
-                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                        let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
                         actual_x1 = actual_x0 + actual_width;
                         let height = Math.ceil(orfHeight);
                         let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
                         let actual_y1 = Math.round(height + y);
                         let actual_height = actual_y1 - Math.round(y);
 
-                        // Don't draw the exon if it's outside of the canvas
+                        // Don't draw the ORF region if it's outside of the canvas
                         if (((actual_x0 < 0) && (actual_x1 < 0)) || ((actual_x0 >= canvas_width) && (actual_x1 >= canvas_width)))
                             continue;
 
@@ -756,12 +832,54 @@ export default {
                         svg += rect(actual_x0, actual_y0, actual_width, actual_height, exon_colour);
                     }
                 }
+
+                // Indicate overlapping user ORF regions (useful if the only highlighting is for the entire transcript, i.e. there are no ORF-specific peptides)
+                if (this.show_user_orfs)
+                {
+                    for (let i = 0; i < this.isoformList.length; ++i)
+                    {
+                        let isoform = this.isoformList[i];
+                        let overlapping_orf_regions = isoform.overlapping_orf_regions;
+                        if (!overlapping_orf_regions || (overlapping_orf_regions.length === 0))
+                            continue;
+
+                        let y = transformation(i) + (this.isoformHeight - orfHeight) / 2;
+                        let fill_colour = '#535353';
+
+                        let transcript_id = isoform.transcriptID;
+                        if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                            fill_colour = "#00d0ff";    // uniquely mapped transcript: cyan
+                        else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
+                            fill_colour = "#0000ff";    // gene-level UMP: blue
+
+                        svg += orf_hatching_pattern(`orf_hatching_pattern${i}`, "#f0f0f0", fill_colour);
+
+                        for (let [x0, x1] of overlapping_orf_regions)
+                        {
+                            let x = this.baseAxis.isAscending() ? this.baseAxis.scale(x0) : this.baseAxis.scale(x1);
+                            let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
+                            let actual_x0 = Math.round(x);
+                            let actual_x1 = Math.round(width + x);
+                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
+                            let height = Math.ceil(orfHeight);
+                            let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
+                            let actual_y1 = Math.round(height + y);
+                            let actual_height = actual_y1 - Math.round(y);
+
+                            // Don't draw the ORF region if it's outside of the canvas
+                            if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
+                                svg += rect(actual_x0, actual_y0, actual_width, actual_height, `url(#orf_hatching_pattern${i})`);
+                            else
+                                continue;
+                        }
+                    }
+                }
             }
 
             // Colour any highlighted ORFs
             if (this.show_user_orfs && this.orfInfo && (Object.keys(this.orfInfo).length !== 0))
             {
-                let exon_colour = "#ff9500"; 
+                let exon_colour = "#ff9500";
                 let orf_ids = Object.keys(this.orfInfo);
                 for (let orf_id of orf_ids)
                 {
@@ -769,6 +887,7 @@ export default {
                         continue;
 
                     let orfHeight = this.isoformHeight / 2;
+                    orfHeight += orfHeight % 2;
                     for (let i = 0; i < this.isoformList.length; ++i)
                     {
                         let isoform = this.isoformList[i];
@@ -777,7 +896,7 @@ export default {
                             continue;
 
                         let orf_ranges = this.orfInfo[orf_id];
-                        let y = transformation(i) + orfHeight / 2;
+                        let y = transformation(i) + (this.isoformHeight - orfHeight) / 2;
 
                         for (let [x0, x1] of orf_ranges)
                         {
@@ -785,14 +904,14 @@ export default {
                             let width = Math.abs(this.baseAxis.scale(x1) - this.baseAxis.scale(x0));
                             let actual_x0 = Math.round(x);
                             let actual_x1 = Math.round(width + x);
-                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF, so ensure they're each at least 1 pixel wide
+                            let actual_width = Math.max(actual_x1 - actual_x0, 1);                      // we want to show every ORF region, so ensure they're each at least 1 pixel wide
                             actual_x1 = actual_x0 + actual_width;
                             let height = Math.ceil(orfHeight);
                             let actual_y0 = (y - Math.floor(y) <= 0.5) ? Math.floor(y) : Math.round(y); // emulating the SVG pixel coordinate rounding behaviour
                             let actual_y1 = Math.round(height + y);
                             let actual_height = actual_y1 - Math.round(y);
 
-                            // Don't draw the exon if it's outside of the canvas
+                            // Don't draw the ORF region if it's outside of the canvas
                             if (((actual_x0 < 0) && (actual_x1 < 0)) || ((actual_x0 >= canvas_width) && (actual_x1 >= canvas_width)))
                                 continue;
 

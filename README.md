@@ -8,7 +8,7 @@ Genes commonly express multiple mRNA isoforms through processes such as alternat
 
 Transcript structures (GFF, GTF or BED files) are displayed as an isoform stack, while quantitative, sample-based data such as isoform abundances (CSV or TXT files) are presented as a heatmap. Reference data including the canonical ENSEMBL transcript, open reading frame and encoded protein domains are sourced from external databases and integrated with the isoform information.
 
-Created by Jack Davis, Ching Yin Wan, Jarny Choi and Mike Clark. Developed in the Clark Laboratory at the University of Melbourne.
+Created by Ching Yin Wan, Jack Davis, Jarny Choi and Mike Clark. Developed in the Clark Laboratory at the University of Melbourne.
 
 Publication: https://doi.org/10.1093/nar/gkae343
 
@@ -39,7 +39,7 @@ The following dependencies are used by IsoVis:
 - `domain-gfx`: For drawing the diagram of protein domains and motifs.
 - `svg-to-pdfkit`: For converting SVGs of the visualization webpage into a PDF.
 - `blob-stream`: For converting the output of Node streams into HTML5 Blobs, which is necessary for the PDF export functionality to work.
-- `vuedraggable`: For enabling the isoforms in the isoform list to be rearranged via dragging.
+- `vuedraggable`: For enabling isoforms, RNA modification sites and peptides in their respective lists to be rearranged via dragging.
 
 To install them, run the following command:
 
@@ -72,6 +72,57 @@ To apply this modification when installing IsoVis:
 1. Open `node_modules/domain-gfx/src/tooltip/style.js` in a text editor.
 2. Locate the line that contains the text `font-family: Sans-Serif;`.
 3. Add a new line below that line and enter `z-index: 500;`.
+4. Save the file.
+
+### Applying IsoVis-specific modifications to `svg-to-pdfkit` source code
+
+IsoVis applies one modification to the source code of the `svg-to-pdfkit` library. It ensures that overlapping ORF regions are correctly rendered in exported PDFs.
+
+To apply this modification when installing IsoVis:
+
+1. Open `node_modules/svg-to-pdfkit/source.js` in a text editor.
+2. Locate the following code:
+
+```js
+function docFillColor(color) {
+  if (color[0].constructor.name === 'PDFPattern') {
+    doc.fillOpacity(color[1]);
+    docUsePattern(color[0], false);
+  } else {
+    doc.fillColor(color[0], color[1]);
+  }
+}
+function docStrokeColor(color) {
+  if (color[0].constructor.name === 'PDFPattern') {
+    doc.strokeOpacity(color[1]);
+    docUsePattern(color[0], true);
+  } else {
+    doc.strokeColor(color[0], color[1]);
+  }
+}
+```
+
+3. Enter ` || color[0].dx` to the right of `'PDFPattern'` on the two lines containing it. The code should now look like the following:
+
+```js
+function docFillColor(color) {
+  if (color[0].constructor.name === 'PDFPattern' || color[0].dx) {
+    doc.fillOpacity(color[1]);
+    docUsePattern(color[0], false);
+  } else {
+    doc.fillColor(color[0], color[1]);
+  }
+}
+function docStrokeColor(color) {
+  if (color[0].constructor.name === 'PDFPattern' || color[0].dx) {
+    doc.strokeOpacity(color[1]);
+    docUsePattern(color[0], true);
+  } else {
+    doc.strokeColor(color[0], color[1]);
+  }
+}
+```
+
 4. Save the file.
 
 ### Resolving the 'digital envelope routines unsupported' error for OpenSSL

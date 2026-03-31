@@ -7,7 +7,7 @@
 Component to render peptide stacks, where each peptide is a row of rectangles.
 
 <template>
-<div id="peptideStackDiv" class="req-crosshair" ref="parentDiv" style="position: relative">
+<div id="peptideStackDiv" ref="parentDiv" style="position: relative">
     <p>Peptide stack</p>
 </div>
 </template>
@@ -18,7 +18,7 @@ import {put_in_svg, rect, line} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "peptideOrder", "peptideInfo", "peptideToTranscripts", "isGenomeProt"],
-    
+
     data: () => {
         return {
             // dimensions
@@ -90,7 +90,7 @@ export default {
                     await navigator.clipboard.writeText(this.tooltip_text);
                     this.set_tooltip_copied(true);
                 }
-                // Are we copying the tooltip text from an iframe showing IsoVis? 
+                // Are we copying the tooltip text from an iframe showing IsoVis?
                 else if (window.parent !== window)
                 {
                     window.parent.postMessage(`To copy: ${this.tooltip_text}`, document.referrer);
@@ -145,7 +145,7 @@ export default {
             let canvas_rect = crosshair_canvas.getBoundingClientRect();
             let canvas_rect_left = canvas_rect.left;
             let x = Math.floor(client_x - canvas_rect_left);
-            
+
             let crosshair_canvas_ctx = crosshair_canvas.getContext("2d");
             crosshair_canvas_ctx.setLineDash([2, 2]);
             crosshair_canvas_ctx.strokeStyle = "rgb(83,83,83)";
@@ -177,14 +177,14 @@ export default {
                 crosshair_canvas_ctx.fillStyle = old_fillstyle;
             }
         },
-        
+
         // Method to build the stack
         buildStack() {
             this.start_drag = -1;
             this.end_drag = -1;
             this.tooltip_text = "";
 
-            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || !this.peptideToTranscripts || Object.keys(this.baseAxis).length == 0)
+            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || !this.peptideToTranscripts || Object.keys(this.baseAxis).length === 0)
                 return;
 
             this.width = document.getElementById("stackDiv").getBoundingClientRect().width - 2 * this.padding;
@@ -192,6 +192,7 @@ export default {
 
             let svgHeight = this.groupScale(this.is_compact ? 1 : this.peptideOrder.length, this.peptideHeight, this.peptideGap) - this.peptideGap;
             let blockHeight = this.peptideHeight / 2;
+            blockHeight += blockHeight % 2;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
 
@@ -227,7 +228,7 @@ export default {
                 let end = is_forward_strand ? peptide_blocks[peptide_blocks.length - 1][1] : peptide_blocks[0][1];
                 if (start > end)
                     start = end;
-                
+
                 let x0 = self.baseAxis.scale(start);
                 let x1 = self.baseAxis.scale(end);
                 let y0 = (self.peptideHeight) / 2 + (this.is_compact ? 0 : transformation(i)) + blockHeight / 8;
@@ -359,10 +360,14 @@ export default {
                 let topVal = (clientY - peptide_stack_boundary.top + padding + 5);
 
                 let num_cutoff = 5;
+                let is_ellipsis_used = false;
 
                 let transcripts_text = shown_transcripts.slice(0, num_cutoff).join(", ");
                 if (shown_transcripts.length > num_cutoff)
+                {
                     transcripts_text += "...";
+                    is_ellipsis_used = true;
+                }
 
                 let shown_transcripts_text = `Transcripts: ${transcripts_text}\r\n`;
                 transcripts_text = `Transcripts: ${shown_transcripts.join(", ")}\r\n`;
@@ -372,7 +377,7 @@ export default {
                 let event = new CustomEvent("set_peptidestack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
-                let tooltip_html = shown_tooltip_text.replaceAll("\r\n", "<br>") + "<br>(Click on the peptide block to copy the text in this tooltip)<br>";
+                let tooltip_html = shown_tooltip_text.replaceAll("\r\n", "<br>") + `<br>(Click on the peptide block to copy the ${is_ellipsis_used ? "full " : ""}text in this tooltip)<br>`;
                 tooltip.html(tooltip_html)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
@@ -397,7 +402,7 @@ export default {
 
         buildStackSvg(symbol = false)
         {
-            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || !this.peptideToTranscripts || Object.keys(this.baseAxis).length == 0)
+            if (this.isGenomeProt || !this.baseAxis || !this.peptideOrder || (this.peptideOrder.length === 0) || !this.peptideInfo || !this.peptideToTranscripts || Object.keys(this.baseAxis).length === 0)
             {
                 if (symbol)
                     return [-1, -1, null];
@@ -409,6 +414,7 @@ export default {
 
             let svgHeight = this.groupScale(this.is_compact ? 1 : this.peptideOrder.length, this.peptideHeight, this.peptideGap) - this.peptideGap;
             let blockHeight = this.peptideHeight / 2;
+            blockHeight += blockHeight % 2;
 
             let canvas_width = Math.ceil(this.width);
             let canvas_height = Math.ceil(svgHeight);
@@ -432,7 +438,7 @@ export default {
                 let end = is_forward_strand ? peptide_blocks[peptide_blocks.length - 1][1] : peptide_blocks[0][1];
                 if (start > end)
                     start = end;
-                
+
                 let x0 = this.baseAxis.scale(start);
                 let x1 = this.baseAxis.scale(end);
                 let y0 = (this.peptideHeight) / 2 + (this.is_compact ? 0 : transformation(i));

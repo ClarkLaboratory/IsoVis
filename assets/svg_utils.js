@@ -54,9 +54,14 @@ export function rect(x, y, width, height, fill)
     return `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"/>`;
 }
 
-export function rounded_rect(x, y, width, height, rx, ry, fill)
+export function rect_rounded(x, y, width, height, rx, ry, fill)
 {
     return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" ry="${ry}" fill="${fill}"/>`;
+}
+
+export function rect_transparent(x, y, width, height, stroke, stroke_width)
+{
+    return `<rect x="${x}" y="${y}" width="${width}" height="${height}" stroke="${stroke}" stroke-width="${stroke_width}" fill="none"/>`;
 }
 
 export function line(x1, y1, x2, y2, stroke, stroke_width)
@@ -64,7 +69,7 @@ export function line(x1, y1, x2, y2, stroke, stroke_width)
     return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${stroke_width}"/>`;
 }
 
-export function dashed_line(x1, y1, x2, y2, stroke, stroke_width, stroke_dasharray)
+export function line_dashed(x1, y1, x2, y2, stroke, stroke_width, stroke_dasharray)
 {
     return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${stroke_width}" stroke-dasharray="${stroke_dasharray}"/>`;
 }
@@ -109,12 +114,17 @@ export function text_double_centered(text, x, y, font_size, font_family, fill)
     return `<text dominant-baseline="middle" text-anchor="middle" x="${x}" y="${y}" font-size="${font_size}" font-family="${font_family}"${fill ? ' fill="' + fill + '"' : ''}>${text}</text>`;
 }
 
+export function text_double_centered_bolded(text, x, y, font_size, font_family, fill)
+{
+    return `<text dominant-baseline="middle" text-anchor="middle" x="${x}" y="${y}" font-size="${font_size}" font-family="${font_family}"${fill ? ' fill="' + fill + '"' : ''} font-weight="bold">${text}</text>`;
+}
+
 export function text_hanging_baseline(text, x, y, font_size, font_family)
 {
     return `<text dominant-baseline="hanging" x="${x}" y="${y}" font-size="${font_size}" font-family="${font_family}">${text}</text>`;
 }
 
-export function diagonal_text(text, x, y, font_size, font_family)
+export function text_diagonal(text, x, y, font_size, font_family)
 {
     return `<text transform="rotate(-45 ${x} ${y})" x="${x}" y="${y}" font-size="${font_size}" font-family="${font_family}">${text}</text>`;
 }
@@ -137,4 +147,26 @@ export function linear_gradient(id, stops)
 
     let linear_gradient_elem = `<linearGradient id="${id}">${stop_str}</linearGradient>`;
     return put_in_defs(linear_gradient_elem);
+}
+
+export function orf_hatching_pattern(id, stroke_colour, fill_colour)
+{
+    let orfHeight = 26;
+    let pattern_str = rect(0, 0, orfHeight, orfHeight, fill_colour);
+    for (let coord = -orfHeight * 2 - 1; coord <= orfHeight; coord += orfHeight / 2)
+        pattern_str += line(coord, orfHeight * 2, coord + orfHeight * 2 + 1, -1, stroke_colour, 3);
+
+    let orf_hatcing_pattern_elem = `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${orfHeight}" height="${orfHeight}" viewBox="0 0 ${orfHeight} ${orfHeight}">${pattern_str}</pattern>`;
+    return put_in_defs(orf_hatcing_pattern_elem);
+}
+
+export function orf_hatching_pattern_16px(id, stroke_colour, fill_colour)
+{
+    let orfHeight = 16;
+    let pattern_str = rect(0, 0, orfHeight, orfHeight, fill_colour);
+    for (let coord = -orfHeight * 2 - 1; coord <= orfHeight; coord += orfHeight / 2)
+        pattern_str += line(coord, orfHeight * 2, coord + orfHeight * 2 + 1, -1, stroke_colour, 2);
+
+    let orf_hatcing_pattern_elem = `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${orfHeight}" height="${orfHeight}" viewBox="0 0 ${orfHeight} ${orfHeight}">${pattern_str}</pattern>`;
+    return put_in_defs(orf_hatcing_pattern_elem);
 }

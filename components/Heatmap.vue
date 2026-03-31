@@ -12,7 +12,7 @@ See 'secondaryData' key in demo_data.json for example data.
     <p class="text-center">Heatmap plot</p>
 </div>
 </template>
-        
+
 <script>
 import * as d3 from 'd3';
 import {put_in_svg, rect} from "~/assets/svg_utils";
@@ -39,7 +39,7 @@ export default {
                 heatmapHigh: '#fc7d0b',
                 invalid: '#c2c2c2'
             };
-            
+
             // Clear target element of content
             d3.select('#heatmapDiv').selectAll('*').remove();
 
@@ -53,7 +53,7 @@ export default {
             let width = boundary.width - 2 * padding;
 
             // Labels of row and columns
-            let samples = this.heatmapData.labels;
+            let samples = this.heatmapData.labelOrder;
 
             let transcripts = this.heatmapData.transcriptOrder.slice();
             let rowCount = transcripts.length;
@@ -162,6 +162,9 @@ export default {
 
                 let row = Math.floor((y_diff * transcripts.length) / canvas.height);
                 let col = Math.floor((x_diff * samples.length) / canvas.width);
+                row = Math.min(Math.max(row, 0), transcripts.length - 1);
+                col = Math.min(Math.max(col, 0), samples.length - 1);
+
                 let transcript = transcripts[row];
                 let sample = samples[col];
                 let value = values[row][col];
@@ -171,7 +174,7 @@ export default {
                 let leftVal = (calculateLeftVal(clientX) - boundary.left + padding + 7);
                 let topVal = (clientY - boundary.top + padding + 5);
 
-                tooltip.html(`Sample: ${sample}<br>Transcript: ${transcript}<br>Value: ${value}<br>`)
+                tooltip.html(`Sample: ${sample}<br>Isoform: ${transcript}<br>Value: ${value}<br>`)
                     .style("visibility", "visible")
                     .style("left", leftVal + "px").style("top", topVal + "px");
             }
@@ -216,7 +219,7 @@ export default {
             let width = boundary.width - 2 * padding;
 
             // Labels of row and columns
-            let samples = this.heatmapData.labels;
+            let samples = this.heatmapData.labelOrder;
 
             let transcripts = this.heatmapData.transcriptOrder.slice();
             let rowCount = transcripts.length;
