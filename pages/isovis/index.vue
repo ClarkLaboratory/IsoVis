@@ -842,7 +842,7 @@ export default
             // Search for Ensembl gene IDs by gene symbol from mygene.info
             // FIXME: Sometimes mygene_info_loading is set to false and no_genes_found is set to true while the current request is ongoing, which creates confusion
             this.mygene_info_loading = true;
-            let data = await fetch(`https://mygene.info/v3/query?species=${encodeURIComponent(this.taxon_id)}&fields=symbol,ensembl.gene&q=${"symbol:" + encodeURIComponent(this.enteredGene)}*`, { signal })
+            let data = await fetch(`https://mygene.info/v3/query?species=${encodeURIComponent(this.taxon_id)}&fields=symbol,ensembl.gene&q=${"symbol:" + encodeURIComponent(this.enteredGene)}*&size=1000`, { signal })
                 .then(res => res.json())
                 .catch(() => {});
             this.mygene_info_loading = false;
