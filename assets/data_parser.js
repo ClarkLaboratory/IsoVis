@@ -703,7 +703,7 @@ export class PeptideCountsData
             for (let j = 0; j < this.samples.length; ++j)
             {
                 let sample = this.samples[j];
-                if (this.labels.indexOf(sample.toLowerCase()) === -1)
+                if (this.labels.indexOf(sample) === -1)
                     continue;
 
                 let value = parseFloat(entries[j]);
