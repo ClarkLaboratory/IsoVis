@@ -199,11 +199,17 @@
             A: Please refer to <b-link href="../help_gene_strand/" target="_blank">this page</b-link> for more information.
         </div>
         <br>
+        <div>
+            Q: <b>What are constitutive and alternative splice junctions?</b><br>
+            A: Constitutive splice junctions are splice junctions which are present in all transcripts that fully cover them by their transcription start and end sites (hidden by default).<br>
+               Alternative splice junctions are all non-constitutive splice junctions, i.e. those that are not present in all transcripts (shown by default).
+        </div>
+        <br>
         <h3>Heatmap</h3>
         <br>
         <div>
             Q: <b>How can I view the details of each heatmap cell?</b><br>
-            A: You can hover your cursor over a heatmap cell to see which sample and transcript / peptide / RNA modification site location it is for, as well as its numerical value.<br>
+            A: You can hover your cursor over a heatmap cell to see which sample and transcript / peptide / RNA modification site location it is for, as well as its numerical value.
         </div>
         <br>
         <div>

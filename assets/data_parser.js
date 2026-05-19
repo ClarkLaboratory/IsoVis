@@ -1383,14 +1383,24 @@ export class PrimaryData
                 this.orfs[accession].sort((block0, block1) => block0[0] - block1[0]);
 
             // build isoform objects from transcript data and save in list
+            this.orf_to_transcripts = {};
             this.isoformList = [];
             for (let i = 0; i < this.transcriptOrder.length; ++i)
-                this.isoformList.push(new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]], this.orfs));
+            {
+                let isoform = new Isoform(this.transcriptOrder[i], this.transcripts[this.transcriptOrder[i]], this.orfs);
+                this.isoformList.push(isoform);
 
-            // Sort the regions of each ORF by descending region starts if the gene is not on the forward strand
-            if (this.strand !== '+')
-                for (let accession of Object.keys(this.orfs))
-                    this.orfs[accession].reverse();
+                for (let accession of isoform.accessions)
+                {
+                    if (!(this.orf_to_transcripts[accession]))
+                        this.orf_to_transcripts[accession] = [isoform.transcriptID];
+                    else
+                        this.orf_to_transcripts[accession].push(isoform.transcriptID);
+                }
+            }
+
+            for (let accession of Object.keys(this.orf_to_transcripts))
+                this.orf_to_transcripts[accession].sort((a, b) => a[0].localeCompare(b[0], "en", {numeric: true, sensitivity: "case"}));
 
             this.allIsoforms = JSON.parse(JSON.stringify(this.isoformList)); // keep a copy to allow for manually adding/removing rows
 
@@ -1415,6 +1425,13 @@ export class PrimaryData
                 if (this.strand !== '+')
                     this.peptides[peptide_sequence].ranges.reverse();
             }
+
+            this.ORFOrder = Object.keys(this.orfs);
+            this.ORFOrder.sort();
+            // Sort the regions of each ORF by descending region starts if the gene is not on the forward strand
+            if (this.strand !== '+')
+                for (let accession of Object.keys(this.orfs))
+                    this.orfs[accession].reverse();
 
             this.valid = true; // data parsed correctly and ready for visualization
 
@@ -3621,6 +3638,9 @@ class Isoform
 
                 orf_regions.sort((block0, block1) => block0[0] - block1[0]);
                 this.overlapping_orf_regions = calculate_overlapping_regions(orf_regions);
+
+                if (!is_forward_strand)
+                    orf_regions.reverse();
             }
         }
     }

@@ -190,6 +190,24 @@ export default {
             else if (this.isStrandednessMismatched)
                 center_label += " (mismatch with Ensembl?)";
 
+            let axis_length = Math.abs(self.baseAxis.end - self.baseAxis.start) + 1;
+            let axis_length_str = `${axis_length}`;
+            if (axis_length_str.length > 3)
+            {
+                let axis_length_chunks = [];
+                let offset = -axis_length_str.length + axis_length_str.length % 3 - 3;
+                if (axis_length_str.length % 3 === 0)
+                    offset += 3;
+                while (offset !== -3)
+                {
+                    axis_length_chunks.push(axis_length_str.slice(offset, offset + 3));
+                    offset += 3;
+                }
+                axis_length_chunks.push(axis_length_str.slice(offset));
+                axis_length_str = axis_length_chunks.join(',');
+            }
+            center_label += ` (range: ${axis_length_str} bp.)`;
+
             let font_size = 16.0;
             let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;
 
@@ -301,6 +319,24 @@ export default {
                 center_label = "Assumed " + center_label.toLowerCase();
             else if (this.isStrandednessMismatched)
                 center_label += " (mismatch with Ensembl?)";
+
+            let axis_length = Math.abs(self.baseAxis.end - self.baseAxis.start) + 1;
+            let axis_length_str = `${axis_length}`;
+            if (axis_length_str.length > 3)
+            {
+                let axis_length_chunks = [];
+                let offset = -axis_length_str.length + axis_length_str.length % 3 - 3;
+                if (axis_length_str.length % 3 === 0)
+                    offset += 3;
+                while (offset !== -3)
+                {
+                    axis_length_chunks.push(axis_length_str.slice(offset, offset + 3));
+                    offset += 3;
+                }
+                axis_length_chunks.push(axis_length_str.slice(offset));
+                axis_length_str = axis_length_chunks.join(',');
+            }
+            center_label += ` (range: ${axis_length_str} bp.)`;
 
             let font_size = 16.0;
             let left_label_end, center_label_start, center_label_end, center_label_width, right_label_start;

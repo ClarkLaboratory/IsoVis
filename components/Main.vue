@@ -11,13 +11,13 @@ Requires mainData object which is used here to update the relevant data other co
 <template>
 <b-container fluid style="background-color: white;">
     <style>
-        #protein_dropdown button, #peptides_dropdown button, #splice_graph_dropdown button
+        #protein_dropdown button, #peptides_dropdown button, #orfs_dropdown button, #splice_graph_dropdown button
         {
             border: 0;
             border-style: none;
             padding: 0;
         }
-        #protein_dropdown svg, #peptides_dropdown svg, #splice_graph_dropdown svg
+        #protein_dropdown svg, #peptides_dropdown svg, #orfs_dropdown svg, #splice_graph_dropdown svg
         {
             width: 16px;
             height: 16px;
@@ -52,6 +52,9 @@ Requires mainData object which is used here to update the relevant data other co
             </b-dropdown-item>
             <b-dropdown-item v-if="!peptide_disabled" @click="setShowPeptide(!show_peptide)" v-b-tooltip.hover.right="'Display the mapping of peptides to transcripts'">
                 Peptide mapping (beta)<b-icon-check v-if="show_peptide" variant="success"></b-icon-check>
+            </b-dropdown-item>
+            <b-dropdown-item v-if="!orf_stack_disabled" @click="setShowORFStack(!show_orf_stack)" v-b-tooltip.hover.right="'Display the ORF stack'">
+                ORF stack (beta)<b-icon-check v-if="show_orf_stack" variant="success"></b-icon-check>
             </b-dropdown-item>
             <b-dropdown-item @click="setShowSplices(!show_splices)" v-b-tooltip.hover.right="'Display splice junctions (default: only those that are not present in all transcripts)'">
                 Splice graph<b-icon-check v-if="show_splices" variant="success"></b-icon-check>
@@ -117,6 +120,7 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="peptide_stack_visible" @click="exportComponent('peptide_stack')">Peptide stack</b-dropdown-item>
             <b-dropdown-item v-if="peptide_heatmap_visible" @click="exportComponent('peptide_intensities_heatmap')">Peptide heatmap</b-dropdown-item>
             <b-dropdown-item v-if="peptide_heatmap_legend_visible" @click="exportComponent('peptide_intensities_heatmap_legend')">Peptide heatmap legend</b-dropdown-item>
+            <b-dropdown-item v-if="orf_stack_visible" @click="exportComponent('orf_stack')">ORF stack</b-dropdown-item>
             <b-dropdown-item v-if="splice_graph_visible" @click="exportComponent('splice_graph')">Splice graph</b-dropdown-item>
             <b-dropdown-item v-if="other_ensembl_isoforms_visible" @click="exportComponent('other_isoforms')">Other Ensembl isoforms</b-dropdown-item>
             <b-dropdown-item v-if="rna_modification_sites_visible" @click="exportComponent('rna_modification_sites')">RNA modification sites</b-dropdown-item>
@@ -332,6 +336,86 @@ Requires mainData object which is used here to update the relevant data other co
         <!-- Sample labels + heatmap legend -->
         <b-col v-show="mainData.peptideCountsData && show_heatmap_column" :cols="show_stack ? 3 : 9">
             <PeptideCountsLegend :peptideCountsData="mainData.peptideCountsData" ref="peptideCountsLegendComponent" class="p-0 mx-0 my-3 g-0 text-center"></PeptideCountsLegend>
+        </b-col>
+
+    </b-row>
+
+    <!-- ORFs label, nothing, and nothing -->
+    <b-row v-show="!orf_stack_disabled && show_stack && show_orf_stack">
+
+        <!-- ORFs label -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; padding-top: 5px; padding-bottom: 5px">
+            <span><b>ORFs</b> (beta):</span>
+            <b-icon-sort-alpha-down v-if="ORFOrder.length > 1" @click="sortORFsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort ORFs by ascending ORF IDs'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="ORFOrder.length > 1" @click="sortORFsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort ORFs by descending ORF IDs'"></b-icon-sort-alpha-down-alt>
+            <b-icon-arrows-collapse v-if="!orf_stack_compact_mode" @click="setORFStackCompact(!orf_stack_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Collapse ORFs into one row'"></b-icon-arrows-collapse>
+            <b-icon-arrows-expand v-if="orf_stack_compact_mode" @click="setORFStackCompact(!orf_stack_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Expand ORFs into individual rows'"></b-icon-arrows-expand>
+            <b-dropdown id="orfs_dropdown" v-if="!orf_stack_disabled && (mainData.isoformData.is_genomeprot)" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Configure options for the ORF stack'">
+                <template #button-content>
+                    <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
+                </template>
+                <b-dropdown-item v-if="!orf_stack_compact_mode && show_stack" @click="setORFStackHighlight(!orf_stack_highlight_mode)" v-b-tooltip.hover.right="'Click on an ORF here to highlight it in the isoform stack (highlights removed when disabled)'">
+                    Highlight corresponding ORF when clicking<b-icon-check v-if="orf_stack_highlight_mode" variant="success"></b-icon-check>
+                </b-dropdown-item>
+            </b-dropdown>
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
+        </b-col>
+
+    </b-row>
+
+    <!-- ORF list, ORF stack, and nothing -->
+    <b-row v-show="!orf_stack_disabled && show_stack && show_orf_stack" class="border-bottom">
+
+        <!-- ORF list -->
+        <b-col class="text-center" cols="3" style="white-space: nowrap; overflow: auto;">
+            <draggable v-if="!orf_stack_compact_mode && (ORFOrder.length > 1)" v-model="ORFOrder" @start="drag=true" @end="onORFEnd" style="cursor: move;">
+                <div v-for="orf in ORFOrder" :key="orf" :id="orf" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                    <!-- Delete button -->
+                    <b-icon-x class="icon float-left" @click="removeORF(orf);" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-x>
+                    <!-- ORF -->
+                    <span v-if="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack && ($refs.ORFStackComponent) && (orf === $refs.ORFStackComponent.highlighted_orf)"><b>{{orf}}</b></span>
+                    <span v-else>{{orf}}</span>
+                    <!-- Reorder icon -->
+                    <b-icon-grip-vertical class="icon float-right" style="display: block; height: 31px; line-height: 31px; cursor: pointer;"></b-icon-grip-vertical>
+                </div>
+            </draggable>
+            <div v-else-if="orf_stack_compact_mode" style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                <!-- Compact mode label -->
+                <span>(Compact mode enabled)</span>
+            </div>
+            <div v-else style="display: block; height: 31px; line-height: 31px; background-color: white;">
+                <!-- ORF -->
+                <span v-if="mainData && mainData.isoformData && (mainData.isoformData.is_genomeprot) && show_stack && ($refs.ORFStackComponent) && (ORFOrder[0] === $refs.ORFStackComponent.highlighted_orf)"><b>{{ORFOrder[0]}}</b></span>
+                <span v-else>{{ORFOrder[0]}}</span>
+            </div>
+            <b-icon-plus v-if="(!orf_stack_compact_mode) && allORFs && (ORFOrder.length < allORFs.length)" @click="modal.addORF.show = true" style="cursor: pointer;" v-b-tooltip.hover.window.bottom="'Edit ORF list'"></b-icon-plus>
+            <b-modal v-model="modal.addORF.show" size="md" title="Edit ORF list" ok-only>
+                <div class="border-top"></div>
+                <div v-for="orf in allORFs" :key="orf" :style="inclusionStyle((ORFOrder.indexOf(orf) !== -1))" class="text-center border-bottom">
+                    <!-- Delete button -->
+                    <b-icon-x v-if="(ORFOrder.length > 1) && (ORFOrder.indexOf(orf) !== -1)" @click="removeORF(orf)" class="icon float-left" style="display: block; height: 32px; line-height: 32px; cursor: pointer;"></b-icon-x>
+                    <!-- Add button -->
+                    <b-icon-plus v-if="ORFOrder.indexOf(orf) === -1" @click="addORF(orf)" class="icon float-left" style="display: block; height: 32px; line-height: 32px; cursor: pointer;"></b-icon-plus>
+                    <!-- ORF -->
+                    {{orf}}
+                </div>
+            </b-modal>
+        </b-col>
+
+        <!-- ORF stack -->
+        <b-col v-show="mainData && mainData.isoformData && mainData.isoformData.is_genomeprot && show_stack" :cols="(heatmap_data_exists && show_heatmap_column) ? 6 : 9">
+            <ORFStack :base-axis="baseAxis" :ORFOrder="orf_data.ORFOrder" :ORFInfo="orf_data.ORFInfo" :ORFToTranscripts="orf_data.ORFToTranscripts" ref="ORFStackComponent" class="mx-0 g-0" style="padding-left: 1rem !important; padding-right: 1rem !important;"></ORFStack>
+        </b-col>
+
+        <!-- Nothing -->
+        <b-col v-show="heatmap_data_exists && show_heatmap_column" :cols="show_stack ? 3 : 9">
         </b-col>
 
     </b-row>
@@ -707,6 +791,10 @@ export default
                 {
                     show: false,
                 },
+                addORF:
+                {
+                    show: false,
+                },
                 addSite:
                 {
                     show: false,
@@ -720,10 +808,14 @@ export default
             show_orfs: false,
             show_user_orfs: false,
             show_peptide: false,
+            show_orf_stack: false,
 
             peptide_compact_mode: false,
             peptide_highlight_mode: false,
             peptide_integration_mode: false,
+
+            orf_stack_compact_mode: false,
+            orf_stack_highlight_mode: false,
 
             show_splices: false,
             show_alternative_junctions: true,
@@ -747,6 +839,7 @@ export default
             protein_disabled: false,
             canon_disabled: false,
             peptide_disabled: true,
+            orf_stack_disabled: true,
             rna_modif_disabled: true,
 
             is_other_isoforms_button_clicked: false,
@@ -781,6 +874,10 @@ export default
             peptideOrder: [],
             allPeptides: [],
             peptide_data: false,
+
+            ORFOrder: [],
+            allORFs: [],
+            orf_data: false,
 
             siteOrder: [],
             allSites: [],
@@ -851,6 +948,61 @@ export default
             return to_return;
         },
 
+        allIsoformIDs()
+        {
+            let all_isoform_ids = [];
+
+            if (this.mainData && this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+                for (let isoform of this.mainData.isoformData.allIsoforms)
+                    all_isoform_ids.push(isoform.transcriptID.toLowerCase());
+
+            if (!this.canon_disabled && this.show_canon && this.mainData.canonData.isoformList)
+                all_isoform_ids.push(this.mainData.canonData.isoformList[0].transcriptID.toLowerCase());
+
+            if (!this.other_isoforms_disabled && this.show_all_other_isoforms && this.other_isoform_data && this.other_isoform_data.allIsoforms)
+                for (let isoform of this.other_isoform_data.allIsoforms)
+                    all_isoform_ids.push(isoform.transcriptID.toLowerCase());
+
+            return all_isoform_ids;
+        },
+
+        allIsoformSymbols()
+        {
+            let all_isoform_symbols = [];
+
+            if (this.mainData && this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+            {
+                for (let isoform of this.mainData.isoformData.allIsoforms)
+                {
+                    let isoform_id = isoform.transcriptID;
+                    let isoform_symbol = this.transcriptNames[isoform_id];
+                    if (isoform_symbol && isoform_symbol !== "Novel" && isoform_symbol !== "Not found")
+                        all_isoform_symbols.push(isoform_symbol.toLowerCase());
+                }
+            }
+
+            if (!this.canon_disabled && this.show_canon && this.mainData.canonData.isoformList)
+            {
+                let isoform_id = this.mainData.canonData.isoformList[0].transcriptID;
+                let isoform_symbol = this.transcriptNames[isoform_id];
+                if (isoform_symbol && isoform_symbol !== "Novel" && isoform_symbol !== "Not found")
+                    all_isoform_symbols.push(isoform_symbol.toLowerCase());
+            }
+
+            if (!this.other_isoforms_disabled && this.show_all_other_isoforms && this.other_isoform_data && this.other_isoform_data.allIsoforms)
+            {
+                for (let isoform of this.other_isoform_data.allIsoforms)
+                {
+                    let isoform_id = isoform.transcriptID;
+                    let isoform_symbol = this.transcriptNames[isoform_id];
+                    if (isoform_symbol && isoform_symbol !== "Novel" && isoform_symbol !== "Not found")
+                        all_isoform_symbols.push(isoform_symbol.toLowerCase());
+                }
+            }
+
+            return all_isoform_symbols;
+        },
+
         species()
         {
             return this.mainData.species;
@@ -858,7 +1010,7 @@ export default
 
         canonicalIsoform()
         {
-            return this.mainData.canonData.isoformList? this.mainData.canonData.isoformList[0].transcriptID : '';
+            return this.mainData.canonData.isoformList ? this.mainData.canonData.isoformList[0].transcriptID : '';
         },
 
         canonDisplay()
@@ -909,6 +1061,11 @@ export default
         peptide_heatmap_legend_visible()
         {
             return this.peptide_heatmap_visible;
+        },
+
+        orf_stack_visible()
+        {
+            return (!this.orf_stack_disabled && this.show_stack && this.show_orf_stack);
         },
 
         splice_graph_visible()
@@ -965,6 +1122,7 @@ export default
                     this.peptide_stack_visible ||
                     this.peptide_heatmap_visible ||
                     this.peptide_heatmap_legend_visible ||
+                    this.orf_stack_visible ||
                     this.splice_graph_visible ||
                     this.other_ensembl_isoforms_visible ||
                     this.rna_modification_sites_visible ||
@@ -978,6 +1136,15 @@ export default
     },
 
     methods: {
+        onKeepLongestORFCheckboxInput()
+        {
+            if (!this.is_keep_longest_orf)
+            {
+                this.is_find_uorf = false;
+                this.is_find_dorf = false;
+            }
+        },
+
         abortFetches()
         {
             if (this.controller)
@@ -1043,6 +1210,12 @@ export default
         onPeptideEnd(evt)
         {
             this.peptide_data.peptideOrder = JSON.parse(JSON.stringify(this.peptideOrder));
+            this.is_dragging_done = true;
+        },
+
+        onORFEnd(evt)
+        {
+            this.orf_data.ORFOrder = JSON.parse(JSON.stringify(this.ORFOrder));
             this.is_dragging_done = true;
         },
 
@@ -1120,8 +1293,8 @@ export default
         {
             // We want all the text on the left hand side fully shown and centered
             // Idea: Calculate the width of the longest component on the left hand side, then center-align the texts accordingly
-            let [shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
-            let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line);
+            let [shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_orf_stack_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line] = this.determineLeftSideTexts();
+            let [longest_text_width, protein_first_line, protein_second_line, protein_third_line] = this.determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_orf_stack_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line);
 
             // Create a temporary canvas for calculating text metrics
             let text_metrics_canvas = document.createElement("canvas");
@@ -1391,6 +1564,7 @@ export default
             let protein_shown = this.protein_diagram_visible;
             let canon_shown = this.canonical_isoform_visible;
             let peptide_shown = this.peptide_stack_visible;
+            let orf_stack_shown = this.orf_stack_visible;
             let splice_graph_shown = this.splice_graph_visible;
             let other_isoforms_shown = this.other_ensembl_isoforms_visible;
             let rna_modification_sites_shown = this.rna_modification_sites_visible;
@@ -1403,6 +1577,7 @@ export default
             let [canon_track_width, canon_track_height, canon_track_symbol] = (canon_shown) ? this.$refs.canonStackComponent.buildStackSvg(true) : [-1, -1, null];
             let [peptide_stack_width, peptide_stack_height, peptide_stack_symbol] = (peptide_shown && this.mainData.isoformData.is_genomeprot) ? this.$refs.peptideGenomeProtStackComponent.buildStackSvg(true)
                                                                                                                                                : ((peptide_shown && !this.mainData.isoformData.is_genomeprot) ? this.$refs.peptideStackComponent.buildStackSvg(true) : [-1, -1, null]);
+            let [orf_stack_width, orf_stack_height, orf_stack_symbol] = (orf_stack_shown) ? this.$refs.ORFStackComponent.buildStackSvg(true) : [-1, -1, null];
             let [splice_graph_width, splice_graph_height, splice_graph_symbol] = (splice_graph_shown) ? this.$refs.spliceGraphComponent.buildGraphSvg(true) : [-1, -1, null];
             let [other_isoforms_width, other_isoforms_height, other_isoforms_symbol] = (other_isoforms_shown) ? this.$refs.otherIsoformStackComponent.buildStackSvg(true) : [-1, -1, null];
             let [rna_modif_stack_width, rna_modif_stack_height, rna_modif_stack_symbol] = (rna_modification_sites_shown) ? this.$refs.RNAModifStackComponent.buildStackSvg(true) : [-1, -1, null];
@@ -1715,6 +1890,48 @@ export default
                 y += 15;
             }
 
+            // ORF stack
+            if (orf_stack_shown)
+            {
+                // Draw the 'ORFs (beta):' label
+                svg += text_topped_centered("ORFs (beta):", x, y, 16, "sans-serif");
+
+                {
+                    let text_metrics = text_metrics_canvas_ctx.measureText("ORFs (beta):");
+                    y += text_metrics.actualBoundingBoxAscent + text_metrics.actualBoundingBoxDescent + 5;
+                }
+
+                // Draw the ORF stack
+                let line_y = -1;
+                if (!((orf_stack_width === -1) || (orf_stack_height === -1) || !orf_stack_symbol))
+                {
+                    line_y = Math.ceil(y + orf_stack_height);
+                    svg += put_in_symbol("orf_stack", orf_stack_width, orf_stack_height, orf_stack_symbol);
+                    svg += use("#orf_stack", 50 + longest_text_width + 50, y);
+                }
+
+                // Draw all shown ORFs
+                y += 19;
+                for (let orf_stack_text of shown_orf_stack_texts)
+                {
+                    if (orf_stack_text === "ORFs (beta):")
+                        continue;
+
+                    let text_elem = (orf_stack_text === this.$refs.ORFStackComponent.highlighted_orf) ? text_double_centered_bolded(orf_stack_text, x, y, 16, "sans-serif", "") : text_double_centered(orf_stack_text, x, y, 16, "sans-serif", "");
+                    svg += text_elem;
+                    y += 1 + 30;
+                }
+
+                y -= 15;
+
+                if (line_y !== -1)
+                    y = line_y;
+
+                svg += line(0, y + 0.5, svg_width - 1, y + 0.5, "#dee2e6", 1);
+
+                y += 15;
+            }
+
             // Splice graph
             if (splice_graph_shown)
             {
@@ -1984,7 +2201,7 @@ export default
             link.click();
         },
 
-        determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line)
+        determineLeftSideTextMaxWidth(shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_orf_stack_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line)
         {
             // Determine the first line of the protein info
             let protein_first_line = "";
@@ -2006,6 +2223,9 @@ export default
                 shown_texts.push("Splice graph:");
 
             for (let line_text of shown_peptide_texts)
+                shown_texts.push(line_text);
+
+            for (let line_text of shown_orf_stack_texts)
                 shown_texts.push(line_text);
 
             for (let [line_text, ignored] of shown_other_text_and_links)
@@ -2143,6 +2363,22 @@ export default
                     shown_peptide_texts.push("(Compact mode enabled)");
             }
 
+            let shown_orf_stack_texts = [];
+
+            // ORF stack
+            if (this.orf_stack_visible)
+            {
+                shown_orf_stack_texts.push("ORFs (beta):");
+
+                if (!this.orf_stack_compact_mode)
+                {
+                    for (let orf of this.ORFOrder)
+                        shown_orf_stack_texts.push(orf);
+                }
+                else
+                    shown_orf_stack_texts.push("(Compact mode enabled)");
+            }
+
             let shown_other_text_and_links = [];
 
             // Other Ensembl isoforms
@@ -2238,7 +2474,7 @@ export default
                 protein_info_third_line = " Disordered region, " + " Coil";
             }
 
-            return [shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line];
+            return [shown_text_and_links, shown_canonical_text_and_links, shown_peptide_texts, shown_orf_stack_texts, shown_other_text_and_links, shown_rna_site_texts, protein_info_first_line, protein_info_second_line, protein_info_third_line];
         },
 
         exportComponent(component)
@@ -2259,6 +2495,8 @@ export default
                 svg = this.$refs.peptideCountsComponent.buildHeatmapSvg();
             else if (component === "peptide_intensities_heatmap_legend")
                 svg = this.$refs.peptideCountsLegendComponent.buildHeatmapLegendSvg();
+            else if (component === "orf_stack")
+                svg = this.$refs.ORFStackComponent.buildStackSvg();
             else if (component === "splice_graph")
                 svg = this.$refs.spliceGraphComponent.buildGraphSvg();
             else if (component === "other_isoforms")
@@ -2416,6 +2654,26 @@ export default
             this.setBaseAxis();
         },
 
+        checkZoomInput(zoom_input)
+        {
+            if (!zoom_input)
+                return false;
+
+            let zoom_input_trimmed_lowercase = zoom_input.trim().toLowerCase();
+
+            // Did the user enter a genome coordinate range (number1 - number2)?
+            let zoom_input_dash_split = zoom_input_trimmed_lowercase.split('-');
+            if (zoom_input_dash_split.length === 2)
+            {
+                let [start, end] = zoom_input_dash_split;
+                if (start.trim().match(/^\d+$/) && end.trim().match(/^\d+$/))
+                    return true;
+            }
+
+            // Did the user enter an isoform ID or symbol?
+            return (this.allIsoformIDs.indexOf(zoom_input_trimmed_lowercase) !== -1) || (this.allIsoformSymbols.indexOf(zoom_input_trimmed_lowercase) !== -1);
+        },
+
         // Calculate the metagene ranges from both the uploaded isoform stack data and the downloaded canonical isoform data, and set the base axis accordingly.
         calculate_canon_mergedranges()
         {
@@ -2476,6 +2734,8 @@ export default
                 else
                     this.$refs.peptideGenomeProtStackComponent.buildStack();
             }
+            if (!this.orf_stack_disabled)
+                this.$refs.ORFStackComponent.buildStack();
             if (!this.rna_modif_disabled)
                 this.$refs.RNAModifStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
@@ -2498,6 +2758,8 @@ export default
                 else
                     this.$refs.peptideGenomeProtStackComponent.buildStack();
             }
+            if (!this.orf_stack_disabled)
+                this.$refs.ORFStackComponent.buildStack();
             if (!this.rna_modif_disabled)
                 this.$refs.RNAModifStackComponent.buildStack();
             this.$refs.geneStrandComponent.buildStrand();
@@ -2615,6 +2877,42 @@ export default
             this.$refs.isoformStackComponent.transcripts_to_highlight = [];
             if (this.peptide_integration_mode)
                 this.setShowUserOrfs(true);
+
+            this.resizePage();
+        },
+
+        setShowORFStack(state)
+        {
+            this.show_orf_stack = state;
+            if (this.show_orf_stack === false)
+            {
+                this.orf_stack_compact_mode = false;
+                this.$refs.ORFStackComponent.is_compact = false;
+            }
+
+            this.resizePage();
+        },
+
+        setORFStackCompact(state)
+        {
+            this.orf_stack_compact_mode = state;
+            this.$refs.ORFStackComponent.is_compact = state;
+
+            if (this.orf_stack_compact_mode === true)
+                this.show_orf_stack = true;
+
+            this.resizePage();
+        },
+
+        setORFStackHighlight(state)
+        {
+            this.orf_stack_highlight_mode = state;
+            this.$refs.ORFStackComponent.is_set_highlight = state;
+            if (!this.orf_stack_highlight_mode)
+            {
+                this.$refs.ORFStackComponent.highlighted_orf = "";
+                this.$refs.isoformStackComponent.orf_to_highlight = "";
+            }
 
             this.resizePage();
         },
@@ -3395,6 +3693,18 @@ export default
         },
 
         /**
+         * Add an ORF to the ORF stack.
+         * @param {string} orf ORF ID
+         */
+        addORF(orf)
+        {
+            this.ORFOrder.push(orf);
+            this.orf_data.ORFOrder.push(orf);
+
+            this.resizePage();
+        },
+
+        /**
          * Add an RNA modification site to the RNA modification site stack and modification levels heatmap.
          * @param {Number} site Coordinate of the RNA modification site
          */
@@ -3461,6 +3771,18 @@ export default
         {
             this.peptideOrder.splice(this.peptideOrder.indexOf(peptide), 1);
             this.peptide_data.peptideOrder.splice(this.peptide_data.peptideOrder.indexOf(peptide), 1);
+
+            this.resizePage();
+        },
+
+        /**
+         * Remove an ORF from the ORF stack.
+         * @param {string} orf ORF ID
+         */
+        removeORF(orf)
+        {
+            this.ORFOrder.splice(this.ORFOrder.indexOf(orf), 1);
+            this.orf_data.ORFOrder.splice(this.orf_data.ORFOrder.indexOf(orf), 1);
 
             this.resizePage();
         },
@@ -3570,6 +3892,17 @@ export default
                 this.peptideOrder.reverse();
 
             this.peptide_data.peptideOrder = JSON.parse(JSON.stringify(this.peptideOrder));
+
+            this.is_sorting_done = true;
+        },
+
+        sortORFsByAlpha(ascending = true)
+        {
+            this.ORFOrder.sort();
+            if (!ascending)
+                this.ORFOrder.reverse();
+
+            this.orf_data.ORFOrder = JSON.parse(JSON.stringify(this.ORFOrder));
 
             this.is_sorting_done = true;
         },
@@ -3805,6 +4138,8 @@ export default
                     else
                         this.$refs.peptideGenomeProtStackComponent.buildStack();
                 }
+                if (!this.orf_stack_disabled)
+                    this.$refs.ORFStackComponent.buildStack();
                 if (!this.rna_modif_disabled)
                     this.$refs.RNAModifStackComponent.buildStack();
                 this.$refs.geneStrandComponent.buildStrand();
@@ -3847,6 +4182,8 @@ export default
                     this.$refs.peptideStackComponent.buildStack();
                 else
                     this.$refs.peptideGenomeProtStackComponent.buildStack();
+                if (!this.orf_stack_disabled)
+                    this.$refs.ORFStackComponent.buildStack();
                 this.$refs.RNAModifStackComponent.buildStack();
                 this.$refs.spliceGraphComponent.buildGraph();
             }
@@ -3896,10 +4233,130 @@ export default
     {
         this.$root.$on("set_zoom", ([zoom_start, zoom_end, is_mouse_used, where = null]) =>
         {
-            if (zoom_start !== zoom_end)
+            let zoom_start_input = zoom_start;
+            let zoom_end_input = zoom_end;
+
+            if (zoom_end === undefined)
             {
-                let new_zoom_start = zoom_start;
-                let new_zoom_end = zoom_end;
+                let zoom_input_trimmed_lowercase = zoom_start.trim().toLowerCase();
+                let is_found = false;
+
+                // Search for a matching isoform symbol first
+                if (this.allIsoformSymbols.indexOf(zoom_input_trimmed_lowercase) !== -1)
+                {
+                    if (this.mainData && this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+                    {
+                        for (let isoform of this.mainData.isoformData.allIsoforms)
+                        {
+                            let isoform_id = isoform.transcriptID;
+                            let isoform_symbol = this.transcriptNames[isoform_id];
+                            if (!isoform_symbol || (isoform_symbol === "Novel") || (isoform_symbol === "Not found") || (zoom_input_trimmed_lowercase !== isoform_symbol.toLowerCase()))
+                                continue;
+
+                            zoom_start_input = isoform.start;
+                            zoom_end_input = isoform.end;
+                            is_found = true;
+                            break;
+                        }
+                    }
+
+                    if (!is_found && !this.canon_disabled && this.show_canon && this.mainData.canonData.isoformList)
+                    {
+                        let isoform = this.mainData.canonData.isoformList[0];
+                        let isoform_id = isoform.transcriptID;
+                        let isoform_symbol = this.transcriptNames[isoform_id];
+                        if (isoform_symbol && (isoform_symbol !== "Novel") && (isoform_symbol !== "Not found") && (zoom_input_trimmed_lowercase === isoform_symbol.toLowerCase()))
+                        {
+                            zoom_start_input = isoform.start;
+                            zoom_end_input = isoform.end;
+                            is_found = true;
+                        }
+                    }
+
+                    if (!is_found && !this.other_isoforms_disabled && this.show_all_other_isoforms && this.other_isoform_data && this.other_isoform_data.allIsoforms)
+                    {
+                        for (let isoform of this.other_isoform_data.allIsoforms)
+                        {
+                            let isoform_id = isoform.transcriptID;
+                            let isoform_symbol = this.transcriptNames[isoform_id];
+                            if (!isoform_symbol || (isoform_symbol === "Novel") || (isoform_symbol === "Not found") || (zoom_input_trimmed_lowercase !== isoform_symbol.toLowerCase()))
+                                continue;
+
+                            zoom_start_input = isoform.start;
+                            zoom_end_input = isoform.end;
+                            is_found = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Then search for a matching isoform ID
+                if (!is_found && (this.allIsoformIDs.indexOf(zoom_input_trimmed_lowercase) !== -1))
+                {
+                    if (this.mainData && this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+                    {
+                        for (let isoform of this.mainData.isoformData.allIsoforms)
+                        {
+                            if (zoom_input_trimmed_lowercase === isoform.transcriptID.toLowerCase())
+                            {
+                                zoom_start_input = isoform.start;
+                                zoom_end_input = isoform.end;
+                                is_found = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!is_found && !this.canon_disabled && this.show_canon && this.mainData.canonData.isoformList)
+                    {
+                        let isoform = this.mainData.canonData.isoformList[0];
+                        if (zoom_input_trimmed_lowercase === isoform.transcriptID.toLowerCase())
+                        {
+                            zoom_start_input = isoform.start;
+                            zoom_end_input = isoform.end;
+                            is_found = true;
+                        }
+                    }
+
+                    if (!is_found && !this.other_isoforms_disabled && this.show_all_other_isoforms && this.other_isoform_data && this.other_isoform_data.allIsoforms)
+                    {
+                        for (let isoform of this.other_isoform_data.allIsoforms)
+                        {
+                            if (zoom_input_trimmed_lowercase === isoform.transcriptID.toLowerCase())
+                            {
+                                zoom_start_input = isoform.start;
+                                zoom_end_input = isoform.end;
+                                is_found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // If there are no matching isoform symbols or IDs, check if it's a genome coordinate range
+                if (!is_found)
+                {
+                    let zoom_input_dash_split = zoom_input_trimmed_lowercase.split('-');
+                    if (zoom_input_dash_split.length === 2)
+                    {
+                        let [start, end] = zoom_input_dash_split;
+                        if (start.trim().match(/^\d+$/) && end.trim().match(/^\d+$/))
+                        {
+                            zoom_start_input = parseInt(start);
+                            zoom_end_input = parseInt(end);
+                            is_found = true;
+                        }
+                    }
+                }
+
+                if (!is_found)
+                    return;
+            }
+
+            if (zoom_start_input !== zoom_end_input)
+            {
+                let new_zoom_start = zoom_start_input;
+                let new_zoom_end = zoom_end_input;
 
                 if (new_zoom_start > new_zoom_end)
                 {
@@ -3959,6 +4416,8 @@ export default
                     this.$root.$emit("single_peptidestack_click");
                 else if (where === "PeptideGenomeProtStack")
                     this.$root.$emit("single_peptidegenomeprotstack_click");
+                else if (where === "ORFStack")
+                    this.$root.$emit("single_orfstack_click");
                 else if (where === "RNAModifStack")
                     this.$root.$emit("single_rnamodifstack_click");
             }
@@ -3980,6 +4439,16 @@ export default
             this.$refs.isoformStackComponent.ump_orfs_to_highlight = ump_orfs_to_highlight;
             this.$refs.isoformStackComponent.ump_transcripts_to_highlight = ump_transcripts_to_highlight;
             this.$refs.isoformStackComponent.transcripts_to_highlight = transcripts_to_highlight;
+            this.$refs.isoformStackComponent.buildStack();
+        });
+
+        this.$root.$on("set_orf_highlight", (orf_to_highlight) =>
+        {
+            this.peptide_integration_mode = false;
+
+            this.setShowUserOrfs(true);
+
+            this.$refs.isoformStackComponent.orf_to_highlight = orf_to_highlight;
             this.$refs.isoformStackComponent.buildStack();
         });
     },
@@ -4041,11 +4510,16 @@ export default
             this.protein_disabled = false;
             this.canon_disabled = false;
             this.peptide_disabled = true;
+            this.orf_stack_disabled = true;
             this.rna_modif_disabled = true;
 
             this.peptideOrder = [];
             this.allPeptides = [];
             this.peptide_data = false;
+
+            this.ORFOrder = [];
+            this.allORFs = [];
+            this.orf_data = false;
 
             this.siteOrder = [];
             this.allSites = [];
@@ -4069,6 +4543,8 @@ export default
             this.peptide_compact_mode = false;
             this.peptide_highlight_mode = false;
             this.peptide_integration_mode = false;
+            this.orf_stack_compact_mode = false;
+            this.orf_stack_highlight_mode = false;
             this.rna_modif_compact_mode = false;
 
             this.controller = new AbortController();
@@ -4123,8 +4599,11 @@ export default
                 {
                     this.peptide_disabled = false;
                     this.$refs.peptideGenomeProtStackComponent.highlighted_peptide = "";
+                    this.$refs.ORFStackComponent.highlighted_orf = "";
                     this.setPeptideHighlight(false);        // Show peptides and highlight them by default specifically for GenomeProt data
                     this.setPeptideCompact(true);
+                    this.setORFStackHighlight(false);
+                    this.setORFStackCompact(true);
 
                     // If user ORFs exist, show them by default
                     for (var isoform of this.mainData.isoformData.allIsoforms)
@@ -4140,9 +4619,17 @@ export default
                             break;
                         }
                     }
+
                     this.peptideOrder = JSON.parse(JSON.stringify(this.mainData.isoformData.peptideOrder));
                     this.allPeptides = JSON.parse(JSON.stringify(this.peptideOrder));
                     this.peptide_data = {peptideOrder: JSON.parse(JSON.stringify(this.peptideOrder)), peptideInfo: JSON.parse(JSON.stringify(this.mainData.isoformData.peptides))};
+
+                    this.ORFOrder = JSON.parse(JSON.stringify(this.mainData.isoformData.ORFOrder));
+                    this.allORFs = JSON.parse(JSON.stringify(this.ORFOrder));
+                    this.orf_data = {ORFOrder: JSON.parse(JSON.stringify(this.ORFOrder)), ORFInfo: JSON.parse(JSON.stringify(this.mainData.isoformData.orfs)), ORFToTranscripts: this.mainData.isoformData.orf_to_transcripts};
+
+                    if (this.ORFOrder && (this.ORFOrder.length > 0))
+                        this.orf_stack_disabled = false;
                 }
 
                 if (this.mainData.rnaModifData)

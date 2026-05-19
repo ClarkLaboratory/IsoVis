@@ -37,8 +37,7 @@ export default {
             ump_orfs_to_highlight: [],
             ump_transcripts_to_highlight: [],
             transcripts_to_highlight: [],
-
-            orfless_transcript_ids: [],
+            orf_to_highlight: "",
 
             tooltip_text: ""
         };
@@ -268,6 +267,8 @@ export default {
             ctx.stroke();
 
             let exon_info = [];
+            let orf_range_info = [];
+            let multi_orf_transcripts = new Set();
 
             // Add exons to each isoform
             for (let i = 0; i < self.isoformList.length; ++i)
@@ -352,6 +353,14 @@ export default {
                     else
                         ctx.fillStyle = "rgb(83,83,83)";
 
+                    let orf_start = null;
+                    let orf_end = null;
+                    if (orf_ranges.length !== 0)
+                    {
+                        orf_start = orf_ranges[is_forward_strand ? 0 : orf_ranges.length - 1][0];
+                        orf_end = orf_ranges[is_forward_strand ? orf_ranges.length - 1 : 0][1];
+                    }
+
                     for (let [x0, x1] of orf_ranges)
                     {
                         let x = self.baseAxis.isAscending() ? self.baseAxis.scale(x0) : self.baseAxis.scale(x1);
@@ -366,17 +375,22 @@ export default {
 
                         // Don't draw the ORF region if it's outside of the canvas
                         if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
+                        {
                             ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
+
+                            // Record the start and end of the ORF for each of its regions drawn
+                            orf_range_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, orf_start, orf_end, ""]);
+                        }
                         else
                             continue;
 
-                        let orf_start = x0;
-                        let orf_end = x1;
-                        if (orf_start > orf_end)
+                        let orf_region_start = x0;
+                        let orf_region_end = x1;
+                        if (orf_region_start > orf_region_end)
                         {
-                            let temp = orf_end;
-                            orf_end = orf_start;
-                            orf_start = temp;
+                            let temp = orf_region_end;
+                            orf_region_end = orf_region_start;
+                            orf_region_start = temp;
                         }
 
                         for (let [exon_start, exon_end] of exon_ranges)
@@ -388,7 +402,7 @@ export default {
                                 exon_start = temp;
                             }
 
-                            if ((exon_start <= orf_start) && (orf_start <= exon_end) && (exon_start <= orf_end) && (orf_end <= exon_end))
+                            if ((exon_start <= orf_region_start) && (orf_region_start <= exon_end) && (exon_start <= orf_region_end) && (orf_region_end <= exon_end))
                             {
                                 for (let k = 0; k < exon_ranges.length; ++k)
                                 {
@@ -488,12 +502,12 @@ export default {
             // Colour any highlighted ORFs
             if (self.show_user_orfs && this.orfInfo && (Object.keys(this.orfInfo).length !== 0))
             {
-                ctx.fillStyle = "rgb(255,149,0)";
                 let orf_ids = Object.keys(this.orfInfo);
                 for (let orf_id of orf_ids)
                 {
-                    if (this.ump_orfs_to_highlight.indexOf(orf_id) === -1)
-                        continue;
+                    let is_draw = (this.ump_orfs_to_highlight.indexOf(orf_id) !== -1) || (orf_id === this.orf_to_highlight);
+                    if (is_draw)
+                        ctx.fillStyle = (orf_id === this.orf_to_highlight) ? "rgb(180,180,180)" : "rgb(255,149,0)";
 
                     let orfHeight = self.isoformHeight / 2;
                     orfHeight += orfHeight % 2;
@@ -501,11 +515,24 @@ export default {
                     {
                         let isoform = self.isoformList[i];
                         let accessions = isoform.accessions;
+
+                        let transcript_id = isoform.transcriptID;
+                        if (accessions.length > 1)
+                            multi_orf_transcripts.add(transcript_id);
+
                         if (accessions.indexOf(orf_id) === -1)
                             continue;
 
                         let orf_ranges = this.orfInfo[orf_id];
                         let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
+
+                        let orf_start = null;
+                        let orf_end = null;
+                        if (orf_ranges.length !== 0)
+                        {
+                            orf_start = orf_ranges[is_forward_strand ? 0 : orf_ranges.length - 1][0];
+                            orf_end = orf_ranges[is_forward_strand ? orf_ranges.length - 1 : 0][1];
+                        }
 
                         for (let [x0, x1] of orf_ranges)
                         {
@@ -519,9 +546,12 @@ export default {
                             let actual_y1 = Math.round(height + y);
                             let actual_height = actual_y1 - Math.round(y);
 
-                            // Don't draw the ORF region if it's outside of the canvas
                             if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
-                                ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
+                            {
+                                if (is_draw)
+                                    ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
+                                orf_range_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, orf_start, orf_end, orf_id]);
+                            }
                             else
                                 continue;
                         }
@@ -591,6 +621,23 @@ export default {
                     }
                 }
 
+                let cds_start = null;
+                let cds_end = null;
+                let orf_infos = [];
+                for (let [x0, x1, y0, y1, orf_start, orf_end, orf_id] of orf_range_info)
+                {
+                    if ((x0 <= x_diff) && (x_diff <= x1) && (y0 <= y_diff) && (y_diff <= y1))
+                    {
+                        if (!orf_id)
+                        {
+                            cds_start = orf_start;
+                            cds_end = orf_end;
+                        }
+                        else
+                            orf_infos.push([orf_start, orf_end, orf_id]);
+                    }
+                }
+
                 if (!shown_transcript_id)
                 {
                     d3.select("#stackCrosshairCanvas").style("cursor", "crosshair");
@@ -622,7 +669,19 @@ export default {
                     }
                 }
 
-                let tooltip_text = `${encoded_orfs_text}Isoform: ${shown_transcript_id}\r\nExon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
+                let orf_range_text = "";
+                if (orf_infos.length !== 0)
+                {
+                    orf_infos.sort((a, b) => a[2].localeCompare(b[2], "en", {numeric: true, sensitivity: "case"}));
+                    for (let [orf_start, orf_end, orf_id] of orf_infos)
+                        orf_range_text += `${orf_id} range: ${orf_start} - ${orf_end}\r\n`;
+                }
+
+                let cds_text = "";
+                if (cds_start && cds_end && !multi_orf_transcripts.has(shown_transcript_id))
+                    cds_text = `Coding sequence (CDS) range: ${cds_start} - ${cds_end}\r\n`;
+
+                let tooltip_text = `Isoform: ${shown_transcript_id}\r\n${encoded_orfs_text}${orf_range_text}${cds_text}Exon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
                 let event = new CustomEvent("set_isoformstack_tooltip_text", {detail: tooltip_text});
                 document.dispatchEvent(event);
 
@@ -879,12 +938,14 @@ export default {
             // Colour any highlighted ORFs
             if (this.show_user_orfs && this.orfInfo && (Object.keys(this.orfInfo).length !== 0))
             {
-                let exon_colour = "#ff9500";
                 let orf_ids = Object.keys(this.orfInfo);
                 for (let orf_id of orf_ids)
                 {
-                    if (this.ump_orfs_to_highlight.indexOf(orf_id) === -1)
+                    let is_draw = (this.ump_orfs_to_highlight.indexOf(orf_id) !== -1) || (orf_id === this.orf_to_highlight);
+                    if (!is_draw)
                         continue;
+
+                    let exon_colour = (orf_id === this.orf_to_highlight) ? "#b4b4b4" : "#ff9500";
 
                     let orfHeight = this.isoformHeight / 2;
                     orfHeight += orfHeight % 2;

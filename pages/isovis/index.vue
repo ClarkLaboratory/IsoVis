@@ -19,8 +19,8 @@ the exact state of that page from the previous state.
         <b-navbar-brand v-if="selectedView=='Welcome'">IsoVis</b-navbar-brand>
         <b-navbar-brand v-if="selectedView=='Main'"><b-link @click="clearData" v-b-tooltip.hover.bottom="'Clear data and return to the home page'" style="color:white">IsoVis</b-link></b-navbar-brand>
         <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
-        <b-form-input v-if="selectedView=='Main'" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (e.g. 15720442 - 15727968)" size="sm" style="width: 350px;"></b-form-input>
-        <b-button v-if="selectedView=='Main' && enteredZoom && (enteredZoom.split('-').length === 2) && enteredZoom.split('-')[0].trim().match(/^\d+$/) && enteredZoom.split('-')[1].trim().match(/^\d+$/)" @click="changeZoom" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">></b-button>
+        <b-form-input v-if="selectedView=='Main'" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (coord1 - coord2) or isoform" size="sm" style="width: 350px;"></b-form-input>
+        <b-button v-if="selectedView=='Main' && $refs.componentMain.checkZoomInput(enteredZoom)" @click="changeZoom" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">></b-button>
         <b-button v-if="selectedView=='Main' && !$refs.componentMain.is_zoom_reset" @click="resetZoom" variant="warning" size="sm" class="ml-2" style="white-space: nowrap;">Reset zoom</b-button>
         <b-collapse id="nav-collapse" is-nav>
             <!-- Right aligned nav items -->
@@ -423,16 +423,7 @@ export default
             if (!entered_zoom)
                 return;
 
-            let start_end = entered_zoom.split('-');
-            if (start_end.length !== 2)
-                return;
-
-            let start = parseInt(start_end[0]);
-            let end = parseInt(start_end[1]);
-            if (isNaN(start) || isNaN(end))
-                return;
-
-            this.$root.$emit("set_zoom", [start, end, false]);
+            this.$root.$emit("set_zoom", [entered_zoom, undefined, false]);
         },
 
         resetZoom()
