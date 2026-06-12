@@ -50,6 +50,18 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="orfs_ready && !no_user_orfs && show_stack" @click="setShowUserOrfs(!show_user_orfs)" v-b-tooltip.hover.right="'Display ORFs from the uploaded isoform stack data'">
                 User ORFs<b-icon-check v-if="show_user_orfs" variant="success"></b-icon-check>
             </b-dropdown-item>
+            <b-dropdown-item v-if="orfs_ready && mainData.isoformData.chromosome && orfless_transcript_exists && show_stack && !predicted_orfs_loading" @click="modal.predictORFs.show = true" v-b-tooltip.hover.right="'Predict ORFs for user isoforms with neither Ensembl nor user-provided ORF annotations'">
+                Predict ORFs... (ALPHA)
+            </b-dropdown-item>
+            <b-dropdown-item v-if="predicted_orfs_loading" disabled>
+                Predicting ORFs...
+            </b-dropdown-item>
+            <b-dropdown-item v-if="predicted_orfs_disabled" disabled>
+                Predicted ORFs (none found)
+            </b-dropdown-item>
+            <b-dropdown-item v-if="is_predict_orfs_button_clicked && !predicted_orfs_disabled && !predicted_orfs_loading && show_stack" @click="setShowPredictedOrfs(!show_predicted_orfs)" v-b-tooltip.hover.right="'Display predicted ORFs for transcripts with neither Ensembl nor user-provided ORF annotations'">
+                Predicted ORFs (ALPHA)<b-icon-check v-if="show_predicted_orfs" variant="success"></b-icon-check>
+            </b-dropdown-item>
             <b-dropdown-item v-if="!peptide_disabled" @click="setShowPeptide(!show_peptide)" v-b-tooltip.hover.right="'Display the mapping of peptides to transcripts'">
                 Peptide mapping (beta)<b-icon-check v-if="show_peptide" variant="success"></b-icon-check>
             </b-dropdown-item>
@@ -132,6 +144,27 @@ Requires mainData object which is used here to update the relevant data other co
             <b-dropdown-item v-if="gene_strand_visible" @click="exportComponent('strand')">Gene strand</b-dropdown-item>
         </b-dropdown>
     </b-form>
+
+    <!-- Predict ORFs modal -->
+    <b-modal v-model="modal.predictORFs.show" size="lg" title="Predict ORFs" hide-footer>
+        <p>Predict ORFs for user isoforms with neither Ensembl nor user-provided ORF annotations.</p>
+        <b-form-group style="margin-bottom: 0px;">
+            <em class="mt-3">Start codons:</em>
+            <b-form-input v-model="start_codon_str" class="mb-3" placeholder="ATG"></b-form-input>
+            <em class="mt-3">Stop codons:</em>
+            <b-form-input v-model="stop_codon_str" class="mb-3" placeholder="TAA, TAG, TGA"></b-form-input>
+            <em class="mt-3">Minimum ORF length in amino acids (applies to all ORF types):</em>
+            <b-form-input v-model="min_orf_aa_length" type="number" class="mb-3" placeholder="30"></b-form-input>
+            <b-form-checkbox v-model="is_collapse_orfs">Collapse predicted ORFs with the same stop site as a larger predicted ORF</b-form-checkbox>
+            <b-form-checkbox id="is_keep_longest_orf_checkbox" v-model="is_keep_longest_orf" @input="onKeepLongestORFCheckboxInput">Only keep the longest predicted ORF per transcript...</b-form-checkbox>
+            <b-form-checkbox id="is_find_uorf_checkbox" :disabled="!is_keep_longest_orf" v-model="is_find_uorf">...plus the longest 5' ORF upstream of the longest predicted ORF per transcript</b-form-checkbox>
+            <b-form-checkbox id="is_find_dorf_checkbox" :disabled="!is_keep_longest_orf" v-model="is_find_dorf">...plus the longest 3' ORF downstream of the longest predicted ORF per transcript</b-form-checkbox>
+        </b-form-group>
+        <b-form inline class="float-right mt-3">
+            <b-button @click="modal.predictORFs.show = false" variant="dark">Cancel</b-button>
+            <b-button @click="predictORFs" variant="primary" class="ml-2">Apply</b-button>
+        </b-form>
+    </b-modal>
 
     <!-- Nothing, protein domain labels, and nothing -->
     <b-row v-show="!protein_disabled && show_stack && show_protein && show_protein_labels">
@@ -650,7 +683,7 @@ Requires mainData object which is used here to update the relevant data other co
                     <span v-else-if="(transcriptNames[transcriptId] === 'Not found') || (!transcriptNames[transcriptId])" class="accessionText">{{transcriptId}}</span>
                     <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptId}&redirect=no`" target="_blank">{{transcript_names_ready ? transcriptNames[transcriptId] + " (" + transcriptId + ')' : transcriptId}}</b-link></span>
                     <!-- Loading icon -->
-                    <b-spinner v-if="!transcript_names_ready" variant="dark" type="grow" small></b-spinner>
+                    <b-spinner v-if="!transcript_names_ready || (predicted_orfs_loading && (transcript_ids_to_predict_orfs.indexOf(transcriptId) !== -1))" variant="dark" type="grow" small></b-spinner>
                     <!-- Reorder icon -->
                     <b-icon-grip-vertical v-if="transcript_names_ready" class="icon float-right" style="display: block; height: 51px; line-height: 51px; cursor: pointer;"></b-icon-grip-vertical>
                 </div>
@@ -661,7 +694,7 @@ Requires mainData object which is used here to update the relevant data other co
                 <span v-else-if="(transcriptNames[transcriptIds[0]] === 'Not found') || (!transcriptNames[transcriptIds[0]])" class="accessionText">{{transcriptIds[0]}}</span>
                 <span v-else class="accessionText"><b-link :href="`https://${is_use_grch37 ? 'grch37.' : 'www.'}ensembl.org/${species}/Transcript/Summary?db=core;g=${mainData.selectedGene};t=${transcriptIds[0]}&redirect=no`" target="_blank">{{transcript_names_ready ? transcriptNames[transcriptIds[0]] + " (" + transcriptIds[0] + ')' : transcriptIds[0]}}</b-link></span>
                 <!-- Loading icon -->
-                <b-spinner v-if="!transcript_names_ready" variant="dark" type="grow" small></b-spinner>
+                <b-spinner v-if="!transcript_names_ready && (predicted_orfs_loading && (transcript_ids_to_predict_orfs.indexOf(transcriptIds[0]) !== -1))" variant="dark" type="grow" small></b-spinner>
             </div>
             <b-icon-plus v-if="(transcriptIds.length < isoformList.length) && transcript_names_ready" @click="modal.addIsoform.show = true" style="cursor: pointer;" v-b-tooltip.hover.window.bottom="'Edit isoform list'"></b-icon-plus>
             <b-modal v-model="modal.addIsoform.show" size="md" title="Edit isoform list" ok-only>
@@ -732,7 +765,7 @@ Requires mainData object which is used here to update the relevant data other co
 
 <script>
 import { createBaseAxis } from '~/assets/base_axis';
-import { CanonData, OtherIsoformData, ProteinData, mergeRanges } from '~/assets/data_parser';
+import { CanonData, OtherIsoformData, ProteinData, mergeRanges, intersection, union } from '~/assets/data_parser';
 import { calculateSplicedRegions, calculateRelativeHeights, calculateRelativeHeightsAll } from '~/assets/splice_junctions';
 import { put_in_svg, put_in_symbol, put_in_hyperlink, use, put_in_protein_symbol, isovis_logo_symbol, line, line_dashed, orf_hatching_pattern_16px, rect, rect_rounded, text_preserve_whitespace_central_baseline, text_double_centered, text_double_centered_bolded, text_topped_centered, tspan } from '~/assets/svg_utils';
 import draggable from 'vuedraggable';
@@ -779,6 +812,10 @@ export default
         return {
             baseAxis: {},
             modal: {
+                predictORFs:
+                {
+                    show: false,
+                },
                 addIsoform:
                 {
                     show: false,
@@ -849,6 +886,22 @@ export default
             other_isoforms_resize: false,
             other_isoforms_toggled: false,
             other_isoform_data: false,
+
+            is_predict_orfs_button_clicked: false,
+            show_predicted_orfs: false,
+            predicted_orfs_loading: false,
+            predicted_orfs_disabled: false,
+            orfless_transcript_exists: false,
+            regions_to_predict_orfs: [],
+            transcript_ids_to_predict_orfs: [],
+
+            start_codon_str: "ATG",
+            stop_codon_str: "TAA, TAG, TGA",
+            min_orf_aa_length: 30,
+            is_collapse_orfs: true,
+            is_keep_longest_orf: false,
+            is_find_uorf: false,
+            is_find_dorf: false,
 
             is_overlapping_orfs_present: false,
 
@@ -2577,7 +2630,7 @@ export default
             let mergedRanges = [];
             if (is_other_isoforms_loaded && this.show_all_other_isoforms)
                 mergedRanges = this.other_isoforms_ranges;
-            else if (is_canon_loaded)
+            else if (is_canon_loaded && (this.canondata_ranges.length > 0))
                 mergedRanges = this.canondata_ranges;
             else
                 mergedRanges = isoformData.mergedRanges;
@@ -2626,6 +2679,8 @@ export default
             this.zoom_start = start;
             this.zoom_end = end;
             this.baseAxis = new_baseaxis;
+
+            this.$root.$emit("set_zoom_bar_text", [this.zoom_start, this.zoom_end]);
 
             if (!introns_normalized)
                 this.baseAxis.toggleNormalization();
@@ -3107,6 +3162,13 @@ export default
             this.resizePage();
         },
 
+        setShowPredictedOrfs(state)
+        {
+            this.show_predicted_orfs = state;
+            this.$refs.isoformStackComponent.show_predicted_orfs = state;
+            this.resizePage();
+        },
+
         setLogTransform(state)
         {
             this.isoform_heatmap_log_transform = state;
@@ -3136,6 +3198,532 @@ export default
             );
             return response;
         },
+
+        // BEGIN functions for predicting ORFs
+        get_codon_hits(nt_seq, codon)
+        {
+            return [...nt_seq.matchAll(codon)].map(a => a.index);
+        },
+
+        get_all_codon_hits(nt_seq, codons)
+        {
+            let hits = [];
+            for (let codon of codons)
+                hits = hits.concat(this.get_codon_hits(nt_seq, codon));
+
+            hits.sort((a, b) => a - b);
+            return hits;
+        },
+
+        // Find the smallest index of the element in an array of ascending numbers that's larger than a value.
+        lower_bound(arr, val)
+        {
+            let lo = 0, hi = arr.length - 1;
+
+            // If the largest element in the array is not bigger than the value, return -1 (no element found)
+            if (arr[hi] <= val)
+                return -1;
+
+            let mid = Math.floor((lo + hi) / 2);
+            while (lo !== hi)
+            {
+                if (arr[mid] <= val)
+                    lo = mid + 1;
+                else
+                    hi = mid;
+                mid = Math.floor((lo + hi) / 2);
+            }
+
+            return mid;
+        },
+
+        find_inframe_startends(frame_starts, frame_ends)
+        {
+            let results = [];
+            for (let frame_start of frame_starts)
+            {
+                let index = this.lower_bound(frame_ends, frame_start);
+                if (index !== -1)
+                    results.push([frame_start, frame_ends[index]]);
+            }
+            return results;
+        },
+
+        find_matched_startends(starts, ends)
+        {
+            let start_frames = [[], [], []];
+            let end_frames = [[], [], []];
+
+            for (let start of starts)
+                start_frames[start % 3].push(start);
+
+            for (let end of ends)
+                end_frames[end % 3].push(end - 1);
+
+            let results = [];
+            for (let i = 0; i < start_frames.length; ++i)
+                results = results.concat(this.find_inframe_startends(start_frames[i], end_frames[i]));
+
+            return results;
+        },
+
+        /*
+         * Return ORFs predicted from a transcript sequence, assumed to be oriented with the reading direction going from left (5') to right (3').
+         * nt_seq: The transcript sequence.
+         * start_codons: A list of start codons to use.
+         * stop_codons: A list of stop codons to use.
+         * min_orf_aa_length: The minimum ORF length in amino acids.
+         */
+        find_orfs(nt_seq, start_codons, stop_codons, min_orf_aa_length)
+        {
+            // The minimum ORF length in nucleotides includes the start codon BUT excludes the stop codon
+            let min_orf_nt_length = min_orf_aa_length * 3;
+
+            let starts = this.get_all_codon_hits(nt_seq, start_codons);
+            let ends = this.get_all_codon_hits(nt_seq, stop_codons);
+            let matched_startends = this.find_matched_startends(starts, ends);
+
+            let orfs = [];
+            let longest_orf = [];
+            let longest_orf_length = -1;
+
+            for (let [orf_start, orf_end] of matched_startends)
+            {
+                let orf_length = orf_end - orf_start + 1;
+                if (orf_length >= min_orf_nt_length)
+                {
+                    orfs.push([orf_start, orf_end]);
+                    if (orf_length > longest_orf_length)
+                    {
+                        longest_orf_length = orf_length;
+                        longest_orf = [orf_start, orf_end];
+                    }
+                }
+            }
+
+            // Collapse predicted ORFs that are completely inside another predicted ORF
+            if (this.is_collapse_orfs)
+            {
+                while (true)
+                {
+                    let is_collapsible = false;
+                    for (let i = 0; i < orfs.length - 1; ++i)
+                    {
+                        for (let j = i + 1; j < orfs.length; ++j)
+                        {
+                            let [a, b] = orfs[i];
+                            let [c, d] = orfs[j];
+
+                            // The two ORFs must be in the same frame and have the same stop site location
+                            if (((a % 3) === (c % 3)) && (b === d))
+                            {
+                                orfs.splice((a < c) ? j : i, 1);
+                                is_collapsible = true;
+                                break;
+                            }
+                        }
+
+                        if (is_collapsible)
+                            break;
+                    }
+
+                    if (!is_collapsible)
+                        break;
+                }
+            }
+
+            let results = orfs;
+            if (this.is_keep_longest_orf)
+            {
+                results = [longest_orf];
+                if (longest_orf_length === -1)
+                {
+                    if (this.is_find_uorf)
+                        results.push([]);
+                    if (this.is_find_dorf)
+                        results.push([]);
+                }
+                else
+                {
+                    let [longest_orf_start, longest_orf_end] = longest_orf;
+
+                    if (this.is_find_uorf)
+                    {
+                        let longest_uorf = [];
+                        let longest_uorf_length = -1;
+                        for (let [orf_start, orf_end] of orfs)
+                        {
+                            if (orf_start >= longest_orf_start)
+                                continue;
+
+                            let orf_length = orf_end - orf_start + 1;
+                            if (orf_length > longest_uorf_length)
+                            {
+                                longest_uorf_length = orf_length;
+                                longest_uorf = [orf_start, orf_end];
+                            }
+                        }
+
+                        results.push(longest_uorf);
+                    }
+
+                    if (this.is_find_dorf)
+                    {
+                        let longest_dorf = [];
+                        let longest_dorf_length = -1;
+                        for (let [orf_start, orf_end] of orfs)
+                        {
+                            if (orf_start <= longest_orf_end)
+                                continue;
+
+                            let orf_length = orf_end - orf_start + 1;
+                            if (orf_length > longest_dorf_length)
+                            {
+                                longest_dorf_length = orf_length;
+                                longest_dorf = [orf_start, orf_end];
+                            }
+                        }
+
+                        results.push(longest_dorf);
+                    }
+                }
+            }
+
+            return results;
+        },
+
+        seq_coord_to_genomic_coord(seq_coord, exon_ranges)
+        {
+            let current_pos = 0;
+            for (let [exon_start, exon_end] of exon_ranges)
+            {
+                let exon_length = exon_end - exon_start + 1;
+                let next_pos = current_pos + exon_length;
+                if (!((current_pos <= seq_coord) && (seq_coord <= next_pos)))
+                {
+                    current_pos = next_pos;
+                    continue;
+                }
+
+                return exon_start + seq_coord - current_pos;
+            }
+
+            return undefined;
+        },
+
+        async predictORFs()
+        {
+            // Check start codons and stop codons
+            if (!this.start_codon_str)
+            {
+                this.$bvModal.msgBoxOk("No start codons found. Please input start codons separated by commas, with each consisting of 3 characters in the ACGT nucleic acid alphabet.");
+                return;
+            }
+
+            if (!this.stop_codon_str)
+            {
+                this.$bvModal.msgBoxOk("No stop codons found. Please input stop codons separated by commas, with each consisting of 3 characters in the ACGT nucleic acid alphabet.");
+                return;
+            }
+
+            let nucleotide_alphabet = "ACGT";
+
+            let start_codons = this.start_codon_str.toUpperCase().split(',');
+            for (let i = 0; i < start_codons.length; ++i)
+            {
+                start_codons[i] = start_codons[i].trim();
+                if ((start_codons[i].length !== 3))
+                {
+                    this.$bvModal.msgBoxOk(`Start codon #${i + 1} ('${start_codons[i]}') is ${start_codons[i].length} character${(start_codons[i].length === 1) ? '' : 's'} long instead of 3 characters long. Please ensure all start codons are 3 characters long.`);
+                    return;
+                }
+                for (let j = 0; j < 3; ++j)
+                {
+                    if (nucleotide_alphabet.indexOf(start_codons[i][j]) === -1)
+                    {
+                        this.$bvModal.msgBoxOk(`Start codon #${i + 1} ('${start_codons[i]}') consists of characters outside the ACGT nucleic acid alphabet. Please ensure all start codons consist only of characters in the ACGT nucleic acid alphabet.`);
+                        return;
+                    }
+                }
+            }
+
+            let stop_codons = this.stop_codon_str.toUpperCase().split(',');
+            for (let i = 0; i < stop_codons.length; ++i)
+            {
+                stop_codons[i] = stop_codons[i].trim();
+                if ((stop_codons[i].length !== 3))
+                {
+                    this.$bvModal.msgBoxOk(`Stop codon #${i + 1} ('${stop_codons[i]}') is ${stop_codons[i].length} character${(stop_codons[i].length === 1) ? '' : 's'} long instead of 3 characters long. Please ensure all stop codons are 3 characters long.`);
+                    return;
+                }
+                for (let j = 0; j < 3; ++j)
+                {
+                    if (nucleotide_alphabet.indexOf(stop_codons[i][j]) === -1)
+                    {
+                        this.$bvModal.msgBoxOk(`Stop codon #${i + 1} ('${stop_codons[i]}') consists of characters outside the ACGT nucleic acid alphabet. Please ensure all stop codons consist only of characters in the ACGT nucleic acid alphabet.`);
+                        return;
+                    }
+                }
+            }
+
+            if (new Set(start_codons).size !== start_codons.length)
+            {
+                this.$bvModal.msgBoxOk("Please ensure all start codons provided are unique.");
+                return;
+            }
+
+            if (new Set(stop_codons).size !== stop_codons.length)
+            {
+                this.$bvModal.msgBoxOk("Please ensure all stop codons provided are unique.");
+                return;
+            }
+
+            let all_codons = new Set(start_codons.concat(stop_codons));
+            if (all_codons.size !== start_codons.length + stop_codons.length)
+            {
+                this.$bvModal.msgBoxOk("Please ensure no start codon is provided as a stop codon.");
+                return;
+            }
+
+            let min_orf_aa_length = parseInt(this.min_orf_aa_length);
+            if (Number.isNaN(min_orf_aa_length))
+            {
+                this.$bvModal.msgBoxOk("Please input an integer for the minimum ORF length.");
+                return;
+            }
+
+            this.modal.predictORFs.show = false;
+            this.predicted_orfs_loading = true;
+            this.predicted_orfs_disabled = false;
+
+            // Clear previously predicted ORFs if they exist
+            for (var isoform of this.mainData.isoformData.allIsoforms)
+                if (isoform && (this.transcript_ids_to_predict_orfs.indexOf(isoform.transcriptID) !== -1))
+                    isoform.orf = [];
+
+            for (var isoform of this.mainData.isoformData.isoformList)
+                if (isoform && (this.transcript_ids_to_predict_orfs.indexOf(isoform.transcriptID) !== -1))
+                    isoform.orf = [];
+
+            // Redraw the isoform stack with the previously predicted ORFs removed
+            this.$refs.isoformStackComponent.buildStack();
+
+            let url = `https://${this.is_use_grch37 ? "grch37." : ""}rest.ensembl.org/sequence/region/${this.species}`;
+            let regions = [];
+            for (let [region_start, region_end] of this.regions_to_predict_orfs)
+                regions.push(`${this.mainData.isoformData.chromosome}:${region_start}..${region_end}`);
+
+            let response = await this.fetchJSON(url, {regions});
+            this.predicted_orfs_loading = false;
+
+            if (!response)
+            {
+                this.$bvModal.msgBoxOk("Error: Could not fetch sequences for the transcript regions to predict ORFs from. Check if the Ensembl web server or your internet connection is unstable.");
+                return;
+            }
+
+            let results = Array(regions.length).fill(undefined);
+            for (let obj of response)
+            {
+                if (obj && obj.seq && (regions.indexOf(obj.query) !== -1))
+                {
+                    let last_colon_index = obj.query.lastIndexOf(':');
+                    let double_period_index = obj.query.indexOf("..", last_colon_index);
+                    let region_start = parseInt(obj.query.substring(last_colon_index + 1, double_period_index));
+                    let region_end = parseInt(obj.query.substring(double_period_index + 2));
+
+                    for (let i = 0; i < results.length; ++i)
+                    {
+                        if ((this.regions_to_predict_orfs[i][0] === region_start) && (this.regions_to_predict_orfs[i][1] === region_end))
+                        {
+                            results[i] = obj.seq;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (let i = 0; i < results.length; ++i)
+            {
+                if (results[i] === undefined)
+                {
+                    this.$bvModal.msgBoxOk(`Error: Failed to fetch the sequence for transcript region '${regions[i]}'. Check if your stack data file is formatted properly and uses sensible genomic coordinates.`);
+                    return;
+                }
+            }
+
+            let orfs_found = false;
+            if (this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+            {
+                let is_reverse_strand = (this.baseAxis.strand !== '+');
+                for (var isoform of this.mainData.isoformData.allIsoforms)
+                {
+                    if (!isoform || (this.transcript_ids_to_predict_orfs.indexOf(isoform.transcriptID) === -1))
+                        continue;
+
+                    let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
+                    exon_ranges.sort((block0, block1) => block0[0] - block1[0]);
+
+                    // Each transcript exon can only overlap with one region to predict ORFs from
+                    let transcript_seq = '';
+                    for (let i = 0; i < exon_ranges.length; ++i)
+                    {
+                        let [exon_start, exon_end] = exon_ranges[i];
+                        let j = 0, region_start = 0, region_end = 0;
+                        while (j < this.regions_to_predict_orfs.length)
+                        {
+                            [region_start, region_end] = this.regions_to_predict_orfs[j];
+                            if (!((region_end < exon_start) || (region_start > exon_end)))
+                                break;
+                            ++j;
+                        }
+                        if (j === this.regions_to_predict_orfs.length)
+                        {
+                            this.$bvModal.msgBoxOk("Error: Transcript exon does not belong to any region to predict ORFs from. This error should not occur.");
+                            return;
+                        }
+                        let region_seq = results[j].substring(exon_start - region_start, exon_end - region_start + 1);
+                        transcript_seq += region_seq;
+                    }
+
+                    if (is_reverse_strand)
+                        transcript_seq = transcript_seq.split('').reverse().join('');
+
+                    // Convert the predicted ORF regions back to spliced genomic coordinates
+                    let predicted_orf_regions = this.find_orfs(transcript_seq, start_codons, stop_codons, min_orf_aa_length);
+                    if (is_reverse_strand)
+                    {
+                        for (let i = 0; i < predicted_orf_regions.length; ++i)
+                        {
+                            let predicted_orf_region = predicted_orf_regions[i];
+                            if (predicted_orf_region.length !== 2)
+                                continue;
+
+                            for (let j = 0; j < predicted_orf_region.length; ++j)
+                                predicted_orf_region[j] = transcript_seq.length - 1 - predicted_orf_region[j];
+
+                            predicted_orf_regions[i] = predicted_orf_region.reverse();
+                        }
+                    }
+
+                    let isoform_predicted_orf_ranges = [];
+                    for (let predicted_orf_region of predicted_orf_regions)
+                    {
+                        if (predicted_orf_region.length !== 2)
+                            continue;
+
+                        orfs_found = true;
+
+                        let [predicted_orf_start, predicted_orf_end] = predicted_orf_region;
+                        let genomic_orf_start = this.seq_coord_to_genomic_coord(predicted_orf_start, exon_ranges);
+                        let genomic_orf_end = this.seq_coord_to_genomic_coord(predicted_orf_end, exon_ranges);
+
+                        let genomic_orf_ranges = [];
+                        for (let exon_range of exon_ranges)
+                        {
+                            let genomic_orf_range = intersection([genomic_orf_start, genomic_orf_end], exon_range);
+                            if (genomic_orf_range.length === 2)
+                                genomic_orf_ranges.push(genomic_orf_range);
+                        }
+
+                        isoform_predicted_orf_ranges = isoform_predicted_orf_ranges.concat(genomic_orf_ranges);
+                    }
+
+                    isoform.orf = isoform_predicted_orf_ranges;
+                }
+            }
+
+            if (!orfs_found)
+            {
+                this.predicted_orfs_disabled = true;
+                this.is_predict_orfs_button_clicked = true;
+                this.$bvModal.msgBoxOk("No ORFs were predicted from the current settings.");
+                return;
+            }
+
+            if (this.mainData.isoformData && this.mainData.isoformData.isoformList)
+            {
+                let is_reverse_strand = (this.baseAxis.strand !== '+');
+                for (var isoform of this.mainData.isoformData.isoformList)
+                {
+                    if (!isoform || (this.transcript_ids_to_predict_orfs.indexOf(isoform.transcriptID) === -1))
+                        continue;
+
+                    let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
+                    exon_ranges.sort((block0, block1) => block0[0] - block1[0]);
+
+                    // Each transcript exon can only overlap with one region to predict ORFs from
+                    let transcript_seq = '';
+                    for (let i = 0; i < exon_ranges.length; ++i)
+                    {
+                        let [exon_start, exon_end] = exon_ranges[i];
+                        let j = 0, region_start = 0, region_end = 0;
+                        while (j < this.regions_to_predict_orfs.length)
+                        {
+                            [region_start, region_end] = this.regions_to_predict_orfs[j];
+                            if (!((region_end < exon_start) || (region_start > exon_end)))
+                                break;
+                            ++j;
+                        }
+                        if (j === this.regions_to_predict_orfs.length)
+                        {
+                            this.$bvModal.msgBoxOk("Error: Transcript exon does not belong to any region to predict ORFs from. This error should not occur.");
+                            return;
+                        }
+                        let region_seq = results[j].substring(exon_start - region_start, exon_end - region_start + 1);
+                        transcript_seq += region_seq;
+                    }
+
+                    if (is_reverse_strand)
+                        transcript_seq = transcript_seq.split('').reverse().join('');
+
+                    // Convert the predicted ORF regions back to spliced genomic coordinates
+                    let predicted_orf_regions = this.find_orfs(transcript_seq, start_codons, stop_codons, min_orf_aa_length);
+                    if (is_reverse_strand)
+                    {
+                        for (let i = 0; i < predicted_orf_regions.length; ++i)
+                        {
+                            let predicted_orf_region = predicted_orf_regions[i];
+                            if (predicted_orf_region.length !== 2)
+                                continue;
+
+                            for (let j = 0; j < predicted_orf_region.length; ++j)
+                                predicted_orf_region[j] = transcript_seq.length - 1 - predicted_orf_region[j];
+
+                            predicted_orf_regions[i] = predicted_orf_region.reverse();
+                        }
+                    }
+
+                    let isoform_predicted_orf_ranges = [];
+                    for (let predicted_orf_region of predicted_orf_regions)
+                    {
+                        if (predicted_orf_region.length !== 2)
+                            continue;
+
+                        let [predicted_orf_start, predicted_orf_end] = predicted_orf_region;
+                        let genomic_orf_start = this.seq_coord_to_genomic_coord(predicted_orf_start, exon_ranges);
+                        let genomic_orf_end = this.seq_coord_to_genomic_coord(predicted_orf_end, exon_ranges);
+
+                        let genomic_orf_ranges = [];
+                        for (let exon_range of exon_ranges)
+                        {
+                            let genomic_orf_range = intersection([genomic_orf_start, genomic_orf_end], exon_range);
+                            if (genomic_orf_range.length === 2)
+                                genomic_orf_ranges.push(genomic_orf_range);
+                        }
+
+                        isoform_predicted_orf_ranges = isoform_predicted_orf_ranges.concat(genomic_orf_ranges);
+                    }
+
+                    isoform.orf = isoform_predicted_orf_ranges;
+                }
+            }
+
+            this.is_predict_orfs_button_clicked = true;
+            this.setShowPredictedOrfs(true);
+        },
+
+        // END functions for predicting ORFs
 
         /**
          * Fetch transcript names and canonical isoform data from Ensembl.
@@ -3279,6 +3867,7 @@ export default
                     this.show_all_other_isoforms = false;
                     this.other_isoforms_disabled = true;
                     this.other_isoforms_loading = false;
+                    this.$bvModal.msgBoxOk("All Ensembl isoforms for this gene are already present in the uploaded isoform data.");
                     return;
                 }
 
@@ -3392,6 +3981,7 @@ export default
                 this.show_all_other_isoforms = false;
                 this.other_isoforms_disabled = true;
                 this.other_isoforms_loading = false;
+                this.$bvModal.msgBoxOk("All Ensembl isoforms for this gene are already present in the uploaded isoform data.");
             }
         },
 
@@ -3533,6 +4123,66 @@ export default
             this.no_orfs = (Object.keys(ORFs).length === 0);
             this.no_user_orfs = !are_user_orfs_present;
             this.orfs_ready = true;
+
+            if (!(this.mainData.isoformData.chromosome))
+                return;
+
+            let orfless_exon_ranges = [];
+            if (this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+            {
+                for (var isoform of this.mainData.isoformData.allIsoforms)
+                {
+                    if (!isoform || !isoform.transcriptID)
+                        continue;
+
+                    if ((isoform.orf.length === 0) && (isoform.user_orf.length === 0))
+                    {
+                        this.orfless_transcript_exists = true;
+                        this.transcript_ids_to_predict_orfs.push(isoform.transcriptID);
+                        this.$refs.isoformStackComponent.orfless_transcript_ids.push(isoform.transcriptID);
+                        orfless_exon_ranges = orfless_exon_ranges.concat(isoform.exonRanges);
+                    }
+                }
+            }
+
+            if (this.orfless_transcript_exists)
+            {
+                orfless_exon_ranges.sort((block0, block1) => block0[0] - block1[0]);
+                while (true)
+                {
+                    let new_regions_added = false;
+                    for (let i = 0; i < orfless_exon_ranges.length - 1; ++i)
+                    {
+                        let region0 = orfless_exon_ranges[i];
+                        for (let j = i + 1; j < orfless_exon_ranges.length; ++j)
+                        {
+                            let region1 = orfless_exon_ranges[j];
+                            if (region0[1] < region1[0])
+                                break;
+
+                            let merged_region = union(region0, region1);
+                            if (merged_region.length !== 0)
+                            {
+                                orfless_exon_ranges.push(merged_region);
+                                orfless_exon_ranges.splice(j, 1);
+                                orfless_exon_ranges.splice(i, 1);
+                                new_regions_added = true;
+                                break;
+                            }
+                        }
+
+                        if (new_regions_added)
+                            break;
+                    }
+
+                    if (!new_regions_added)
+                        break;
+
+                    orfless_exon_ranges.sort((block0, block1) => block0[0] - block1[0]);
+                }
+
+                this.regions_to_predict_orfs = orfless_exon_ranges;
+            }
         },
 
         /**
@@ -4478,6 +5128,22 @@ export default
             this.other_isoforms_resize = false;
             this.other_isoforms_toggled = false;
             this.other_isoform_data = false;
+
+            this.is_predict_orfs_button_clicked = false;
+            this.show_predicted_orfs = false;
+            this.predicted_orfs_loading = false;
+            this.predicted_orfs_disabled = false;
+            this.orfless_transcript_exists = false;
+            this.regions_to_predict_orfs = [];
+            this.transcript_ids_to_predict_orfs = [];
+
+            this.start_codon_str = "ATG";
+            this.stop_codon_str = "TAA, TAG, TGA";
+            this.min_orf_aa_length = 30;
+            this.is_collapse_orfs = true;
+            this.is_keep_longest_orf = false;
+            this.is_find_uorf = false;
+            this.is_find_dorf = false;
 
             this.is_overlapping_orfs_present = false;
 

@@ -19,7 +19,7 @@ the exact state of that page from the previous state.
         <b-navbar-brand v-if="selectedView=='Welcome'">IsoVis</b-navbar-brand>
         <b-navbar-brand v-if="selectedView=='Main'"><b-link @click="clearData" v-b-tooltip.hover.bottom="'Clear data and return to the home page'" style="color:white">IsoVis</b-link></b-navbar-brand>
         <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
-        <b-form-input v-if="selectedView=='Main'" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (coord1 - coord2) or isoform" size="sm" style="width: 350px;"></b-form-input>
+        <b-form-input v-if="selectedView=='Main'" id="zoom_bar" @keyup.enter="changeZoom" v-model="enteredZoom" placeholder="Zoom to coordinates (coord1 - coord2) or isoform" size="sm" style="width: 350px;"></b-form-input>
         <b-button v-if="selectedView=='Main' && $refs.componentMain.checkZoomInput(enteredZoom)" @click="changeZoom" variant="primary" size="sm" class="ml-2" style="white-space: nowrap;">></b-button>
         <b-button v-if="selectedView=='Main' && !$refs.componentMain.is_zoom_reset" @click="resetZoom" variant="warning" size="sm" class="ml-2" style="white-space: nowrap;">Reset zoom</b-button>
         <b-collapse id="nav-collapse" is-nav>
@@ -1466,6 +1466,14 @@ export default
         });
         this.$root.$on('request_heatmap_data_upload', () => {
             this.modal.heatmapUploadData.show = true;
+        });
+        this.$root.$on('set_zoom_bar_text', ([zoom_start, zoom_end]) => {
+            let zoom_bar = document.getElementById("zoom_bar");
+            if (!zoom_bar)
+                return;
+
+            zoom_bar.value = `${zoom_start} - ${zoom_end}`;
+            this.enteredZoom = zoom_bar.value;
         });
     }
 }

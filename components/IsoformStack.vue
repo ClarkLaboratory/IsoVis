@@ -16,7 +16,7 @@ which must have 'transcriptID', 'exonRanges' and 'orf' properties.
 
 <script>
 import * as d3 from 'd3';
-import {orf_hatching_pattern, put_in_svg, rect, line} from "~/assets/svg_utils";
+import {orf_hatching_pattern, put_in_svg, rect, rect_transparent, line} from "~/assets/svg_utils";
 
 export default {
     props: ["baseAxis", "isoformList", "orfInfo"],
@@ -31,6 +31,7 @@ export default {
 
             show_orfs: false,
             show_user_orfs: false,
+            show_predicted_orfs: false,
             start_drag: -1,
             end_drag: -1,
 
@@ -38,6 +39,8 @@ export default {
             ump_transcripts_to_highlight: [],
             transcripts_to_highlight: [],
             orf_to_highlight: "",
+
+            orfless_transcript_ids: [],
 
             tooltip_text: ""
         };
@@ -198,7 +201,7 @@ export default {
             this.baseAxis.setPlotWidth(this.width);
 
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
-            let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            let exonHeight = (this.show_orfs || this.show_user_orfs || this.show_predicted_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
             exonHeight += exonHeight % 2;
 
             let self = this;  // avoid conflict with 'this' referring to a different object within some functions.
@@ -283,7 +286,7 @@ export default {
                 else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
                     ctx.fillStyle = "rgb(0,0,255)";     // gene-level UMP: blue
                 else
-                    ctx.fillStyle = (self.show_orfs || self.show_user_orfs) ? "rgb(112,112,112)" : "rgb(83,83,83)";
+                    ctx.fillStyle = (self.show_orfs || self.show_user_orfs || self.show_predicted_orfs) ? "rgb(112,112,112)" : "rgb(83,83,83)";
 
                 for (let j = 0; j < exon_ranges.length; ++j)
                 {
@@ -332,7 +335,7 @@ export default {
             }
 
             // Add ORFs to each isoform
-            if (self.show_orfs || self.show_user_orfs)
+            if (self.show_orfs || self.show_user_orfs || self.show_predicted_orfs)
             {
                 let orf_exon_info = [];
 
@@ -342,7 +345,12 @@ export default {
                 {
                     let isoform = self.isoformList[i];
                     let exon_ranges = isoform.exonRanges;
-                    let orf_ranges = self.show_orfs ? isoform.orf : isoform.user_orf;
+
+                    let is_contains_predicted_orf = (self.orfless_transcript_ids.indexOf(isoform.transcriptID) !== -1);
+                    let orf_ranges = self.show_user_orfs ? isoform.user_orf : (is_contains_predicted_orf ? [] : isoform.orf);
+                    if (self.show_predicted_orfs)
+                        orf_ranges = (is_contains_predicted_orf || (!is_contains_predicted_orf && self.show_orfs)) ? isoform.orf : (self.show_user_orfs ? isoform.user_orf : []);
+
                     let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
 
                     let transcript_id = isoform.transcriptID;
@@ -376,7 +384,18 @@ export default {
                         // Don't draw the ORF region if it's outside of the canvas
                         if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
                         {
-                            ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
+                            if (is_contains_predicted_orf)
+                            {
+                                let orig_stroke_style = ctx.strokeStyle;
+                                let orig_line_width = ctx.lineWidth;
+                                ctx.strokeStyle = "rgb(83,83,83)";
+                                ctx.lineWidth = 2;
+                                ctx.strokeRect(actual_x0 + 1, actual_y0 + 1, actual_width - 2, actual_height - 2);
+                                ctx.strokeStyle = orig_stroke_style;
+                                ctx.lineWidth = orig_line_width;
+                            }
+                            else
+                                ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
 
                             // Record the start and end of the ORF for each of its regions drawn
                             orf_range_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, orf_start, orf_end, ""]);
@@ -439,10 +458,12 @@ export default {
                         if (!overlapping_orf_regions || (overlapping_orf_regions.length === 0))
                             continue;
 
+                        let transcript_id = isoform.transcriptID;
+                        multi_orf_transcripts.add(transcript_id);
+
                         let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
                         let fill_colour = '';
 
-                        let transcript_id = isoform.transcriptID;
                         ctx.fillStyle = "rgb(240,240,240)";
                         if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
                             fill_colour = "rgb(0,208,255)";     // uniquely mapped transcript: cyan
@@ -546,6 +567,7 @@ export default {
                             let actual_y1 = Math.round(height + y);
                             let actual_height = actual_y1 - Math.round(y);
 
+                            // Don't draw the ORF region if it's outside of the canvas
                             if (!(((actual_x0 < 0) && (actual_x0 + actual_width < 0)) || ((actual_x0 >= canvas_width) && (actual_x0 + actual_width >= canvas_width))))
                             {
                                 if (is_draw)
@@ -721,7 +743,7 @@ export default {
             this.baseAxis.setPlotWidth(this.width);
 
             let svgHeight = this.groupScale(this.isoformList.length, this.isoformHeight, this.isoformGap) - this.isoformGap;
-            let exonHeight = (this.show_orfs || this.show_user_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
+            let exonHeight = (this.show_orfs || this.show_user_orfs || this.show_predicted_orfs) ? this.isoformHeight / 3 : this.isoformHeight / 2;
             exonHeight += exonHeight % 2;
 
             let canvas_width = Math.ceil(this.width);
@@ -800,7 +822,7 @@ export default {
                 let y = transformation(i) + (this.isoformHeight - exonHeight) / 2;
 
                 let transcript_id = isoform.transcriptID;
-                let exon_colour = (this.show_orfs || this.show_user_orfs) ? "#707070" : "#535353";
+                let exon_colour = (this.show_orfs || this.show_user_orfs || this.show_predicted_orfs) ? "#707070" : "#535353";
                 if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
                     exon_colour = "#00d0ff";    // uniquely mapped transcript: cyan
                 else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
@@ -841,14 +863,19 @@ export default {
             }
 
             // Add ORFs to each isoform
-            if (this.show_orfs || this.show_user_orfs)
+            if (this.show_orfs || this.show_user_orfs || this.show_predicted_orfs)
             {
                 let orfHeight = this.isoformHeight / 2;
                 orfHeight += orfHeight % 2;
                 for (let i = 0; i < this.isoformList.length; ++i)
                 {
                     let isoform = this.isoformList[i];
-                    let orf_ranges = this.show_orfs ? isoform.orf : isoform.user_orf;
+
+                    let is_contains_predicted_orf = (this.orfless_transcript_ids.indexOf(isoform.transcriptID) !== -1);
+                    let orf_ranges = this.show_user_orfs ? isoform.user_orf : (is_contains_predicted_orf ? [] : isoform.orf);
+                    if (this.show_predicted_orfs)
+                        orf_ranges = (is_contains_predicted_orf || (!is_contains_predicted_orf && this.show_orfs)) ? isoform.orf : (this.show_user_orfs ? isoform.user_orf : []);
+
                     let y = transformation(i) + (this.isoformHeight - orfHeight) / 2;
 
                     let transcript_id = isoform.transcriptID;
@@ -888,7 +915,10 @@ export default {
                         else if (actual_x1 >= canvas_width)
                             actual_width -= (actual_x1 - canvas_width);
 
-                        svg += rect(actual_x0, actual_y0, actual_width, actual_height, exon_colour);
+                        if (is_contains_predicted_orf)
+                            svg += rect_transparent(actual_x0 + 1, actual_y0 + 1, actual_width - 2, actual_height - 2, "#535353", 2);
+                        else
+                            svg += rect(actual_x0, actual_y0, actual_width, actual_height, exon_colour);
                     }
                 }
 
