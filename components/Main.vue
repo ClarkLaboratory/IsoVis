@@ -4045,7 +4045,6 @@ export default
                             }
                             i += 1;
                         }
-                        this.updateORFs(ORFs);
                     });
                     results = [];
                 }
@@ -4068,9 +4067,10 @@ export default
                         }
                         i += 1;
                     }
-                    this.updateORFs(ORFs);
                 });
             }
+
+            this.updateORFs(ORFs);
         },
 
         /**

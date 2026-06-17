@@ -354,6 +354,8 @@ export default {
                     let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
 
                     let transcript_id = isoform.transcriptID;
+                    if (this.show_predicted_orfs && is_contains_predicted_orf)  // Do not show CDS information for transcripts with predicted ORFs
+                        multi_orf_transcripts.add(transcript_id);
                     if (this.ump_transcripts_to_highlight.indexOf(transcript_id) !== -1)
                         ctx.fillStyle = "rgb(0,208,255)";   // uniquely mapped transcript: cyan
                     else if (this.transcripts_to_highlight.indexOf(transcript_id) !== -1)
@@ -363,7 +365,7 @@ export default {
 
                     let orf_start = null;
                     let orf_end = null;
-                    if (orf_ranges.length !== 0)
+                    if ((orf_ranges.length !== 0) && !(self.show_predicted_orfs && is_contains_predicted_orf))
                     {
                         orf_start = orf_ranges[is_forward_strand ? 0 : orf_ranges.length - 1][0];
                         orf_end = orf_ranges[is_forward_strand ? orf_ranges.length - 1 : 0][1];
@@ -398,7 +400,8 @@ export default {
                                 ctx.fillRect(actual_x0, actual_y0, actual_width, actual_height);
 
                             // Record the start and end of the ORF for each of its regions drawn
-                            orf_range_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, orf_start, orf_end, ""]);
+                            if (orf_start && orf_end)
+                                orf_range_info.push([actual_x0, actual_x0 + actual_width, actual_y0, actual_y0 + actual_height, orf_start, orf_end, ""]);
                         }
                         else
                             continue;
@@ -459,7 +462,7 @@ export default {
                             continue;
 
                         let transcript_id = isoform.transcriptID;
-                        multi_orf_transcripts.add(transcript_id);
+                        multi_orf_transcripts.add(transcript_id);   // A transcript with overlapping ORF regions is assumed to encode more than one ORF
 
                         let y = transformation(i) + (self.isoformHeight - orfHeight) / 2;
                         let fill_colour = '';
@@ -700,7 +703,7 @@ export default {
                 }
 
                 let cds_text = "";
-                if (cds_start && cds_end && !multi_orf_transcripts.has(shown_transcript_id))
+                if (cds_start && cds_end && !multi_orf_transcripts.has(shown_transcript_id))    // Only show CDS information for transcripts that encode just one ORF
                     cds_text = `Coding sequence (CDS) range: ${cds_start} - ${cds_end}\r\n`;
 
                 let tooltip_text = `Isoform: ${shown_transcript_id}\r\n${encoded_orfs_text}${orf_range_text}${cds_text}Exon #${shown_exon_number} / ${shown_total_exons}\r\nExonic region #${shown_exonic_region_number} / ${shown_total_exonic_regions}\r\nExon range: ${shown_exon_start} - ${shown_exon_end}`;
