@@ -141,16 +141,16 @@ the exact state of that page from the previous state.
         </b-form>
         <p v-if="no_genomeprot_genes_found"><span style="color: red;">No genes found with your search query.</span> Please change your search query to find genes.</p>
         <em class="mt-3">Gene filtering options (ORF = open reading frame, UMP = uniquely mapped peptide):</em>
-        <b-form-checkbox v-model="uniq_map_peptides" :disabled="no_uniq_map_peptides">ORFs with UMPs ({{ !no_uniq_map_peptides ? `${num_uniq_map_peptides}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="unknome_filter" :disabled="no_unknome_filter">ORFs with UMPs from zero-'knownness' Unknome v3 genes (human / mouse / zebrafish / fruit fly) ({{ !no_unknome_filter ? `${num_unknome_filter}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="lncRNA_peptides" :disabled="no_lncRNA_peptides">Long non-coding RNAs with UMPs ({{ !no_lncRNA_peptides ? `${num_lncRNA_peptides}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="novel_txs" :disabled="no_novel_txs">Novel transcript isoforms with UMPs ({{ !no_novel_txs ? `${num_novel_txs}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="novel_txs_distinguished" :disabled="no_novel_txs_distinguished">Novel transcript isoforms distinguished by UMPs ({{ !no_novel_txs_distinguished ? `${num_novel_txs_distinguished}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="unann_orfs" :disabled="no_unann_orfs">Unannotated ORFs with UMPs ({{ !no_unann_orfs ? `${num_unann_orfs}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="uorf_5" :disabled="no_uorf_5">5' uORFs with UMPs ({{ !no_uorf_5 ? `${num_uorf_5}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="dorf_3" :disabled="no_dorf_3">3' dORFs with UMPs ({{ !no_dorf_3 ? `${num_dorf_3}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="pseudogene" :disabled="no_pseudogene">Pseudogenes with UMPs ({{ !no_pseudogene ? `${num_pseudogene}` : "none" }})</b-form-checkbox>
-        <b-form-checkbox v-model="marker" :disabled="no_marker">Marker genes ({{ !no_marker ? `${num_marker}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="uniq_map_peptides" :disabled="no_uniq_map_peptides" @change="searchGenomeProtGenes">ORFs with UMPs ({{ !no_uniq_map_peptides ? `${num_uniq_map_peptides}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="unknome_filter" :disabled="no_unknome_filter" @change="searchGenomeProtGenes">ORFs with UMPs from zero-'knownness' Unknome v3 genes (human / mouse / zebrafish / fruit fly) ({{ !no_unknome_filter ? `${num_unknome_filter}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="lncRNA_peptides" :disabled="no_lncRNA_peptides" @change="searchGenomeProtGenes">Long non-coding RNAs with UMPs ({{ !no_lncRNA_peptides ? `${num_lncRNA_peptides}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="novel_txs" :disabled="no_novel_txs" @change="searchGenomeProtGenes">Novel transcript isoforms with UMPs ({{ !no_novel_txs ? `${num_novel_txs}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="novel_txs_distinguished" :disabled="no_novel_txs_distinguished" @change="searchGenomeProtGenes">Novel transcript isoforms distinguished by UMPs ({{ !no_novel_txs_distinguished ? `${num_novel_txs_distinguished}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="unann_orfs" :disabled="no_unann_orfs" @change="searchGenomeProtGenes">Unannotated ORFs with UMPs ({{ !no_unann_orfs ? `${num_unann_orfs}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="uorf_5" :disabled="no_uorf_5" @change="searchGenomeProtGenes">5' uORFs with UMPs ({{ !no_uorf_5 ? `${num_uorf_5}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="dorf_3" :disabled="no_dorf_3" @change="searchGenomeProtGenes">3' dORFs with UMPs ({{ !no_dorf_3 ? `${num_dorf_3}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="pseudogene" :disabled="no_pseudogene" @change="searchGenomeProtGenes">Pseudogenes with UMPs ({{ !no_pseudogene ? `${num_pseudogene}` : "none" }})</b-form-checkbox>
+        <b-form-checkbox v-model="marker" :disabled="no_marker" @change="searchGenomeProtGenes">Marker genes ({{ !no_marker ? `${num_marker}` : "none" }})</b-form-checkbox>
         <small class="form-text text-muted">Start typing either the gene's symbol or ID. Then, select from the list of genes and either press enter or click '>'.</small>
     </b-modal>
 
@@ -901,50 +901,61 @@ export default
         },
 
         // Include at most 100 genes from the genes in the stack data file that begin with the user's input (case-insensitive)
-        searchGenomeProtGenes(key_event)
+        searchGenomeProtGenes(event)
         {
             // Chrome-based browsers fire an Event when the user selects a datalist result;
             // ignore to prevent text on no results being found from appearing
-            if (!(key_event instanceof KeyboardEvent))
+            let event_is_keyboardevent = (event instanceof KeyboardEvent);
+            let event_is_boolean = ((event === true) || (event === false));
+            if (!(event_is_keyboardevent || event_is_boolean))
                 return;
 
-            if (this.enteredGenomeProtGene === null)
-                return;
-
-            let entered_gene = this.enteredGenomeProtGene.toLowerCase().trim();
-            if (this.prevEnteredGenomeProtGene === entered_gene)
-                return;
-
-            this.prevEnteredGenomeProtGene = entered_gene;
-
-            // Handle the case when the user has inputted '<gene symbol> (<gene ID>)'
-            let left_bracket_index = entered_gene.lastIndexOf('(');
-            let right_bracket_index = entered_gene.lastIndexOf(')');
-            if ((entered_gene !== '') && (left_bracket_index !== -1) && ((right_bracket_index === -1) || (left_bracket_index < right_bracket_index)))
+            let entered_gene = '';
+            if (event_is_keyboardevent)
             {
-                // Check if the input matches any of the datalist options
-                for (let saved_option of this.saved_options)
-                {
-                    if (saved_option.indexOf(entered_gene) !== -1)
-                    {
-                        this.no_genomeprot_genes_found = false;
-                        return;
-                    }
-                }
+                if (this.enteredGenomeProtGene === null)
+                    return;
 
-                // Check if the substring from the left bracket is the same as any of the gene IDs from the stack data
-                let gene_id_substring = entered_gene.substring(left_bracket_index + 1, (right_bracket_index !== -1) ? right_bracket_index : undefined).trim();
-                if (gene_id_substring !== '')
+                entered_gene = this.enteredGenomeProtGene.toLowerCase().trim();
+                if (this.prevEnteredGenomeProtGene === entered_gene)
+                    return;
+
+                this.prevEnteredGenomeProtGene = entered_gene;
+
+                // Handle the case when the user has inputted '<gene symbol> (<gene ID>)'
+                let left_bracket_index = entered_gene.lastIndexOf('(');
+                let right_bracket_index = entered_gene.lastIndexOf(')');
+                if ((entered_gene !== '') && (left_bracket_index !== -1) && ((right_bracket_index === -1) || (left_bracket_index < right_bracket_index)))
                 {
-                    for (let gene_id of this.all_genes)
+                    // Check if the input matches any of the datalist options
+                    for (let saved_option of this.saved_options)
                     {
-                        if (gene_id.toLowerCase() === gene_id_substring)
+                        if (saved_option.indexOf(entered_gene) !== -1)
                         {
                             this.no_genomeprot_genes_found = false;
                             return;
                         }
                     }
+
+                    // Check if the substring from the left bracket is the same as any of the gene IDs from the stack data
+                    let gene_id_substring = entered_gene.substring(left_bracket_index + 1, (right_bracket_index !== -1) ? right_bracket_index : undefined).trim();
+                    if (gene_id_substring !== '')
+                    {
+                        for (let gene_id of this.all_genes)
+                        {
+                            if (gene_id.toLowerCase() === gene_id_substring)
+                            {
+                                this.no_genomeprot_genes_found = false;
+                                return;
+                            }
+                        }
+                    }
                 }
+            }
+            else if (this.enteredGenomeProtGene !== null)
+            {
+                entered_gene = this.enteredGenomeProtGene.toLowerCase().trim();
+                this.prevEnteredGenomeProtGene = entered_gene;
             }
 
             let total_count = 0;
