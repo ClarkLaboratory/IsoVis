@@ -193,7 +193,7 @@ Requires mainData object which is used here to update the relevant data other co
             <span v-else-if="labels.uniprot != ''"><b>Protein</b>: <b-link :href="`https://www.uniprot.org/uniprot/${this.labels.uniprot}`" target="_blank">UniProt</b-link></span>
             <span v-else><b>Protein</b>:</span>
             <b-spinner v-if="!labels_ready" variant="dark" type="grow" small></b-spinner>
-            <b-dropdown id="protein_dropdown" v-if="labels_ready && !protein_disabled && protein_ready && show_stack" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Configure the protein diagram'">
+            <b-dropdown id="protein_dropdown" v-if="labels_ready && !protein_disabled && protein_ready && show_stack" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible" v-b-tooltip.hover.window.top="'Configure the protein diagram'">
                 <template #button-content>
                     <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
                 </template>
@@ -270,7 +270,7 @@ Requires mainData object which is used here to update the relevant data other co
             <b-img v-if="mainData.peptideCountsData && !peptide_compact_mode && (peptideOrder.length > 1)" @click="sortPeptidesByMeanHeatmap(false)" style="width: 16px; height: 16px; cursor: pointer; background: linear-gradient(#fde725, #21918c, #440154); display: inline-block; overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Sort peptides by descending mean peptide counts'"></b-img>
             <b-icon-arrows-collapse v-if="!peptide_compact_mode" @click="setPeptideCompact(!peptide_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Collapse peptides into one row (hides the peptide counts heatmap and legend)'"></b-icon-arrows-collapse>
             <b-icon-arrows-expand v-if="peptide_compact_mode" @click="setPeptideCompact(!peptide_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Expand peptides into individual rows'"></b-icon-arrows-expand>
-            <b-dropdown id="peptides_dropdown" v-if="!peptide_disabled && (mainData.isoformData.is_genomeprot)" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Configure peptide-related stack options'">
+            <b-dropdown id="peptides_dropdown" v-if="!peptide_disabled && (mainData.isoformData.is_genomeprot)" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible" v-b-tooltip.hover.window.top="'Configure peptide-related stack options'">
                 <template #button-content>
                     <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
                 </template>
@@ -379,11 +379,11 @@ Requires mainData object which is used here to update the relevant data other co
         <!-- ORFs label -->
         <b-col class="text-center" cols="3" style="white-space: nowrap; padding-top: 5px; padding-bottom: 5px">
             <span><b>ORFs</b> (beta):</span>
-            <b-icon-sort-alpha-down v-if="ORFOrder.length > 1" @click="sortORFsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort ORFs by ascending ORF IDs'"></b-icon-sort-alpha-down>
-            <b-icon-sort-alpha-down-alt v-if="ORFOrder.length > 1" @click="sortORFsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort ORFs by descending ORF IDs'"></b-icon-sort-alpha-down-alt>
+            <b-icon-sort-alpha-down v-if="!orf_stack_compact_mode && (ORFOrder.length > 1)" @click="sortORFsByAlpha()" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort ORFs by ascending ORF IDs'"></b-icon-sort-alpha-down>
+            <b-icon-sort-alpha-down-alt v-if="!orf_stack_compact_mode && (ORFOrder.length > 1)" @click="sortORFsByAlpha(false)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Sort ORFs by descending ORF IDs'"></b-icon-sort-alpha-down-alt>
             <b-icon-arrows-collapse v-if="!orf_stack_compact_mode" @click="setORFStackCompact(!orf_stack_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Collapse ORFs into one row'"></b-icon-arrows-collapse>
             <b-icon-arrows-expand v-if="orf_stack_compact_mode" @click="setORFStackCompact(!orf_stack_compact_mode)" aria-hidden="true" style="cursor: pointer;" v-b-tooltip.hover.window.top="'Expand ORFs into individual rows'"></b-icon-arrows-expand>
-            <b-dropdown id="orfs_dropdown" v-if="!orf_stack_disabled && (mainData.isoformData.is_genomeprot)" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.top="'Configure options for the ORF stack'">
+            <b-dropdown id="orfs_dropdown" v-if="!orf_stack_disabled && (mainData.isoformData.is_genomeprot) && !orf_stack_compact_mode && show_stack" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible" v-b-tooltip.hover.window.top="'Configure options for the ORF stack'">
                 <template #button-content>
                     <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
                 </template>
@@ -459,7 +459,7 @@ Requires mainData object which is used here to update the relevant data other co
         <!-- Splice graph label -->
         <b-col class="text-center" cols="3" style="white-space: nowrap;">
             <span><b>Splice graph</b>:</span>
-            <b-dropdown id="splice_graph_dropdown" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible; vertical-align: -0.15em;" v-b-tooltip.hover.window.right="'Configure the splice graph'">
+            <b-dropdown id="splice_graph_dropdown" toggle-class="text-decoration-none" size="sm" variant="light" no-caret style="overflow: visible" v-b-tooltip.hover.window.right="'Configure the splice graph'">
                 <template #button-content>
                     <b-icon-gear-fill class="icon float-left"></b-icon-gear-fill>
                 </template>
@@ -3218,6 +3218,10 @@ export default
         // Find the smallest index of the element in an array of ascending numbers that's larger than a value.
         lower_bound(arr, val)
         {
+            // If the array is empty, return -1 (no element found)
+            if (arr.length === 0)
+                return -1;
+
             let lo = 0, hi = arr.length - 1;
 
             // If the largest element in the array is not bigger than the value, return -1 (no element found)
@@ -3553,10 +3557,16 @@ export default
             }
 
             let orfs_found = false;
-            if (this.mainData.isoformData && this.mainData.isoformData.allIsoforms)
+            if (this.mainData.isoformData)
             {
+                let isoforms = [];
+                if (this.mainData.isoformData.allIsoforms)
+                    isoforms = isoforms.concat(this.mainData.isoformData.allIsoforms);
+                if (this.mainData.isoformData.isoformList)
+                    isoforms = isoforms.concat(this.mainData.isoformData.isoformList);
+
                 let is_reverse_strand = (this.baseAxis.strand !== '+');
-                for (var isoform of this.mainData.isoformData.allIsoforms)
+                for (var isoform of isoforms)
                 {
                     if (!isoform || (this.transcript_ids_to_predict_orfs.indexOf(isoform.transcriptID) === -1))
                         continue;
@@ -3639,84 +3649,6 @@ export default
                 this.is_predict_orfs_button_clicked = true;
                 this.$bvModal.msgBoxOk("No ORFs were predicted from the current settings.");
                 return;
-            }
-
-            if (this.mainData.isoformData && this.mainData.isoformData.isoformList)
-            {
-                let is_reverse_strand = (this.baseAxis.strand !== '+');
-                for (var isoform of this.mainData.isoformData.isoformList)
-                {
-                    if (!isoform || (this.transcript_ids_to_predict_orfs.indexOf(isoform.transcriptID) === -1))
-                        continue;
-
-                    let exon_ranges = JSON.parse(JSON.stringify(isoform.exonRanges));
-                    exon_ranges.sort((block0, block1) => block0[0] - block1[0]);
-
-                    // Each transcript exon can only overlap with one region to predict ORFs from
-                    let transcript_seq = '';
-                    for (let i = 0; i < exon_ranges.length; ++i)
-                    {
-                        let [exon_start, exon_end] = exon_ranges[i];
-                        let j = 0, region_start = 0, region_end = 0;
-                        while (j < this.regions_to_predict_orfs.length)
-                        {
-                            [region_start, region_end] = this.regions_to_predict_orfs[j];
-                            if (!((region_end < exon_start) || (region_start > exon_end)))
-                                break;
-                            ++j;
-                        }
-                        if (j === this.regions_to_predict_orfs.length)
-                        {
-                            this.$bvModal.msgBoxOk("Error: Transcript exon does not belong to any region to predict ORFs from. This error should not occur.");
-                            return;
-                        }
-                        let region_seq = results[j].substring(exon_start - region_start, exon_end - region_start + 1);
-                        transcript_seq += region_seq;
-                    }
-
-                    if (is_reverse_strand)
-                        transcript_seq = transcript_seq.split('').reverse().join('');
-
-                    // Convert the predicted ORF regions back to spliced genomic coordinates
-                    let predicted_orf_regions = this.find_orfs(transcript_seq, start_codons, stop_codons, min_orf_aa_length);
-                    if (is_reverse_strand)
-                    {
-                        for (let i = 0; i < predicted_orf_regions.length; ++i)
-                        {
-                            let predicted_orf_region = predicted_orf_regions[i];
-                            if (predicted_orf_region.length !== 2)
-                                continue;
-
-                            for (let j = 0; j < predicted_orf_region.length; ++j)
-                                predicted_orf_region[j] = transcript_seq.length - 1 - predicted_orf_region[j];
-
-                            predicted_orf_regions[i] = predicted_orf_region.reverse();
-                        }
-                    }
-
-                    let isoform_predicted_orf_ranges = [];
-                    for (let predicted_orf_region of predicted_orf_regions)
-                    {
-                        if (predicted_orf_region.length !== 2)
-                            continue;
-
-                        let [predicted_orf_start, predicted_orf_end] = predicted_orf_region;
-                        let genomic_orf_start = this.seq_coord_to_genomic_coord(predicted_orf_start, exon_ranges);
-                        let genomic_orf_end = this.seq_coord_to_genomic_coord(predicted_orf_end, exon_ranges);
-
-                        let genomic_orf_ranges = [];
-                        for (let exon_range of exon_ranges)
-                        {
-                            let genomic_orf_range = intersection([genomic_orf_start, genomic_orf_end], exon_range);
-                            if (genomic_orf_range.length === 2)
-                                genomic_orf_ranges.push(genomic_orf_range);
-                        }
-
-                        isoform_predicted_orf_ranges = isoform_predicted_orf_ranges.concat(genomic_orf_ranges);
-                    }
-
-                    isoform.orf = isoform_predicted_orf_ranges;
-                }
             }
 
             this.is_predict_orfs_button_clicked = true;
