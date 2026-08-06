@@ -48,7 +48,8 @@ the exact state of that page from the previous state.
     </b-navbar>
 
     <!-- Main content -->
-    <Welcome v-if="selectedView=='Welcome'" class="flex-fill"/>
+    <Welcome v-if="selectedView=='Welcome' && !is_parent_window_genomeprot" class="flex-fill"/>
+    <WelcomeGenomeProt v-else-if="selectedView=='Welcome' && is_parent_window_genomeprot" class="flex-fill"/>
     <Main :main-data="mainData" v-show="selectedView=='Main'" ref="componentMain" class="flex-fill"/>
 
     <!-- Footer contains release notes and logos. -->
