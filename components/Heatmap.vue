@@ -78,9 +78,14 @@ export default {
             let minVal = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
             let average = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
             let maxVal = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
-            let myColor = d3.scaleLinear()
-                .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
-                .domain([minVal, average, maxVal]);
+
+            // Edge case: If the minimum, average and maximum value of the heatmap cell values are identical,
+            // colour heatmap cells with the colour corresponding to the minimum cell value
+            let is_one_value_only = (minVal === average) && (average === maxVal);
+            let myColor = (!is_one_value_only) ? d3.scaleLinear()
+                            .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
+                            .domain([minVal, average, maxVal])
+                                               : function() {return colour.heatmapLow};
 
             let rows = uppercase_transcripts.length;
             let cols = samples.length;
@@ -239,9 +244,14 @@ export default {
             let minVal = this.logTransform ? this.heatmapData.logMin : this.heatmapData.minValue;
             let average = this.logTransform ? this.heatmapData.logAverage : this.heatmapData.average;
             let maxVal = this.logTransform ? this.heatmapData.logMax : this.heatmapData.maxValue;
-            let myColor = d3.scaleLinear()
-                .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
-                .domain([minVal, average, maxVal]);
+
+            // Edge case: If the minimum, average and maximum value of the heatmap cell values are identical,
+            // colour heatmap cells with the colour corresponding to the minimum cell value
+            let is_one_value_only = (minVal === average) && (average === maxVal);
+            let myColor = (!is_one_value_only) ? d3.scaleLinear()
+                            .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
+                            .domain([minVal, average, maxVal])
+                                               : function() {return colour.heatmapLow};
 
             let rows = uppercase_transcripts.length;
             let cols = samples.length;

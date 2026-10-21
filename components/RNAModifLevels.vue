@@ -78,9 +78,14 @@ export default {
             let minVal = this.rnaModifLevelData.minValue;
             let average = this.rnaModifLevelData.average;
             let maxVal = this.rnaModifLevelData.maxValue;
-            let myColor = d3.scaleLinear()
-                .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
-                .domain([minVal, average, maxVal]);
+
+            // Edge case: If the minimum, average and maximum value of the heatmap cell values are identical,
+            // colour heatmap cells with the colour corresponding to the minimum cell value
+            let is_one_value_only = (minVal === average) && (average === maxVal);
+            let myColor = (!is_one_value_only) ? d3.scaleLinear()
+                            .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
+                            .domain([minVal, average, maxVal])
+                                               : function() {return colour.heatmapLow};
 
             let rows = rowCount;
             let cols = samples.length;
@@ -223,9 +228,14 @@ export default {
             let minVal = this.rnaModifLevelData.minValue;
             let average = this.rnaModifLevelData.average;
             let maxVal = this.rnaModifLevelData.maxValue;
-            let myColor = d3.scaleLinear()
-                .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
-                .domain([minVal, average, maxVal]);
+
+            // Edge case: If the minimum, average and maximum value of the heatmap cell values are identical,
+            // colour heatmap cells with the colour corresponding to the minimum cell value
+            let is_one_value_only = (minVal === average) && (average === maxVal);
+            let myColor = (!is_one_value_only) ? d3.scaleLinear()
+                            .range([colour.heatmapLow, colour.heatmapMid, colour.heatmapHigh])
+                            .domain([minVal, average, maxVal])
+                                               : function() {return colour.heatmapLow};
 
             let rows = rowCount;
             let cols = samples.length;
