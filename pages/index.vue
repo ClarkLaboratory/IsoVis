@@ -21,21 +21,21 @@
                 </div>
             </div>
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
-                <img src="~/assets/logos/BlazeLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <img src="~/assets/logos/FlamesLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
                 <div class="card-body">
-                    <h5 class="card-title">BLAZE</h5>
-                    <p class="card-text">Identify cell barcodes from Nanopore long-read single-cell RNA-seq</p>
-                    <b-link href="https://github.com/ClarkLaboratory/BLAZE" class="btn btn-primary" target="_blank">Click here for the BLAZE GitHub repository</b-link>
+                    <h5 class="card-title">FLAMES</h5>
+                    <p class="card-text">A pipeline for performing single-cell and bulk read full-length analyses of mutations and splicing</p>
+                    <b-link href="https://github.com/mritchielab/FLAMES" class="btn btn-primary" target="_blank">Click here for the FLAMES GitHub repository</b-link>
                 </div>
             </div>
         </div>
         <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
-                <img src="~/assets/logos/NanocountLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <img src="~/assets/logos/GenomeprotLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
                 <div class="card-body">
-                    <h5 class="card-title">NanoCount</h5>
-                    <p class="card-text">Quantify isoform abundance in Nanopore direct-RNA sequencing</p>
-                    <b-link href="https://github.com/ClarkLaboratory/NanoCount" class="btn btn-primary" target="_blank">Click here for the NanoCount GitHub repository</b-link>
+                    <h5 class="card-title">GenomeProt</h5>
+                    <p class="card-text">An R Shiny website and command-line tool for performing long-read bulk RNA-seq proteogenomics analyses</p>
+                    <b-link href="https://github.com/ClarkLaboratory/GenomeProt" class="btn btn-primary" target="_blank">Click here for the GenomeProt GitHub repository</b-link>
                 </div>
             </div>
             <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
@@ -44,6 +44,24 @@
                     <h5 class="card-title">IsoLamp</h5>
                     <p class="card-text">Discovery and annotation of transcript isoforms from amplicon sequencing</p>
                     <b-link href="https://github.com/ClarkLaboratory/IsoLamp" class="btn btn-primary" target="_blank">Click here for the IsoLamp GitHub repository</b-link>
+                </div>
+            </div>
+        </div>
+        <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
+            <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
+                <img src="~/assets/logos/BlazeLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <div class="card-body">
+                    <h5 class="card-title">BLAZE</h5>
+                    <p class="card-text">Identify cell barcodes from Nanopore long-read single-cell RNA-seq</p>
+                    <b-link href="https://github.com/ClarkLaboratory/BLAZE" class="btn btn-primary" target="_blank">Click here for the BLAZE GitHub repository</b-link>
+                </div>
+            </div>
+            <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
+                <img src="~/assets/logos/NanocountLogo.png" class="card-img-top" style="max-height: 120px; max-width: 35vw; width: auto; height: auto; padding-top: 12px;">
+                <div class="card-body">
+                    <h5 class="card-title">NanoCount</h5>
+                    <p class="card-text">Quantify isoform abundance in Nanopore direct-RNA sequencing</p>
+                    <b-link href="https://github.com/ClarkLaboratory/NanoCount" class="btn btn-primary" target="_blank">Click here for the NanoCount GitHub repository</b-link>
                 </div>
             </div>
         </div>
@@ -63,8 +81,15 @@
                 </div>
             </div>
         </div>
-        <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px;">
-            <div class="card" style="width: calc(90vw + 12px); align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
+        <div class="row d-flex justify-content-center flex-nowrap" style="padding-bottom: 12px; gap: 12px">
+            <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
+                <div class="card-body">
+                    <h5 class="card-title">Explore m<sup>6</sup>A modification in human brain</h5>
+                    <p class="card-text">An R Shiny website for visualizing data from our <b-link href="https://doi.org/10.1126/sciadv.adp0783" target="_blank">human brain m<sup>6</sup>A paper</b-link></p>
+                    <b-link href="https://clarklaboratory.shinyapps.io/human_brain_m6a" class="btn btn-primary" target="_blank">Click here to go to the website</b-link>
+                </div>
+            </div>
+            <div class="card" style="width: 45vw; align-items: center; box-shadow: 0px 0px 3px 3px #888888;">
                 <div class="card-body">
                     <h5 class="card-title">NanoSplicer</h5>
                     <p class="card-text">Accurate identification of splice junctions using Nanopore squiggles</p>
