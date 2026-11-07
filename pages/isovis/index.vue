@@ -717,12 +717,14 @@ export default
             let total_count = 0;
             let max_genes = 100;
             this.options = {};
+
             for (let i = 0; (i < this.all_genes.length) && (total_count < max_genes); ++i)
             {
                 let gene = this.all_genes[i];
                 this.options[gene] = null;
                 total_count += 1;
             }
+
             this.buildDatalist();
             this.enteredGene = '';
             this.prevEnteredGene = '';
@@ -733,6 +735,8 @@ export default
             let total_count = 0;
             let max_genes = 100;
             this.options = {};
+
+            // Add genes with gene symbols
             for (let i = 0; (i < this.all_gene_names.length) && (total_count < max_genes); ++i)
             {
                 let gene_name = this.all_gene_names[i];
@@ -749,6 +753,19 @@ export default
                     }
                 }
             }
+
+            // Add genes without gene symbols
+            total_count = 0;
+            for (let i = 0; (i < this.all_genes.length) && (total_count < max_genes); ++i)
+            {
+                let gene = this.all_genes[i];
+                if (this.options[gene] === undefined)
+                {
+                    this.options[gene] = null;
+                    total_count += 1;
+                }
+            }
+
             this.clearGenomeProtGeneCacheAndOptions();
             this.buildGenomeProtDatalist();
             this.enteredGenomeProtGene = '';
